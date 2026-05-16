@@ -15,8 +15,9 @@
 ## Requirements
 
 - Windows for the WPF application and Win32 cursor routing.
-- .NET 10 SDK.
 - A NovaStar H Series / H2 reachable over UDP, normally on port `6000`.
+
+The downloadable GitHub Actions artifact is self-contained for Windows x64, so the test PC does not need a separate .NET Desktop Runtime install. Building from source still requires the .NET 10 SDK.
 
 The Core and H2 projects are intentionally cross-platform. The WPF and Win32 projects target `net10.0-windows`.
 
@@ -44,7 +45,7 @@ On a Windows machine with the .NET 10 SDK:
 .\scripts\publish-windows.ps1
 ```
 
-This restores, builds, tests, publishes the WPF app, and writes the runnable files to:
+This restores, builds, tests, publishes a self-contained Windows x64 WPF app, and writes the runnable files to:
 
 ```text
 artifacts\vp-cursor-portal-win-x64
@@ -56,7 +57,7 @@ Run:
 artifacts\vp-cursor-portal-win-x64\H2CursorRouter.App.exe
 ```
 
-If this repository is pushed to GitHub, the `Windows Build` workflow also builds, tests, publishes, and uploads a `vp-cursor-portal-win-x64` artifact from a Windows runner.
+If this repository is pushed to GitHub, the `Windows Build` workflow also builds, tests, publishes, and uploads a self-contained `vp-cursor-portal-win-x64` artifact from a Windows runner. Downloading and unzipping that artifact should be enough for use testing on a Windows x64 PC.
 
 ## Configuration
 

@@ -35,7 +35,7 @@ jobs:
           dotnet publish src\H2CursorRouter.App\H2CursorRouter.App.csproj
           --configuration Release
           --runtime win-x64
-          --self-contained false
+          --self-contained true
           --output artifacts\vp-cursor-portal-win-x64
 
       - name: Include sample config

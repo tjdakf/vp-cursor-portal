@@ -2,7 +2,7 @@ param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
     [string]$Output = "artifacts\vp-cursor-portal-win-x64",
-    [switch]$SelfContained
+    [bool]$SelfContained = $true
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,11 +17,10 @@ Write-Host "Running tests..."
 dotnet test H2CursorRouter.sln --configuration $Configuration --no-build
 
 Write-Host "Publishing WPF app..."
-$selfContainedValue = if ($SelfContained) { "true" } else { "false" }
 dotnet publish src\H2CursorRouter.App\H2CursorRouter.App.csproj `
     --configuration $Configuration `
     --runtime $Runtime `
-    --self-contained $selfContainedValue `
+    --self-contained $SelfContained `
     --output $Output
 
 Copy-Item config.sample.json $Output -Force
