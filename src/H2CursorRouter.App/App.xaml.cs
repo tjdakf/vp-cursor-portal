@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Core.Configuration;
@@ -24,9 +25,14 @@ public partial class App : Application
         _runtime = new CursorRoutingRuntime(cursorService, _monitorTopology, new CursorRoutingEngine());
 
         var (configuration, configPath) = await LoadConfigurationAsync();
+        var executablePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
+        var fileLogService = new FileLogService(Path.Combine(AppContext.BaseDirectory, "logs"));
         var viewModel = new MainViewModel(
             configuration,
             configPath,
+            executablePath,
+            new WindowsStartupRegistrationService(),
+            fileLogService,
             new H2DeviceClient(),
             cursorService,
             _monitorTopology,
@@ -34,7 +40,8 @@ public partial class App : Application
             new CursorRoutingEngine(),
             new AppConfigurationValidator());
 
-        var window = new MainWindow(viewModel, _hotkeyService);
+        var startInTray = e.Args.Any(arg => string.Equals(arg, "--tray", StringComparison.OrdinalIgnoreCase));
+        var window = new MainWindow(viewModel, _hotkeyService, startInTray);
         window.Show();
     }
 

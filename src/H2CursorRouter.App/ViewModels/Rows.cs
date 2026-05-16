@@ -60,8 +60,13 @@ public sealed class LayoutRow
     };
 }
 
-public sealed class ZoneRow
+public sealed class ZoneRow : ViewModelBase
 {
+    private double _visualLeft;
+    private double _visualTop;
+    private double _visualRight;
+    private double _visualBottom;
+
     public string LayoutId { get; set; } = "";
     public string Id { get; set; } = "";
     public string DisplayName { get; set; } = "";
@@ -69,10 +74,73 @@ public sealed class ZoneRow
     public int WindowsTop { get; set; }
     public int WindowsRight { get; set; }
     public int WindowsBottom { get; set; }
-    public double VisualLeft { get; set; }
-    public double VisualTop { get; set; }
-    public double VisualRight { get; set; }
-    public double VisualBottom { get; set; }
+    public double VisualLeft
+    {
+        get => _visualLeft;
+        set
+        {
+            if (SetProperty(ref _visualLeft, value))
+            {
+                OnPropertyChanged(nameof(VisualWidth));
+            }
+        }
+    }
+
+    public double VisualTop
+    {
+        get => _visualTop;
+        set
+        {
+            if (SetProperty(ref _visualTop, value))
+            {
+                OnPropertyChanged(nameof(VisualHeight));
+            }
+        }
+    }
+
+    public double VisualRight
+    {
+        get => _visualRight;
+        set
+        {
+            if (SetProperty(ref _visualRight, value))
+            {
+                OnPropertyChanged(nameof(VisualWidth));
+            }
+        }
+    }
+
+    public double VisualBottom
+    {
+        get => _visualBottom;
+        set
+        {
+            if (SetProperty(ref _visualBottom, value))
+            {
+                OnPropertyChanged(nameof(VisualHeight));
+            }
+        }
+    }
+
+    public double VisualWidth
+    {
+        get => Math.Max(20, VisualRight - VisualLeft);
+        set
+        {
+            VisualRight = VisualLeft + Math.Max(20, value);
+            OnPropertyChanged();
+        }
+    }
+
+    public double VisualHeight
+    {
+        get => Math.Max(20, VisualBottom - VisualTop);
+        set
+        {
+            VisualBottom = VisualTop + Math.Max(20, value);
+            OnPropertyChanged();
+        }
+    }
     public bool IsVisible { get; set; } = true;
 
     public static ZoneRow FromModel(string layoutId, CursorZone zone) => new()
@@ -133,20 +201,33 @@ public sealed class PortalRow
         new EdgeRange(ToStartRatio, ToEndRatio));
 }
 
-public sealed class ProfileRow
+public sealed class ProfileRow : ViewModelBase
 {
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string? Hotkey { get; set; }
-    public string? DeviceId { get; set; }
-    public int? ScreenId { get; set; }
-    public int? PresetId { get; set; }
-    public string? PresetDisplayName { get; set; }
-    public string? CursorLayoutId { get; set; }
-    public int? StartX { get; set; }
-    public int? StartY { get; set; }
-    public int PostAckDelayMs { get; set; } = 500;
-    public bool RequireH2AckBeforeCursorLayout { get; set; } = true;
+    private string _id = "";
+    private string _name = "";
+    private string? _hotkey;
+    private string? _deviceId;
+    private int? _screenId;
+    private int? _presetId;
+    private string? _presetDisplayName;
+    private string? _cursorLayoutId;
+    private int? _startX;
+    private int? _startY;
+    private int _postAckDelayMs = 500;
+    private bool _requireH2AckBeforeCursorLayout = true;
+
+    public string Id { get => _id; set => SetProperty(ref _id, value); }
+    public string Name { get => _name; set => SetProperty(ref _name, value); }
+    public string? Hotkey { get => _hotkey; set => SetProperty(ref _hotkey, value); }
+    public string? DeviceId { get => _deviceId; set => SetProperty(ref _deviceId, value); }
+    public int? ScreenId { get => _screenId; set => SetProperty(ref _screenId, value); }
+    public int? PresetId { get => _presetId; set => SetProperty(ref _presetId, value); }
+    public string? PresetDisplayName { get => _presetDisplayName; set => SetProperty(ref _presetDisplayName, value); }
+    public string? CursorLayoutId { get => _cursorLayoutId; set => SetProperty(ref _cursorLayoutId, value); }
+    public int? StartX { get => _startX; set => SetProperty(ref _startX, value); }
+    public int? StartY { get => _startY; set => SetProperty(ref _startY, value); }
+    public int PostAckDelayMs { get => _postAckDelayMs; set => SetProperty(ref _postAckDelayMs, value); }
+    public bool RequireH2AckBeforeCursorLayout { get => _requireH2AckBeforeCursorLayout; set => SetProperty(ref _requireH2AckBeforeCursorLayout, value); }
 
     public static ProfileRow FromModel(ExecutionProfile profile) => new()
     {

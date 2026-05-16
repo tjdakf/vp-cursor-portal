@@ -52,6 +52,7 @@ public sealed class AppConfigurationValidator
         }
 
         var profileIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var hotkeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var profile in configuration.Profiles)
         {
             if (string.IsNullOrWhiteSpace(profile.Id))
@@ -84,8 +85,32 @@ public sealed class AppConfigurationValidator
             {
                 errors.Add($"Profile '{profile.Id}' post-ack delay cannot be negative.");
             }
+
+            if (!string.IsNullOrWhiteSpace(profile.Hotkey))
+            {
+                var normalizedHotkey = NormalizeHotkey(profile.Hotkey);
+                if (string.Equals(normalizedHotkey, NormalizeHotkey(configuration.Safety.EmergencyHotkey), StringComparison.OrdinalIgnoreCase))
+                {
+                    errors.Add($"Profile '{profile.Id}' hotkey conflicts with emergency unlock hotkey.");
+                }
+
+                if (hotkeys.TryGetValue(normalizedHotkey, out var existingProfileId))
+                {
+                    errors.Add($"Profiles '{existingProfileId}' and '{profile.Id}' use the same hotkey '{profile.Hotkey}'.");
+                }
+                else
+                {
+                    hotkeys[normalizedHotkey] = profile.Id;
+                }
+            }
         }
 
         return ValidationResult.Failure(errors);
     }
+
+    private static string NormalizeHotkey(string hotkey) =>
+        string.Join("+", hotkey
+            .Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Equals("Control", StringComparison.OrdinalIgnoreCase) ? "Ctrl" : part)
+            .Select(part => part.ToUpperInvariant()));
 }

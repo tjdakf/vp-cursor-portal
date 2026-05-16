@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Input;
+using H2CursorRouter.App;
 using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Core.Domain;
 using H2CursorRouter.Core.Geometry;
@@ -14,7 +17,10 @@ namespace H2CursorRouter.App.ViewModels;
 public sealed class MainViewModel : ViewModelBase
 {
     private readonly string _configPath;
+    private readonly string _executablePath;
     private readonly ConfigFileService _configFileService = new();
+    private readonly IStartupRegistrationService _startupRegistrationService;
+    private readonly FileLogService _fileLogService;
     private readonly IH2DeviceClient _h2DeviceClient;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
@@ -32,10 +38,15 @@ public sealed class MainViewModel : ViewModelBase
     private string _currentCursorPosition = "";
     private string _currentCursorZone = "";
     private string _activeProfileName = "";
+    private string _profileFilter = "";
+    private bool _startWithWindows;
 
     public MainViewModel(
         AppConfiguration configuration,
         string configPath,
+        string executablePath,
+        IStartupRegistrationService startupRegistrationService,
+        FileLogService fileLogService,
         IH2DeviceClient h2DeviceClient,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
@@ -44,6 +55,9 @@ public sealed class MainViewModel : ViewModelBase
         AppConfigurationValidator configurationValidator)
     {
         _configPath = configPath;
+        _executablePath = executablePath;
+        _startupRegistrationService = startupRegistrationService;
+        _fileLogService = fileLogService;
         _h2DeviceClient = h2DeviceClient;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
@@ -58,10 +72,15 @@ public sealed class MainViewModel : ViewModelBase
         Portals = new ObservableCollection<PortalRow>(configuration.CursorLayouts.SelectMany(layout =>
             layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal))));
         Profiles = new ObservableCollection<ProfileRow>(configuration.Profiles.Select(ProfileRow.FromModel));
+        FilteredProfiles = CollectionViewSource.GetDefaultView(Profiles);
+        FilteredProfiles.Filter = FilterProfile;
         Presets = new ObservableCollection<PresetRow>();
         Monitors = new ObservableCollection<MonitorRow>();
+        SelectedLayoutZones = new ObservableCollection<ZoneRow>();
+        SelectedLayoutPortals = new ObservableCollection<PortalRow>();
         Logs = new ObservableCollection<string>();
         ValidationErrors = new ObservableCollection<string>();
+        _startWithWindows = _startupRegistrationService.IsRegistered();
 
         RebuildPresetRowsFromProfiles();
         SelectedDevice = Devices.FirstOrDefault();
@@ -80,8 +99,11 @@ public sealed class MainViewModel : ViewModelBase
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
         AddProfileCommand = new RelayCommand(AddProfile);
         RemoveProfileCommand = new RelayCommand(RemoveSelectedProfile, () => SelectedProfile is not null);
+        DuplicateProfileCommand = new RelayCommand(DuplicateSelectedProfile, () => SelectedProfile is not null);
+        SetCurrentCursorAsStartCommand = new RelayCommand(SetCurrentCursorAsProfileStart, () => SelectedProfile is not null);
         ApplySelectedPresetToProfileCommand = new RelayCommand(ApplySelectedPresetToProfile, () => SelectedPreset is not null && SelectedProfile is not null);
         ApplySelectedLayoutToProfileCommand = new RelayCommand(ApplySelectedLayoutToProfile, () => SelectedLayout is not null && SelectedProfile is not null);
+        GeneratePortalsCommand = new RelayCommand(GeneratePortalsFromVisualAdjacency, () => SelectedLayout is not null);
         ValidateConfigurationCommand = new RelayCommand(ValidateConfiguration);
         SaveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
         ExecuteSelectedProfileCommand = new AsyncRelayCommand(ExecuteSelectedProfileAsync, () => SelectedProfile is not null);
@@ -103,7 +125,10 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<ZoneRow> Zones { get; }
     public ObservableCollection<PortalRow> Portals { get; }
     public ObservableCollection<ProfileRow> Profiles { get; }
+    public ICollectionView FilteredProfiles { get; }
     public ObservableCollection<MonitorRow> Monitors { get; }
+    public ObservableCollection<ZoneRow> SelectedLayoutZones { get; }
+    public ObservableCollection<PortalRow> SelectedLayoutPortals { get; }
     public ObservableCollection<string> Logs { get; }
     public ObservableCollection<string> ValidationErrors { get; }
 
@@ -119,8 +144,11 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand CreateLayoutFromMonitorsCommand { get; }
     public ICommand AddProfileCommand { get; }
     public ICommand RemoveProfileCommand { get; }
+    public ICommand DuplicateProfileCommand { get; }
+    public ICommand SetCurrentCursorAsStartCommand { get; }
     public ICommand ApplySelectedPresetToProfileCommand { get; }
     public ICommand ApplySelectedLayoutToProfileCommand { get; }
+    public ICommand GeneratePortalsCommand { get; }
     public ICommand ValidateConfigurationCommand { get; }
     public ICommand SaveConfigurationCommand { get; }
     public ICommand ExecuteSelectedProfileCommand { get; }
@@ -159,6 +187,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedLayout, value))
             {
+                RefreshSelectedLayoutCollections();
                 RefreshCursorZone();
                 RaiseCommandStates();
             }
@@ -228,6 +257,42 @@ public sealed class MainViewModel : ViewModelBase
 
     public string ActiveLayoutId => _routingRuntime.ActiveLayoutId ?? "";
     public bool IsRoutingEnabled => _routingRuntime.IsRoutingEnabled;
+
+    public string ProfileFilter
+    {
+        get => _profileFilter;
+        set
+        {
+            if (SetProperty(ref _profileFilter, value))
+            {
+                FilteredProfiles.Refresh();
+            }
+        }
+    }
+
+    public bool StartWithWindows
+    {
+        get => _startWithWindows;
+        set
+        {
+            if (SetProperty(ref _startWithWindows, value))
+            {
+                try
+                {
+                    _startupRegistrationService.SetRegistered(value, _executablePath, "--tray");
+                    AddLog(value
+                        ? "Registered app to start with Windows in tray mode."
+                        : "Removed app from Windows startup.");
+                }
+                catch (Exception exception)
+                {
+                    AddLog($"Failed to update Windows startup registration: {exception.Message}");
+                    _startWithWindows = _startupRegistrationService.IsRegistered();
+                    OnPropertyChanged();
+                }
+            }
+        }
+    }
 
     public async Task ExecuteProfileByIndexAsync(int index)
     {
@@ -380,6 +445,7 @@ public sealed class MainViewModel : ViewModelBase
     public void AddLog(string message)
     {
         Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}");
+        _fileLogService.Append(message);
         RuntimeStatus = message;
         RefreshRuntimeState();
     }
@@ -460,6 +526,7 @@ public sealed class MainViewModel : ViewModelBase
             IsVisible = true
         };
         Zones.Add(row);
+        SelectedLayoutZones.Add(row);
         SelectedZone = row;
     }
 
@@ -471,6 +538,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Zones.Remove(SelectedZone);
+        SelectedLayoutZones.Remove(SelectedZone);
         SelectedZone = Zones.FirstOrDefault(zone => zone.LayoutId == SelectedLayout?.Id);
     }
 
@@ -489,6 +557,7 @@ public sealed class MainViewModel : ViewModelBase
             ToZoneId = zones.ElementAtOrDefault(1)?.Id ?? zones.ElementAtOrDefault(0)?.Id ?? ""
         };
         Portals.Add(row);
+        SelectedLayoutPortals.Add(row);
         SelectedPortal = row;
     }
 
@@ -500,6 +569,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Portals.Remove(SelectedPortal);
+        SelectedLayoutPortals.Remove(SelectedPortal);
         SelectedPortal = Portals.FirstOrDefault(portal => portal.LayoutId == SelectedLayout?.Id);
     }
 
@@ -532,6 +602,7 @@ public sealed class MainViewModel : ViewModelBase
                 IsVisible = true
             };
             Zones.Add(zone);
+            SelectedLayoutZones.Add(zone);
         }
 
         AddLog("Created an editable layout from detected Windows monitors. Adjust visible flags and visual rectangles for the active H2 layout.");
@@ -550,6 +621,7 @@ public sealed class MainViewModel : ViewModelBase
             RequireH2AckBeforeCursorLayout = true
         };
         Profiles.Add(row);
+        FilteredProfiles.Refresh();
         SelectedProfile = row;
     }
 
@@ -561,7 +633,49 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Profiles.Remove(SelectedProfile);
+        FilteredProfiles.Refresh();
         SelectedProfile = Profiles.FirstOrDefault();
+    }
+
+    private void DuplicateSelectedProfile()
+    {
+        if (SelectedProfile is null)
+        {
+            return;
+        }
+
+        var copy = new ProfileRow
+        {
+            Id = $"{SelectedProfile.Id}-copy-{DateTime.Now:HHmmss}",
+            Name = $"{SelectedProfile.Name} Copy",
+            Hotkey = null,
+            DeviceId = SelectedProfile.DeviceId,
+            ScreenId = SelectedProfile.ScreenId,
+            PresetId = SelectedProfile.PresetId,
+            PresetDisplayName = SelectedProfile.PresetDisplayName,
+            CursorLayoutId = SelectedProfile.CursorLayoutId,
+            StartX = SelectedProfile.StartX,
+            StartY = SelectedProfile.StartY,
+            PostAckDelayMs = SelectedProfile.PostAckDelayMs,
+            RequireH2AckBeforeCursorLayout = SelectedProfile.RequireH2AckBeforeCursorLayout
+        };
+        Profiles.Add(copy);
+        FilteredProfiles.Refresh();
+        SelectedProfile = copy;
+        AddLog($"Duplicated profile '{copy.Name}'. Assign a hotkey before saving if needed.");
+    }
+
+    private void SetCurrentCursorAsProfileStart()
+    {
+        if (SelectedProfile is null)
+        {
+            return;
+        }
+
+        var position = _cursorService.GetPosition();
+        SelectedProfile.StartX = position.X;
+        SelectedProfile.StartY = position.Y;
+        AddLog($"Set profile '{SelectedProfile.Name}' start position to {position.X}, {position.Y}.");
     }
 
     private void ApplySelectedPresetToProfile()
@@ -589,6 +703,47 @@ public sealed class MainViewModel : ViewModelBase
         SelectedProfile.CursorLayoutId = SelectedLayout.Id;
         OnPropertyChanged(nameof(SelectedProfile));
         AddLog($"Mapped layout '{SelectedLayout.Name}' to profile '{SelectedProfile.Name}'.");
+    }
+
+    private void GeneratePortalsFromVisualAdjacency()
+    {
+        if (SelectedLayout is null)
+        {
+            return;
+        }
+
+        foreach (var portal in Portals.Where(portal => portal.LayoutId == SelectedLayout.Id).ToArray())
+        {
+            Portals.Remove(portal);
+        }
+
+        SelectedLayoutPortals.Clear();
+        var zones = Zones
+            .Where(zone => zone.LayoutId == SelectedLayout.Id && zone.IsVisible)
+            .ToArray();
+        var generated = new List<PortalRow>();
+        const double tolerance = 2.0;
+
+        for (var i = 0; i < zones.Length; i++)
+        {
+            for (var j = i + 1; j < zones.Length; j++)
+            {
+                var a = zones[i];
+                var b = zones[j];
+                AddVerticalAdjacency(a, b, tolerance, generated);
+                AddVerticalAdjacency(b, a, tolerance, generated);
+                AddHorizontalAdjacency(a, b, tolerance, generated);
+                AddHorizontalAdjacency(b, a, tolerance, generated);
+            }
+        }
+
+        foreach (var portal in generated)
+        {
+            Portals.Add(portal);
+            SelectedLayoutPortals.Add(portal);
+        }
+
+        AddLog($"Generated {generated.Count} portals for layout '{SelectedLayout.Name}' from visual adjacency.");
     }
 
     private void ValidateConfiguration()
@@ -718,6 +873,22 @@ public sealed class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsRoutingEnabled));
     }
 
+    public void MoveZoneVisual(ZoneRow zone, double deltaX, double deltaY)
+    {
+        zone.VisualLeft += deltaX;
+        zone.VisualRight += deltaX;
+        zone.VisualTop += deltaY;
+        zone.VisualBottom += deltaY;
+        SelectedZone = zone;
+    }
+
+    public void ResizeZoneVisual(ZoneRow zone, double deltaWidth, double deltaHeight)
+    {
+        zone.VisualWidth += deltaWidth;
+        zone.VisualHeight += deltaHeight;
+        SelectedZone = zone;
+    }
+
     private void RaiseCommandStates()
     {
         foreach (var command in new ICommand[]
@@ -731,8 +902,11 @@ public sealed class MainViewModel : ViewModelBase
             RemovePortalCommand,
             CreateLayoutFromMonitorsCommand,
             RemoveProfileCommand,
+            DuplicateProfileCommand,
+            SetCurrentCursorAsStartCommand,
             ApplySelectedPresetToProfileCommand,
             ApplySelectedLayoutToProfileCommand,
+            GeneratePortalsCommand,
             ExecuteSelectedProfileCommand
         })
         {
@@ -747,6 +921,136 @@ public sealed class MainViewModel : ViewModelBase
             }
         }
     }
+
+    private bool FilterProfile(object item)
+    {
+        if (item is not ProfileRow profile || string.IsNullOrWhiteSpace(ProfileFilter))
+        {
+            return true;
+        }
+
+        return Contains(profile.Id, ProfileFilter) ||
+               Contains(profile.Name, ProfileFilter) ||
+               Contains(profile.Hotkey, ProfileFilter) ||
+               Contains(profile.DeviceId, ProfileFilter) ||
+               Contains(profile.CursorLayoutId, ProfileFilter) ||
+               Contains(profile.PresetDisplayName, ProfileFilter);
+    }
+
+    private void RefreshSelectedLayoutCollections()
+    {
+        SelectedLayoutZones.Clear();
+        SelectedLayoutPortals.Clear();
+        if (SelectedLayout is null)
+        {
+            return;
+        }
+
+        foreach (var zone in Zones.Where(zone => string.Equals(zone.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedLayoutZones.Add(zone);
+        }
+
+        foreach (var portal in Portals.Where(portal => string.Equals(portal.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedLayoutPortals.Add(portal);
+        }
+    }
+
+    private static void AddVerticalAdjacency(ZoneRow left, ZoneRow right, double tolerance, ICollection<PortalRow> portals)
+    {
+        if (Math.Abs(left.VisualRight - right.VisualLeft) > tolerance)
+        {
+            return;
+        }
+
+        var overlapTop = Math.Max(left.VisualTop, right.VisualTop);
+        var overlapBottom = Math.Min(left.VisualBottom, right.VisualBottom);
+        if (overlapBottom <= overlapTop)
+        {
+            return;
+        }
+
+        portals.Add(new PortalRow
+        {
+            LayoutId = left.LayoutId,
+            FromZoneId = left.Id,
+            FromEdge = Edge.Right,
+            FromStartRatio = Ratio(overlapTop, left.VisualTop, left.VisualBottom),
+            FromEndRatio = Ratio(overlapBottom, left.VisualTop, left.VisualBottom),
+            ToZoneId = right.Id,
+            ToEdge = Edge.Left,
+            ToStartRatio = Ratio(overlapTop, right.VisualTop, right.VisualBottom),
+            ToEndRatio = Ratio(overlapBottom, right.VisualTop, right.VisualBottom)
+        });
+        portals.Add(new PortalRow
+        {
+            LayoutId = left.LayoutId,
+            FromZoneId = right.Id,
+            FromEdge = Edge.Left,
+            FromStartRatio = Ratio(overlapTop, right.VisualTop, right.VisualBottom),
+            FromEndRatio = Ratio(overlapBottom, right.VisualTop, right.VisualBottom),
+            ToZoneId = left.Id,
+            ToEdge = Edge.Right,
+            ToStartRatio = Ratio(overlapTop, left.VisualTop, left.VisualBottom),
+            ToEndRatio = Ratio(overlapBottom, left.VisualTop, left.VisualBottom)
+        });
+    }
+
+    private static void AddHorizontalAdjacency(ZoneRow top, ZoneRow bottom, double tolerance, ICollection<PortalRow> portals)
+    {
+        if (Math.Abs(top.VisualBottom - bottom.VisualTop) > tolerance)
+        {
+            return;
+        }
+
+        var overlapLeft = Math.Max(top.VisualLeft, bottom.VisualLeft);
+        var overlapRight = Math.Min(top.VisualRight, bottom.VisualRight);
+        if (overlapRight <= overlapLeft)
+        {
+            return;
+        }
+
+        portals.Add(new PortalRow
+        {
+            LayoutId = top.LayoutId,
+            FromZoneId = top.Id,
+            FromEdge = Edge.Bottom,
+            FromStartRatio = Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
+            FromEndRatio = Ratio(overlapRight, top.VisualLeft, top.VisualRight),
+            ToZoneId = bottom.Id,
+            ToEdge = Edge.Top,
+            ToStartRatio = Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
+            ToEndRatio = Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight)
+        });
+        portals.Add(new PortalRow
+        {
+            LayoutId = top.LayoutId,
+            FromZoneId = bottom.Id,
+            FromEdge = Edge.Top,
+            FromStartRatio = Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
+            FromEndRatio = Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight),
+            ToZoneId = top.Id,
+            ToEdge = Edge.Bottom,
+            ToStartRatio = Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
+            ToEndRatio = Ratio(overlapRight, top.VisualLeft, top.VisualRight)
+        });
+    }
+
+    private static double Ratio(double value, double start, double end)
+    {
+        var length = end - start;
+        if (length <= 0)
+        {
+            return 0;
+        }
+
+        var ratio = (value - start) / length;
+        return Math.Clamp(ratio, 0, 1);
+    }
+
+    private static bool Contains(string? value, string filter) =>
+        value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
 
     private static string NormalizeZoneId(string text)
     {
