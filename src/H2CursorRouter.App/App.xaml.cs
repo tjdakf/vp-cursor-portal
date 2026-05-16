@@ -23,9 +23,10 @@ public partial class App : Application
         _hotkeyService = new Win32HotkeyService();
         _runtime = new CursorRoutingRuntime(cursorService, _monitorTopology, new CursorRoutingEngine());
 
-        var configuration = await LoadConfigurationAsync();
+        var (configuration, configPath) = await LoadConfigurationAsync();
         var viewModel = new MainViewModel(
             configuration,
+            configPath,
             new H2DeviceClient(),
             cursorService,
             _monitorTopology,
@@ -45,17 +46,19 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private static async Task<AppConfiguration> LoadConfigurationAsync()
+    private static async Task<(AppConfiguration Configuration, string ConfigPath)> LoadConfigurationAsync()
     {
         var configService = new ConfigFileService();
-        foreach (var path in new[] { "config.json", "config.sample.json" })
+        if (File.Exists("config.json"))
         {
-            if (File.Exists(path))
-            {
-                return await configService.LoadAsync(path);
-            }
+            return (await configService.LoadAsync("config.json"), "config.json");
         }
 
-        return SampleConfiguration.Create();
+        if (File.Exists("config.sample.json"))
+        {
+            return (await configService.LoadAsync("config.sample.json"), "config.json");
+        }
+
+        return (SampleConfiguration.Create(), "config.json");
     }
 }

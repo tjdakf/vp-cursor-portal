@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private const int ProfileHotkeyStartId = 100;
     private readonly MainViewModel _viewModel;
     private readonly IHotkeyService _hotkeyService;
+    private readonly List<int> _registeredProfileHotkeys = new();
     private HwndSource? _source;
 
     public MainWindow(MainViewModel viewModel, IHotkeyService hotkeyService)
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         _hotkeyService = hotkeyService;
+        _viewModel.HotkeysChanged += OnHotkeysChanged;
         DataContext = viewModel;
     }
 
@@ -33,14 +35,7 @@ public partial class MainWindow : Window
             _viewModel.AddLog("Failed to register emergency hotkey Ctrl+Alt+Shift+Esc.");
         }
 
-        for (var i = 0; i < _viewModel.Profiles.Count; i++)
-        {
-            var profile = _viewModel.Profiles[i];
-            if (HotkeyParser.TryParse(profile.Hotkey, out var gesture))
-            {
-                _hotkeyService.RegisterHotkey(handle, ProfileHotkeyStartId + i, gesture);
-            }
-        }
+        RegisterProfileHotkeys(handle);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -63,7 +58,40 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        _viewModel.HotkeysChanged -= OnHotkeysChanged;
         _source?.RemoveHook(WndProc);
         _viewModel.Shutdown();
+    }
+
+    private void OnHotkeysChanged(object? sender, EventArgs e)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        RegisterProfileHotkeys(handle);
+    }
+
+    private void RegisterProfileHotkeys(IntPtr handle)
+    {
+        foreach (var id in _registeredProfileHotkeys)
+        {
+            _hotkeyService.UnregisterHotkey(handle, id);
+        }
+
+        _registeredProfileHotkeys.Clear();
+        for (var i = 0; i < _viewModel.Profiles.Count; i++)
+        {
+            var profile = _viewModel.Profiles[i];
+            if (HotkeyParser.TryParse(profile.Hotkey, out var gesture))
+            {
+                var id = ProfileHotkeyStartId + i;
+                if (_hotkeyService.RegisterHotkey(handle, id, gesture))
+                {
+                    _registeredProfileHotkeys.Add(id);
+                }
+                else
+                {
+                    _viewModel.AddLog($"Failed to register profile hotkey '{profile.Hotkey}' for '{profile.Name}'.");
+                }
+            }
+        }
     }
 }

@@ -15,13 +15,17 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock Text="vp-cursor-portal" Foreground="White" FontSize="20" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding RuntimeStatus}" Foreground="#C8D1DC" Margin="0,4,0,0" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="Refresh Diagnostics" Command="{Binding RefreshDiagnosticsCommand}" Margin="0,0,10,0" Padding="12,7" />
-                <Button Grid.Column="2" Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Padding="12,7" Background="#A32929" Foreground="White" />
+                <Button Grid.Column="1" Content="Validate" Command="{Binding ValidateConfigurationCommand}" Margin="0,0,10,0" Padding="12,7" />
+                <Button Grid.Column="2" Content="Save Config" Command="{Binding SaveConfigurationCommand}" Margin="0,0,10,0" Padding="12,7" />
+                <Button Grid.Column="3" Content="Refresh Diagnostics" Command="{Binding RefreshDiagnosticsCommand}" Margin="0,0,10,0" Padding="12,7" />
+                <Button Grid.Column="4" Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Padding="12,7" Background="#A32929" Foreground="White" />
             </Grid>
         </Border>
 
@@ -33,7 +37,11 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <DataGrid ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" AutoGenerateColumns="True" IsReadOnly="False" />
-                    <Button Grid.Row="1" Content="Test / Get Presets" Command="{Binding GetPresetsCommand}" HorizontalAlignment="Right" Margin="0,10,0,0" Padding="12,7" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Add Device" Command="{Binding AddDeviceCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Remove Device" Command="{Binding RemoveDeviceCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Test / Get Presets" Command="{Binding GetPresetsCommand}" Padding="12,7" />
+                    </StackPanel>
                 </Grid>
             </TabItem>
             <TabItem Header="H2 Presets">
@@ -42,11 +50,12 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DataGrid ItemsSource="{Binding Presets}" AutoGenerateColumns="True" IsReadOnly="True" />
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                            <Button Content="Get Presets" Command="{Binding GetPresetsCommand}" Margin="0,0,10,0" Padding="12,7" />
-                            <Button Content="Load Selected Profile Preset" Command="{Binding ExecuteSelectedProfileCommand}" Padding="12,7" />
-                        </StackPanel>
+                    <DataGrid ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" AutoGenerateColumns="True" IsReadOnly="True" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Get Presets" Command="{Binding GetPresetsCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Map Preset To Profile" Command="{Binding ApplySelectedPresetToProfileCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Execute Profile" Command="{Binding ExecuteSelectedProfileCommand}" Padding="12,7" />
+                    </StackPanel>
                 </Grid>
             </TabItem>
             <TabItem Header="Monitor Diagnostics">
@@ -67,17 +76,36 @@
             <TabItem Header="Cursor Layouts">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="2*" />
-                        <RowDefinition Height="8" />
-                        <RowDefinition Height="3*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DataGrid ItemsSource="{Binding CursorLayouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="True" IsReadOnly="True" />
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding SelectedLayout.Zones}" AutoGenerateColumns="True" IsReadOnly="False" />
+                    <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="True" IsReadOnly="False" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,10">
+                        <Button Content="Add Layout" Command="{Binding AddLayoutCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Remove Layout" Command="{Binding RemoveLayoutCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Create From Monitors" Command="{Binding CreateLayoutFromMonitorsCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Map Layout To Profile" Command="{Binding ApplySelectedLayoutToProfileCommand}" Padding="12,7" />
+                    </StackPanel>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Zones}" SelectedItem="{Binding SelectedZone}" AutoGenerateColumns="True" IsReadOnly="False" />
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Add Zone" Command="{Binding AddZoneCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Remove Zone" Command="{Binding RemoveZoneCommand}" Padding="12,7" />
+                    </StackPanel>
                 </Grid>
             </TabItem>
             <TabItem Header="Portals">
                 <Grid Margin="8">
-                    <DataGrid ItemsSource="{Binding SelectedLayout.Portals}" AutoGenerateColumns="True" IsReadOnly="False" />
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DataGrid ItemsSource="{Binding Portals}" SelectedItem="{Binding SelectedPortal}" AutoGenerateColumns="True" IsReadOnly="False" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Add Portal" Command="{Binding AddPortalCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Remove Portal" Command="{Binding RemovePortalCommand}" Padding="12,7" />
+                    </StackPanel>
                 </Grid>
             </TabItem>
             <TabItem Header="Execution Profiles">
@@ -88,8 +116,25 @@
                     </Grid.RowDefinitions>
                     <DataGrid ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" AutoGenerateColumns="True" IsReadOnly="False" />
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Add Profile" Command="{Binding AddProfileCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Remove Profile" Command="{Binding RemoveProfileCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Map Selected Preset" Command="{Binding ApplySelectedPresetToProfileCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Map Selected Layout" Command="{Binding ApplySelectedLayoutToProfileCommand}" Margin="0,0,10,0" Padding="12,7" />
                         <Button Content="Execute Profile" Command="{Binding ExecuteSelectedProfileCommand}" Padding="12,7" />
                     </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Validation">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+                        <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Save Config" Command="{Binding SaveConfigurationCommand}" Padding="12,7" />
+                    </StackPanel>
+                    <ListBox Grid.Row="1" ItemsSource="{Binding ValidationErrors}" />
                 </Grid>
             </TabItem>
             <TabItem Header="Runtime">
