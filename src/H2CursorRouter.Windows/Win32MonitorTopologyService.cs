@@ -6,7 +6,7 @@ namespace H2CursorRouter.Windows;
 
 public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 {
-    private Timer? _timer;
+    private System.Threading.Timer? _timer;
     private string? _lastSignature;
 
     public event EventHandler? TopologyChanged;
@@ -55,7 +55,7 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
     {
         _lastSignature = GetTopologySignature();
         _timer?.Dispose();
-        _timer = new Timer(_ =>
+        _timer = new System.Threading.Timer(_ =>
         {
             var current = GetTopologySignature();
             if (!string.Equals(current, _lastSignature, StringComparison.Ordinal))
