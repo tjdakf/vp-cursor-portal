@@ -1,0 +1,48 @@
+name: Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-test-publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore H2CursorRouter.sln
+
+      - name: Build
+        run: dotnet build H2CursorRouter.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test H2CursorRouter.sln --configuration Release --no-build
+
+      - name: Publish Windows app
+        run: >
+          dotnet publish src\H2CursorRouter.App\H2CursorRouter.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained false
+          --output artifacts\vp-cursor-portal-win-x64
+
+      - name: Include sample config
+        run: copy config.sample.json artifacts\vp-cursor-portal-win-x64\config.sample.json
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vp-cursor-portal-win-x64
+          path: artifacts\vp-cursor-portal-win-x64

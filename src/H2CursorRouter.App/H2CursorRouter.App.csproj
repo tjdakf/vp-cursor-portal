@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\H2CursorRouter.Core\H2CursorRouter.Core.csproj" />
+    <ProjectReference Include="..\H2CursorRouter.H2\H2CursorRouter.H2.csproj" />
+    <ProjectReference Include="..\H2CursorRouter.Windows\H2CursorRouter.Windows.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,11 @@
+using H2CursorRouter.Core.Domain;
+using H2CursorRouter.Core.Geometry;
+using H2CursorRouter.Core.Profiles;
+
+namespace H2CursorRouter.Core.Configuration;
+
+public sealed record AppConfiguration(
+    IReadOnlyList<H2DeviceConfig> Devices,
+    IReadOnlyList<CursorLayout> CursorLayouts,
+    IReadOnlyList<ExecutionProfile> Profiles,
+    SafetySettings Safety);

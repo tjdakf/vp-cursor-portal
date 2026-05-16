@@ -1,0 +1,74 @@
+{
+  "devices": [
+    {
+      "id": "h2-main",
+      "name": "Main H2",
+      "host": "192.168.0.100",
+      "port": 6000,
+      "deviceId": 0,
+      "timeoutMs": 1000
+    }
+  ],
+  "cursorLayouts": [
+    {
+      "id": "layout-monitor-1-3",
+      "name": "Monitor 1 to Monitor 3",
+      "zones": [
+        {
+          "id": "MONITOR_1",
+          "displayName": "Monitor 1",
+          "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "isVisible": true
+        },
+        {
+          "id": "MONITOR_3",
+          "displayName": "Monitor 3",
+          "windowsRect": { "left": 3840, "top": 0, "right": 5760, "bottom": 1080 },
+          "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
+          "isVisible": true
+        }
+      ],
+      "portals": [
+        {
+          "fromZoneId": "MONITOR_1",
+          "fromEdge": "Right",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_3",
+          "toEdge": "Left",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        },
+        {
+          "fromZoneId": "MONITOR_3",
+          "fromEdge": "Left",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_1",
+          "toEdge": "Right",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "preset-1-layout-1-3",
+      "name": "H2 Preset 1 + Monitor 1/3 Cursor",
+      "hotkey": "Ctrl+Alt+1",
+      "h2Preset": {
+        "deviceId": "h2-main",
+        "screenId": 0,
+        "presetId": 0,
+        "displayName": "Preset 1 / presetId 0"
+      },
+      "cursorLayoutId": "layout-monitor-1-3",
+      "startPosition": { "x": 960, "y": 540 },
+      "postAckDelayMs": 500,
+      "requireH2AckBeforeCursorLayout": true
+    }
+  ],
+  "safety": {
+    "emergencyHotkey": "Ctrl+Alt+Shift+Esc",
+    "disableRoutingOnMonitorTopologyChange": true,
+    "startWithRoutingDisabled": true
+  }
+}
