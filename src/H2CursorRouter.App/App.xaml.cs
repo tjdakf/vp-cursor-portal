@@ -10,7 +10,7 @@ using H2CursorRouter.Windows;
 
 namespace H2CursorRouter.App;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private CursorRoutingRuntime? _runtime;
     private IMonitorTopologyService? _monitorTopology;
