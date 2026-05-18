@@ -86,6 +86,24 @@ public static class SampleConfiguration
             ],
             new CursorPoint(960, 540));
 
+        var layout123Stack = new CursorLayout(
+            "layout-monitor-1-2-3",
+            "Monitor 1 Large + Monitor 2/3 Stack",
+            [
+                monitor1 with { VisualRect = new VisualRect(0, 0, 3840, 2160) },
+                monitor2 with { VisualRect = new VisualRect(3840, 0, 5760, 1080) },
+                monitor3 with { VisualRect = new VisualRect(3840, 1080, 5760, 2160) }
+            ],
+            [
+                new CursorPortal("DISPLAY2", Edge.Right, new EdgeRange(0.0, 0.5), "DISPLAY1", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY1", Edge.Left, new EdgeRange(0.0, 1.0), "DISPLAY2", Edge.Right, new EdgeRange(0.0, 0.5)),
+                new CursorPortal("DISPLAY2", Edge.Right, new EdgeRange(0.5, 1.0), "DISPLAY3", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY3", Edge.Left, new EdgeRange(0.0, 1.0), "DISPLAY2", Edge.Right, new EdgeRange(0.5, 1.0)),
+                new CursorPortal("DISPLAY1", Edge.Bottom, new EdgeRange(0.0, 1.0), "DISPLAY3", Edge.Top, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY3", Edge.Top, new EdgeRange(0.0, 1.0), "DISPLAY1", Edge.Bottom, new EdgeRange(0.0, 1.0))
+            ],
+            new CursorPoint(960, 540));
+
         var profiles = new[]
         {
             new ExecutionProfile(
@@ -123,9 +141,18 @@ public static class SampleConfiguration
                 "layout-monitor-1-2",
                 new CursorPoint(960, 540),
                 500,
+                true),
+            new ExecutionProfile(
+                "preset-1-layout-1-2-3",
+                "Preset 1 + Monitor 1 Large 2/3 Stack",
+                "Ctrl+Alt+5",
+                preset,
+                "layout-monitor-1-2-3",
+                new CursorPoint(960, 540),
+                500,
                 true)
         };
 
-        return new AppConfiguration([device], [layout13, layout31Reversed, layout2, layout12], profiles, SafetySettings.Default);
+        return new AppConfiguration([device], [layout13, layout31Reversed, layout2, layout12, layout123Stack], profiles, SafetySettings.Default);
     }
 }
