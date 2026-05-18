@@ -3,7 +3,7 @@
     {
       "id": "h2-main",
       "name": "Main H2",
-      "host": "192.168.0.100",
+      "host": "192.168.0.11",
       "port": 6000,
       "deviceId": 0,
       "timeoutMs": 1000
@@ -12,7 +12,7 @@
   "cursorLayouts": [
     {
       "id": "layout-monitor-1-3",
-      "name": "Monitor 1 to Monitor 3",
+      "name": "Monitor 1 <-> Monitor 3",
       "zones": [
         {
           "id": "MONITOR_1",
@@ -46,13 +46,107 @@
           "toEdge": "Right",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         }
-      ]
+      ],
+      "defaultStartPosition": { "x": 960, "y": 540 }
+    },
+    {
+      "id": "layout-monitor-3-1-reversed",
+      "name": "Monitor 3 <-> Monitor 1 Reversed",
+      "zones": [
+        {
+          "id": "MONITOR_3",
+          "displayName": "Monitor 3",
+          "windowsRect": { "left": 3840, "top": 0, "right": 5760, "bottom": 1080 },
+          "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "isVisible": true
+        },
+        {
+          "id": "MONITOR_1",
+          "displayName": "Monitor 1",
+          "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
+          "isVisible": true
+        }
+      ],
+      "portals": [
+        {
+          "fromZoneId": "MONITOR_3",
+          "fromEdge": "Right",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_1",
+          "toEdge": "Left",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        },
+        {
+          "fromZoneId": "MONITOR_1",
+          "fromEdge": "Left",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_3",
+          "toEdge": "Right",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        }
+      ],
+      "defaultStartPosition": { "x": 4800, "y": 540 }
+    },
+    {
+      "id": "layout-monitor-2",
+      "name": "Monitor 2 Only",
+      "zones": [
+        {
+          "id": "MONITOR_2",
+          "displayName": "Monitor 2",
+          "windowsRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
+          "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "isVisible": true
+        }
+      ],
+      "portals": [],
+      "defaultStartPosition": { "x": 2880, "y": 540 }
+    },
+    {
+      "id": "layout-monitor-1-2",
+      "name": "Monitor 1 <-> Monitor 2",
+      "zones": [
+        {
+          "id": "MONITOR_1",
+          "displayName": "Monitor 1",
+          "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
+          "isVisible": true
+        },
+        {
+          "id": "MONITOR_2",
+          "displayName": "Monitor 2",
+          "windowsRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
+          "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
+          "isVisible": true
+        }
+      ],
+      "portals": [
+        {
+          "fromZoneId": "MONITOR_1",
+          "fromEdge": "Right",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_2",
+          "toEdge": "Left",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        },
+        {
+          "fromZoneId": "MONITOR_2",
+          "fromEdge": "Left",
+          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
+          "toZoneId": "MONITOR_1",
+          "toEdge": "Right",
+          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
+        }
+      ],
+      "defaultStartPosition": { "x": 960, "y": 540 }
     }
   ],
   "profiles": [
     {
       "id": "preset-1-layout-1-3",
-      "name": "H2 Preset 1 + Monitor 1/3 Cursor",
+      "name": "Preset 1 + Monitor 1/3 Tunnel",
       "hotkey": "Ctrl+Alt+1",
       "h2Preset": {
         "deviceId": "h2-main",
@@ -61,6 +155,51 @@
         "displayName": "Preset 1 / presetId 0"
       },
       "cursorLayoutId": "layout-monitor-1-3",
+      "startPosition": { "x": 960, "y": 540 },
+      "postAckDelayMs": 500,
+      "requireH2AckBeforeCursorLayout": true
+    },
+    {
+      "id": "preset-1-layout-3-1-reversed",
+      "name": "Preset 1 + Monitor 3/1 Tunnel Reversed",
+      "hotkey": "Ctrl+Alt+2",
+      "h2Preset": {
+        "deviceId": "h2-main",
+        "screenId": 0,
+        "presetId": 0,
+        "displayName": "Preset 1 / presetId 0"
+      },
+      "cursorLayoutId": "layout-monitor-3-1-reversed",
+      "startPosition": { "x": 4800, "y": 540 },
+      "postAckDelayMs": 500,
+      "requireH2AckBeforeCursorLayout": true
+    },
+    {
+      "id": "preset-1-layout-2",
+      "name": "Preset 1 + Monitor 2 Only",
+      "hotkey": "Ctrl+Alt+3",
+      "h2Preset": {
+        "deviceId": "h2-main",
+        "screenId": 0,
+        "presetId": 0,
+        "displayName": "Preset 1 / presetId 0"
+      },
+      "cursorLayoutId": "layout-monitor-2",
+      "startPosition": { "x": 2880, "y": 540 },
+      "postAckDelayMs": 500,
+      "requireH2AckBeforeCursorLayout": true
+    },
+    {
+      "id": "preset-1-layout-1-2",
+      "name": "Preset 1 + Monitor 1/2 Tunnel",
+      "hotkey": "Ctrl+Alt+4",
+      "h2Preset": {
+        "deviceId": "h2-main",
+        "screenId": 0,
+        "presetId": 0,
+        "displayName": "Preset 1 / presetId 0"
+      },
+      "cursorLayoutId": "layout-monitor-1-2",
       "startPosition": { "x": 960, "y": 540 },
       "postAckDelayMs": 500,
       "requireH2AckBeforeCursorLayout": true
