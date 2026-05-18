@@ -26,7 +26,8 @@ public sealed class H2ResponseParser
                     continue;
                 }
 
-                var command = item.TryGetProperty("cmd", out var commandElement)
+                var command = item.TryGetProperty("cmd", out var commandElement) &&
+                              commandElement.ValueKind == JsonValueKind.String
                     ? commandElement.GetString()
                     : null;
                 if (!string.Equals(command, expectedCommand, StringComparison.OrdinalIgnoreCase))
@@ -37,6 +38,13 @@ public sealed class H2ResponseParser
                 if (!item.TryGetProperty("ack", out var ackElement))
                 {
                     return H2AckResult.Failure($"H2 response for '{expectedCommand}' did not include an ack.", command);
+                }
+
+                if (ackElement.ValueKind != JsonValueKind.String)
+                {
+                    return H2AckResult.Failure(
+                        $"H2 command '{expectedCommand}' returned non-string ack value '{ackElement}'.",
+                        command);
                 }
 
                 var ack = ackElement.GetString()?.Trim();

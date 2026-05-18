@@ -76,4 +76,33 @@ public sealed class ValidationAndProfileTests
 
         Assert.True(result.IsValid, string.Join("; ", result.Errors));
     }
+
+    [Fact]
+    public void ConfigDocumentHandlesMissingCollectionsBeforeValidation()
+    {
+        var configuration = new ConfigDocument(null, null, null, null).ToRuntime();
+
+        Assert.Empty(configuration.Devices);
+        Assert.Empty(configuration.CursorLayouts);
+        Assert.Empty(configuration.Profiles);
+        Assert.Equal(SafetySettings.Default, configuration.Safety);
+    }
+
+    [Fact]
+    public void ValidationRejectsDuplicateProfileHotkeys()
+    {
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [
+                new ExecutionProfile("one", "One", "Ctrl+Alt+1", null, "layout-a", null, 0, true),
+                new ExecutionProfile("two", "Two", "Control+Alt+1", null, "layout-b", null, 0, true)
+            ],
+            SafetySettings.Default);
+
+        var result = new AppConfigurationValidator().Validate(configuration);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.Contains("same hotkey", StringComparison.OrdinalIgnoreCase));
+    }
 }

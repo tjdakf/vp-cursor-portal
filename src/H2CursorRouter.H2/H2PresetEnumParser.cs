@@ -27,7 +27,7 @@ public sealed class H2PresetEnumParser
 
             var deviceId = TryGetInt32(screen, "deviceId") ?? 0;
             var screenId = TryGetInt32(screen, "screenId") ?? 0;
-            if (!screen.TryGetProperty("presets", out var presetsElement) ||
+            if (!TryGetProperty(screen, "presets", out var presetsElement) ||
                 presetsElement.ValueKind != JsonValueKind.Array)
             {
                 continue;
@@ -46,8 +46,9 @@ public sealed class H2PresetEnumParser
                     continue;
                 }
 
-                var name = presetElement.TryGetProperty("name", out var nameElement)
-                    ? nameElement.GetString()
+                var name = TryGetProperty(presetElement, "name", out var nameElement) &&
+                           nameElement.ValueKind == JsonValueKind.String
+                    ? nameElement.GetString()?.Trim()
                     : null;
                 presets.Add(new H2PresetInfo(deviceId, screenId, presetId.Value, name));
             }
@@ -58,7 +59,7 @@ public sealed class H2PresetEnumParser
 
     private static int? TryGetInt32(JsonElement element, string propertyName)
     {
-        if (!element.TryGetProperty(propertyName, out var value))
+        if (!TryGetProperty(element, propertyName, out var value))
         {
             return null;
         }
@@ -69,5 +70,25 @@ public sealed class H2PresetEnumParser
             JsonValueKind.String when int.TryParse(value.GetString(), out var number) => number,
             _ => null
         };
+    }
+
+    private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement value)
+    {
+        if (element.TryGetProperty(propertyName, out value))
+        {
+            return true;
+        }
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name.Trim(), propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 }

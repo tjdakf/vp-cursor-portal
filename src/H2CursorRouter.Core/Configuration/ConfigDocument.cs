@@ -5,16 +5,16 @@ using H2CursorRouter.Core.Profiles;
 namespace H2CursorRouter.Core.Configuration;
 
 public sealed record ConfigDocument(
-    IReadOnlyList<ConfigDevice> Devices,
-    IReadOnlyList<CursorLayout> CursorLayouts,
-    IReadOnlyList<ExecutionProfile> Profiles,
-    SafetySettings Safety)
+    IReadOnlyList<ConfigDevice>? Devices,
+    IReadOnlyList<CursorLayout>? CursorLayouts,
+    IReadOnlyList<ExecutionProfile>? Profiles,
+    SafetySettings? Safety)
 {
     public AppConfiguration ToRuntime() => new(
-        Devices.Select(device => device.ToRuntime()).ToArray(),
-        CursorLayouts,
-        Profiles,
-        Safety);
+        (Devices ?? Array.Empty<ConfigDevice>()).Select(device => device.ToRuntime()).ToArray(),
+        CursorLayouts ?? Array.Empty<CursorLayout>(),
+        Profiles ?? Array.Empty<ExecutionProfile>(),
+        Safety ?? SafetySettings.Default);
 
     public static ConfigDocument FromRuntime(AppConfiguration configuration) => new(
         configuration.Devices.Select(ConfigDevice.FromRuntime).ToArray(),

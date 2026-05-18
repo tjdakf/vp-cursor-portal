@@ -38,14 +38,24 @@ public sealed class H2ResponseParserTests
     }
 
     [Fact]
+    public void AckParserRejectsNonStringAckWithoutThrowing()
+    {
+        var result = _parser.ParseAck("[{\"cmd\":\"W0605\",\"deviceId\":0,\"ack\":0}]", "W0605");
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("non-string ack", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void PresetEnumParserReturnsPresetRows()
     {
-        const string json = "[{\"deviceId\":0,\"screenId\":0,\"presets\":[{\"name\":\"preset1\",\"presetId\":0},{\"name\":\"preset2\",\"presetId\":1}]}]";
+        const string json = "[{\"deviceId\":0,\"screenId\":0,\"presets\":[{\"name\":\"preset1\",\"presetId\":0},{\"name\":\" preset2\",\" presetId \":1}]}]";
 
         var presets = new H2PresetEnumParser().Parse(json);
 
         Assert.Equal(2, presets.Count);
         Assert.Equal(1, presets[0].FriendlyPresetNumber);
         Assert.Equal("preset1 / Preset 1 / presetId 0", presets[0].DisplayName);
+        Assert.Equal("preset2 / Preset 2 / presetId 1", presets[1].DisplayName);
     }
 }

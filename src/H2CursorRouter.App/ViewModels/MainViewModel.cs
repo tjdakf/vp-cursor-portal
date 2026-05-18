@@ -28,6 +28,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly CursorRoutingEngine _routingEngine;
     private readonly AppConfigurationValidator _configurationValidator;
     private readonly H2PresetEnumParser _presetEnumParser = new();
+    private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
     private DeviceRow? _selectedDevice;
     private PresetRow? _selectedPreset;
     private LayoutRow? _selectedLayout;
@@ -301,8 +302,9 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        SelectedProfile = Profiles[index];
-        await ExecuteSelectedProfileAsync();
+        var profile = Profiles[index];
+        SelectedProfile = profile;
+        await ExecuteProfileAsync(profile);
     }
 
     public async Task ExecuteSelectedProfileAsync()
@@ -312,6 +314,14 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        await ExecuteProfileAsync(SelectedProfile);
+    }
+
+    private async Task ExecuteProfileAsync(ProfileRow profileRow)
+    {
+        await _profileExecutionLock.WaitAsync();
+        try
+        {
         var configuration = BuildConfiguration();
         var validation = _configurationValidator.Validate(configuration);
         ShowValidation(validation);
@@ -321,7 +331,7 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var profile = SelectedProfile.ToModel();
+        var profile = profileRow.ToModel();
         ActiveProfileName = profile.Name;
         AddLog($"Executing profile '{profile.Name}'.");
         StopRouting(clearLayout: profile.CursorLayoutId is not null);
@@ -379,6 +389,11 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         RefreshRuntimeState();
+        }
+        finally
+        {
+            _profileExecutionLock.Release();
+        }
     }
 
     public async Task GetPresetsAsync()
@@ -391,7 +406,7 @@ public sealed class MainViewModel : ViewModelBase
 
         var device = SelectedDevice.ToModel();
         AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
-        var result = await _h2DeviceClient.GetPresetEnumAsync(device);
+        var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, SelectedDevice.PresetEnumScreenId);
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
         {
             AddLog($"Preset enum request failed: {result.Message}");

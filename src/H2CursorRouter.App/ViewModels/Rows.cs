@@ -12,6 +12,7 @@ public sealed class DeviceRow
     public string Host { get; set; } = "";
     public int Port { get; set; } = H2DeviceConfig.DefaultPort;
     public int DeviceId { get; set; }
+    public int PresetEnumScreenId { get; set; }
     public int TimeoutMs { get; set; } = 1000;
 
     public static DeviceRow FromModel(H2DeviceConfig device) => new()
