@@ -8,7 +8,7 @@
 - Pure cursor geometry and routing engine with visible zones, hidden-zone rejection, outside-zone rejection, full-edge portals, segmented portals, and ratio-based mapping.
 - H2 command builder/parser for `W0605` load preset and `R0600` get preset enum JSON.
 - UDP H2 client using `System.Net.Sockets`, timeouts, ACK validation, and serialized in-flight commands.
-- WPF shell with sections for H2 device settings, presets, monitor diagnostics, cursor layouts, portals, profiles, runtime controls, and logs.
+- WPF shell with a dashboard-first workflow for the five field-test profiles, H2 device settings, presets, monitor diagnostics, cursor layouts, profiles, advanced portal editing, runtime controls, and logs.
 - Win32 cursor, monitor topology, and hotkey integration behind interfaces.
 - Mandatory emergency unlock path through `Ctrl+Alt+Shift+Esc` and the UI button.
 
@@ -57,7 +57,15 @@ Run:
 artifacts\vp-cursor-portal-win-x64\H2CursorRouter.App.exe
 ```
 
-If this repository is pushed to GitHub, the `Windows Build` workflow also builds, tests, publishes, and uploads a self-contained `vp-cursor-portal-win-x64` artifact from a Windows runner. Downloading and unzipping that artifact should be enough for use testing on a Windows x64 PC.
+If this repository is pushed to GitHub, the `Windows Build` workflow also builds, tests, publishes, and uploads a self-contained `vp-cursor-portal-win-x64` artifact from a Windows runner.
+
+Field-test handoff flow:
+
+1. Open the GitHub Actions run named `Windows Build`.
+2. Download the `vp-cursor-portal-win-x64` artifact.
+3. Unzip it on the Windows x64 test PC.
+4. Run `H2CursorRouter.App.exe`.
+5. If the test PC already has `config.json`, decide whether to keep it or use the dashboard action to reset the in-memory configuration to the bundled sample, then save.
 
 ## Configuration
 
@@ -68,6 +76,8 @@ Preset 1 / presetId 0
 ```
 
 For profile execution with both an H2 preset and cursor layout, the app sends `W0605`, waits for `ack:"Ok"`, waits `postAckDelayMs`, applies the cursor layout, moves to the profile start position or fallback start point, then starts polling-based routing.
+
+The dashboard `Reset To Bundled Sample` action reloads `SampleConfiguration.Create()` into memory only. It does not overwrite `config.json` until `Save Config` succeeds.
 
 ## Safety
 

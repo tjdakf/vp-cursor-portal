@@ -39,6 +39,8 @@ public sealed class MainViewModel : ViewModelBase
     private string _currentCursorPosition = "";
     private string _currentCursorZone = "";
     private string _activeProfileName = "";
+    private string _lastH2AckStatus = "No H2 command sent yet.";
+    private string _lastRoutingEvent = "Routing disabled on startup.";
     private string _profileFilter = "";
     private bool _startWithWindows;
     private double _layoutPreviewScale = 0.16;
@@ -74,6 +76,7 @@ public sealed class MainViewModel : ViewModelBase
         Portals = new ObservableCollection<PortalRow>(configuration.CursorLayouts.SelectMany(layout =>
             layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal))));
         Profiles = new ObservableCollection<ProfileRow>(configuration.Profiles.Select(ProfileRow.FromModel));
+        DashboardProfiles = new ObservableCollection<ProfileRow>();
         FilteredProfiles = CollectionViewSource.GetDefaultView(Profiles);
         FilteredProfiles.Filter = FilterProfile;
         Presets = new ObservableCollection<PresetRow>();
@@ -111,12 +114,15 @@ public sealed class MainViewModel : ViewModelBase
         ValidateConfigurationCommand = new RelayCommand(ValidateConfiguration);
         SaveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
         ExecuteSelectedProfileCommand = new AsyncRelayCommand(ExecuteSelectedProfileAsync, () => SelectedProfile is not null);
+        ExecuteProfileCommand = new AsyncRelayCommand<ProfileRow>(ExecuteProfileFromCommandAsync, profile => profile is not null);
         EmergencyUnlockCommand = new RelayCommand(EmergencyUnlock);
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
         RefreshDiagnosticsCommand = new RelayCommand(RefreshDiagnostics);
+        ResetToSampleConfigurationCommand = new RelayCommand(ResetToSampleConfiguration);
 
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
         RefreshDiagnostics();
+        RefreshDashboardProfiles();
         ValidateConfiguration();
         AddLog($"Application started with routing disabled. Config path: {_configPath}");
     }
@@ -129,6 +135,7 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<ZoneRow> Zones { get; }
     public ObservableCollection<PortalRow> Portals { get; }
     public ObservableCollection<ProfileRow> Profiles { get; }
+    public ObservableCollection<ProfileRow> DashboardProfiles { get; }
     public ICollectionView FilteredProfiles { get; }
     public ObservableCollection<MonitorRow> Monitors { get; }
     public ObservableCollection<ZoneRow> SelectedLayoutZones { get; }
@@ -158,9 +165,11 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand ValidateConfigurationCommand { get; }
     public ICommand SaveConfigurationCommand { get; }
     public ICommand ExecuteSelectedProfileCommand { get; }
+    public ICommand ExecuteProfileCommand { get; }
     public ICommand EmergencyUnlockCommand { get; }
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
+    public ICommand ResetToSampleConfigurationCommand { get; }
 
     public DeviceRow? SelectedDevice
     {
@@ -231,7 +240,6 @@ public sealed class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedProfile, value))
             {
-                ActiveProfileName = value?.Name ?? "";
                 RaiseCommandStates();
             }
         }
@@ -262,7 +270,37 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     public string ActiveLayoutId => _routingRuntime.ActiveLayoutId ?? "";
+    public string ActiveLayoutName
+    {
+        get
+        {
+            var activeLayoutId = _routingRuntime.ActiveLayoutId;
+            if (string.IsNullOrWhiteSpace(activeLayoutId))
+            {
+                return "None";
+            }
+
+            return Layouts.FirstOrDefault(layout => string.Equals(layout.Id, activeLayoutId, StringComparison.OrdinalIgnoreCase))?.Name
+                   ?? activeLayoutId;
+        }
+    }
+
     public bool IsRoutingEnabled => _routingRuntime.IsRoutingEnabled;
+    public string RoutingStateText => IsRoutingEnabled ? "Enabled" : "Disabled";
+    public string ConfigPath => _configPath;
+    public string ArtifactWorkflowHint => "GitHub Actions > Windows Build > vp-cursor-portal-win-x64 artifact";
+
+    public string LastH2AckStatus
+    {
+        get => _lastH2AckStatus;
+        private set => SetProperty(ref _lastH2AckStatus, value);
+    }
+
+    public string LastRoutingEvent
+    {
+        get => _lastRoutingEvent;
+        private set => SetProperty(ref _lastRoutingEvent, value);
+    }
 
     public string ProfileFilter
     {
@@ -336,78 +374,102 @@ public sealed class MainViewModel : ViewModelBase
         await ExecuteProfileAsync(SelectedProfile);
     }
 
+    private async Task ExecuteProfileFromCommandAsync(ProfileRow? profile)
+    {
+        if (profile is null)
+        {
+            return;
+        }
+
+        SelectedProfile = profile;
+        await ExecuteProfileAsync(profile);
+    }
+
     private async Task ExecuteProfileAsync(ProfileRow profileRow)
     {
         await _profileExecutionLock.WaitAsync();
         try
         {
-        var configuration = BuildConfiguration();
-        var validation = _configurationValidator.Validate(configuration);
-        ShowValidation(validation);
-        if (!validation.IsValid)
-        {
-            AddLog("Configuration validation failed. Fix validation messages before executing.");
-            return;
-        }
-
-        var profile = profileRow.ToModel();
-        ActiveProfileName = profile.Name;
-        AddLog($"Executing profile '{profile.Name}'.");
-        StopRouting(clearLayout: profile.CursorLayoutId is not null);
-
-        bool? h2AckOk = null;
-        if (profile.H2Preset is not null)
-        {
-            var device = configuration.Devices.FirstOrDefault(device =>
-                string.Equals(device.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
-            if (device is null)
+            var configuration = BuildConfiguration();
+            var validation = _configurationValidator.Validate(configuration);
+            ShowValidation(validation);
+            if (!validation.IsValid)
             {
-                AddLog($"Profile references missing device '{profile.H2Preset.DeviceId}'.");
+                AddLog("Configuration validation failed. Fix validation messages before executing.");
                 return;
             }
 
-            AddLog($"Sending W0605 to {device.Host}:{device.Port} screenId={profile.H2Preset.ScreenId} presetId={profile.H2Preset.PresetId}.");
-            var result = await _h2DeviceClient.LoadPresetAsync(device, profile.H2Preset.ScreenId, profile.H2Preset.PresetId);
-            h2AckOk = result.IsSuccess;
-            AddLog(result.IsSuccess ? "H2 preset load acknowledged." : $"H2 preset load failed: {result.Message}");
-            if (!string.IsNullOrWhiteSpace(result.ResponseJson))
-            {
-                AddLog($"H2 response: {result.ResponseJson}");
-            }
-        }
+            var profile = profileRow.ToModel();
+            ActiveProfileName = profile.Name;
+            AddLog($"Executing profile '{profile.Name}'.");
+            StopRouting(clearLayout: profile.CursorLayoutId is not null);
 
-        if (!ProfileExecutionPlanner.ShouldApplyCursorLayout(profile, h2AckOk))
-        {
+            bool? h2AckOk = null;
+            if (profile.H2Preset is not null)
+            {
+                var device = configuration.Devices.FirstOrDefault(device =>
+                    string.Equals(device.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
+                if (device is null)
+                {
+                    LastH2AckStatus = $"Missing device: {profile.H2Preset.DeviceId}";
+                    AddLog($"Profile references missing device '{profile.H2Preset.DeviceId}'.");
+                    return;
+                }
+
+                AddLog($"Sending W0605 to {device.Host}:{device.Port} screenId={profile.H2Preset.ScreenId} presetId={profile.H2Preset.PresetId}.");
+                var result = await _h2DeviceClient.LoadPresetAsync(device, profile.H2Preset.ScreenId, profile.H2Preset.PresetId);
+                h2AckOk = result.IsSuccess;
+                LastH2AckStatus = result.IsSuccess
+                    ? $"OK: {profile.H2Preset.DisplayName ?? $"presetId {profile.H2Preset.PresetId}"}"
+                    : $"Failed: {result.Message}";
+                AddLog(result.IsSuccess ? "H2 preset load acknowledged." : $"H2 preset load failed: {result.Message}");
+                if (!string.IsNullOrWhiteSpace(result.ResponseJson))
+                {
+                    AddLog($"H2 response: {result.ResponseJson}");
+                }
+            }
+            else
+            {
+                LastH2AckStatus = "No H2 preset in this profile.";
+            }
+
+            if (!ProfileExecutionPlanner.ShouldApplyCursorLayout(profile, h2AckOk))
+            {
+                if (profile.CursorLayoutId is not null)
+                {
+                    AddLog("Cursor layout was not applied because H2 ACK is required and did not succeed.");
+                }
+
+                RefreshRuntimeState();
+                return;
+            }
+
+            if (profile.H2Preset is not null && h2AckOk == true && profile.PostAckDelayMs > 0)
+            {
+                AddLog($"Waiting {profile.PostAckDelayMs} ms after H2 ACK before applying cursor layout.");
+                await Task.Delay(profile.PostAckDelayMs);
+            }
+
             if (profile.CursorLayoutId is not null)
             {
-                AddLog("Cursor layout was not applied because H2 ACK is required and did not succeed.");
+                var layout = configuration.CursorLayouts.FirstOrDefault(layout =>
+                    string.Equals(layout.Id, profile.CursorLayoutId, StringComparison.OrdinalIgnoreCase));
+                if (layout is null)
+                {
+                    AddLog($"Profile references missing cursor layout '{profile.CursorLayoutId}'.");
+                    return;
+                }
+
+                var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
+                AddLog($"Activating cursor layout '{layout.Name}' at start position {startPosition.X}, {startPosition.Y}.");
+                _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
+                SelectedLayout = Layouts.FirstOrDefault(row => string.Equals(row.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
+                AddLog(_routingRuntime.IsRoutingEnabled
+                    ? $"Routing started for layout '{layout.Name}'."
+                    : $"Routing did not start for layout '{layout.Name}'. See runtime log for details.");
             }
 
             RefreshRuntimeState();
-            return;
-        }
-
-        if (profile.H2Preset is not null && h2AckOk == true && profile.PostAckDelayMs > 0)
-        {
-            await Task.Delay(profile.PostAckDelayMs);
-        }
-
-        if (profile.CursorLayoutId is not null)
-        {
-            var layout = configuration.CursorLayouts.FirstOrDefault(layout =>
-                string.Equals(layout.Id, profile.CursorLayoutId, StringComparison.OrdinalIgnoreCase));
-            if (layout is null)
-            {
-                AddLog($"Profile references missing cursor layout '{profile.CursorLayoutId}'.");
-                return;
-            }
-
-            var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
-            _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
-            SelectedLayout = Layouts.FirstOrDefault(row => string.Equals(row.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
-        }
-
-        RefreshRuntimeState();
         }
         finally
         {
@@ -481,6 +543,11 @@ public sealed class MainViewModel : ViewModelBase
         Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}");
         _fileLogService.Append(message);
         RuntimeStatus = message;
+        if (IsRoutingEvent(message))
+        {
+            LastRoutingEvent = message;
+        }
+
         RefreshRuntimeState();
     }
 
@@ -491,7 +558,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             Id = index == 1 ? "h2-main" : $"h2-{index}",
             Name = index == 1 ? "Main H2" : $"H2 {index}",
-            Host = "192.168.0.100",
+            Host = "192.168.0.11",
             Port = H2DeviceConfig.DefaultPort,
             TimeoutMs = 1000
         };
@@ -723,6 +790,7 @@ public sealed class MainViewModel : ViewModelBase
         };
         Profiles.Add(row);
         FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
         SelectedProfile = row;
     }
 
@@ -735,6 +803,7 @@ public sealed class MainViewModel : ViewModelBase
 
         Profiles.Remove(SelectedProfile);
         FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
         SelectedProfile = Profiles.FirstOrDefault();
     }
 
@@ -762,8 +831,22 @@ public sealed class MainViewModel : ViewModelBase
         };
         Profiles.Add(copy);
         FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
         SelectedProfile = copy;
         AddLog($"Duplicated profile '{copy.Name}'. Assign a hotkey before saving if needed.");
+    }
+
+    private void ResetToSampleConfiguration()
+    {
+        StopRouting(clearLayout: true);
+        LoadConfigurationIntoRows(SampleConfiguration.Create());
+        ActiveProfileName = "";
+        LastH2AckStatus = "No H2 command sent since sample reset.";
+        LastRoutingEvent = "Sample configuration loaded in memory; Save Config has not been run.";
+        RefreshDiagnostics();
+        ValidateConfiguration();
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
+        AddLog("Loaded bundled sample configuration in memory. Use Save Config to write it to config.json.");
     }
 
     private void SetCurrentCursorAsProfileStart()
@@ -970,8 +1053,61 @@ public sealed class MainViewModel : ViewModelBase
 
     private void RefreshRuntimeState()
     {
+        RefreshCursorZone();
         OnPropertyChanged(nameof(ActiveLayoutId));
+        OnPropertyChanged(nameof(ActiveLayoutName));
         OnPropertyChanged(nameof(IsRoutingEnabled));
+        OnPropertyChanged(nameof(RoutingStateText));
+    }
+
+    private void LoadConfigurationIntoRows(AppConfiguration configuration)
+    {
+        Devices.Clear();
+        foreach (var device in configuration.Devices.Select(DeviceRow.FromModel))
+        {
+            Devices.Add(device);
+        }
+
+        Layouts.Clear();
+        foreach (var layout in configuration.CursorLayouts.Select(LayoutRow.FromModel))
+        {
+            Layouts.Add(layout);
+        }
+
+        Zones.Clear();
+        foreach (var zone in configuration.CursorLayouts.SelectMany(layout => layout.Zones.Select(zone => ZoneRow.FromModel(layout.Id, zone))))
+        {
+            Zones.Add(zone);
+        }
+
+        Portals.Clear();
+        foreach (var portal in configuration.CursorLayouts.SelectMany(layout => layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal))))
+        {
+            Portals.Add(portal);
+        }
+
+        Profiles.Clear();
+        foreach (var profile in configuration.Profiles.Select(ProfileRow.FromModel))
+        {
+            Profiles.Add(profile);
+        }
+
+        Presets.Clear();
+        RebuildPresetRowsFromProfiles();
+        FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
+        SelectedDevice = Devices.FirstOrDefault();
+        SelectedLayout = Layouts.FirstOrDefault();
+        SelectedProfile = Profiles.FirstOrDefault();
+    }
+
+    private void RefreshDashboardProfiles()
+    {
+        DashboardProfiles.Clear();
+        foreach (var profile in Profiles.Take(5))
+        {
+            DashboardProfiles.Add(profile);
+        }
     }
 
     public void MoveZoneVisual(ZoneRow zone, double deltaX, double deltaY)
@@ -1018,7 +1154,8 @@ public sealed class MainViewModel : ViewModelBase
             ApplySelectedPresetToProfileCommand,
             ApplySelectedLayoutToProfileCommand,
             GeneratePortalsCommand,
-            ExecuteSelectedProfileCommand
+            ExecuteSelectedProfileCommand,
+            ExecuteProfileCommand
         })
         {
             switch (command)
@@ -1028,6 +1165,9 @@ public sealed class MainViewModel : ViewModelBase
                     break;
                 case AsyncRelayCommand async:
                     async.RaiseCanExecuteChanged();
+                    break;
+                case AsyncRelayCommand<ProfileRow> asyncProfile:
+                    asyncProfile.RaiseCanExecuteChanged();
                     break;
             }
         }
@@ -1261,6 +1401,20 @@ public sealed class MainViewModel : ViewModelBase
 
     private static bool Contains(string? value, string filter) =>
         value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool IsRoutingEvent(string message) =>
+        message.Contains("Portal mapped", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Target:", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Cursor entered hidden zone", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("outside every known zone", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Activated cursor layout", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Activating cursor layout", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Routing started", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Routing did not start", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Routing stopped", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Emergency unlock", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Monitor topology changed", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("Cursor clipped", StringComparison.OrdinalIgnoreCase);
 
     private static string NormalizeZoneId(string text)
     {

@@ -16,6 +16,8 @@ public sealed class CursorRoutingRuntime : IDisposable
     private CursorPoint _lastValidPosition;
     private CursorPoint _previousPosition;
     private CursorPoint? _pendingProgrammaticMoveTarget;
+    private DateTimeOffset _lastDecisionLogAt = DateTimeOffset.MinValue;
+    private string _lastDecisionLogSignature = "";
 
     public CursorRoutingRuntime(
         ICursorService cursorService,
@@ -137,6 +139,7 @@ public sealed class CursorRoutingRuntime : IDisposable
                     case RoutingDecisionKind.RevertToLastValid:
                         if (decision.Target is not null)
                         {
+                            LogRoutingDecision(decision);
                             _cursorService.SetPosition(decision.Target.Value);
                             _previousPosition = decision.Target.Value;
                             _lastValidPosition = decision.Target.Value;
@@ -232,4 +235,27 @@ public sealed class CursorRoutingRuntime : IDisposable
     }
 
     private void LogMessage(string message) => Log?.Invoke(this, message);
+
+    private void LogRoutingDecision(RoutingDecision decision)
+    {
+        var target = decision.Target;
+        var signature = $"{decision.Kind}:{decision.Reason}:{target?.X},{target?.Y}";
+        var now = DateTimeOffset.UtcNow;
+        if (string.Equals(signature, _lastDecisionLogSignature, StringComparison.Ordinal) &&
+            now - _lastDecisionLogAt < TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        _lastDecisionLogSignature = signature;
+        _lastDecisionLogAt = now;
+        if (target is null)
+        {
+            LogMessage(decision.Reason);
+            return;
+        }
+
+        var prefix = decision.Kind == RoutingDecisionKind.MoveToTarget ? "Portal move" : "Cursor revert";
+        LogMessage($"{prefix}: {decision.Reason} Target: {target.Value.X}, {target.Value.Y}.");
+    }
 }

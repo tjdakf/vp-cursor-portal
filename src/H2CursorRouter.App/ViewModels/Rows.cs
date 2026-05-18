@@ -220,15 +220,114 @@ public sealed class ProfileRow : ViewModelBase
     public string Id { get => _id; set => SetProperty(ref _id, value); }
     public string Name { get => _name; set => SetProperty(ref _name, value); }
     public string? Hotkey { get => _hotkey; set => SetProperty(ref _hotkey, value); }
-    public string? DeviceId { get => _deviceId; set => SetProperty(ref _deviceId, value); }
-    public int? ScreenId { get => _screenId; set => SetProperty(ref _screenId, value); }
-    public int? PresetId { get => _presetId; set => SetProperty(ref _presetId, value); }
-    public string? PresetDisplayName { get => _presetDisplayName; set => SetProperty(ref _presetDisplayName, value); }
-    public string? CursorLayoutId { get => _cursorLayoutId; set => SetProperty(ref _cursorLayoutId, value); }
-    public int? StartX { get => _startX; set => SetProperty(ref _startX, value); }
-    public int? StartY { get => _startY; set => SetProperty(ref _startY, value); }
+    public string? DeviceId
+    {
+        get => _deviceId;
+        set
+        {
+            if (SetProperty(ref _deviceId, value))
+            {
+                OnPropertyChanged(nameof(PresetSummary));
+            }
+        }
+    }
+
+    public int? ScreenId
+    {
+        get => _screenId;
+        set
+        {
+            if (SetProperty(ref _screenId, value))
+            {
+                OnPropertyChanged(nameof(PresetSummary));
+            }
+        }
+    }
+
+    public int? PresetId
+    {
+        get => _presetId;
+        set
+        {
+            if (SetProperty(ref _presetId, value))
+            {
+                OnPropertyChanged(nameof(PresetSummary));
+            }
+        }
+    }
+
+    public string? PresetDisplayName
+    {
+        get => _presetDisplayName;
+        set
+        {
+            if (SetProperty(ref _presetDisplayName, value))
+            {
+                OnPropertyChanged(nameof(PresetSummary));
+            }
+        }
+    }
+
+    public string? CursorLayoutId
+    {
+        get => _cursorLayoutId;
+        set
+        {
+            if (SetProperty(ref _cursorLayoutId, value))
+            {
+                OnPropertyChanged(nameof(LayoutSummary));
+            }
+        }
+    }
+
+    public int? StartX
+    {
+        get => _startX;
+        set
+        {
+            if (SetProperty(ref _startX, value))
+            {
+                OnPropertyChanged(nameof(StartSummary));
+            }
+        }
+    }
+
+    public int? StartY
+    {
+        get => _startY;
+        set
+        {
+            if (SetProperty(ref _startY, value))
+            {
+                OnPropertyChanged(nameof(StartSummary));
+            }
+        }
+    }
+
     public int PostAckDelayMs { get => _postAckDelayMs; set => SetProperty(ref _postAckDelayMs, value); }
     public bool RequireH2AckBeforeCursorLayout { get => _requireH2AckBeforeCursorLayout; set => SetProperty(ref _requireH2AckBeforeCursorLayout, value); }
+    public string PresetSummary
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(PresetDisplayName))
+            {
+                return PresetDisplayName!;
+            }
+
+            return PresetId is not null
+                ? $"Preset {PresetId.Value + 1} / presetId {PresetId.Value}"
+                : "Cursor layout only";
+        }
+    }
+
+    public string LayoutSummary => string.IsNullOrWhiteSpace(CursorLayoutId)
+        ? "H2 preset only"
+        : CursorLayoutId!;
+
+    public string StartSummary => StartX is not null && StartY is not null
+        ? $"{StartX}, {StartY}"
+        : "Layout default";
 
     public static ProfileRow FromModel(ExecutionProfile profile) => new()
     {

@@ -767,19 +767,20 @@ Implemented:
 - Cursor clipping for single-visible-zone layouts.
 - Monitor topology change safety shutdown.
 - Tray icon, hide-to-tray, and startup checkbox.
-- WPF shell with device, preset, diagnostics, layout, portal, profile, validation, runtime, and logs tabs.
+- WPF shell with a dashboard-first workflow, profile execution cards, simplified layout workflow, H2/preset controls, diagnostics, advanced raw zone/portal editing, validation, runtime status, and logs.
 - Scaled layout preview with drag/resize, snapping, detected-coordinate application, and auto portal generation.
+- Throttled routing decision diagnostics and dashboard display for last H2 ACK / last routing event.
+- In-memory reset to bundled sample configuration; `config.json` is only written by explicit save.
 - Default test profiles for the current H2 test setup.
 - GitHub Actions Windows build/test/publish artifact flow.
 
 Known MVP limitations:
 
-- UI is still DataGrid-heavy and exposes too many raw technical fields.
-- Layout editing works but is not yet a polished user workflow.
-- Portal diagnostics are not visible enough during runtime testing.
+- UI is improved but still uses WPF DataGrid controls for advanced editing.
+- Layout editing works through a scaled canvas, but it is not yet a polished production-grade editor.
 - There is no installer or signed executable.
 - Existing `config.json` can hide changes made to `config.sample.json`.
-- Monitor naming is still partly technical (`DISPLAY1`, `DISPLAY2`, `DISPLAY3`) and should be abstracted in the UI.
+- Monitor naming is clearer in the main workflow, but raw `DISPLAY1`, `DISPLAY2`, `DISPLAY3` IDs remain visible in Advanced/debug areas.
 - No low-level mouse hook yet; routing remains polling-based by design.
 - No automatic H2 layout discovery.
 
@@ -793,6 +794,8 @@ Do not start with visual restyling alone. First simplify user workflows, then ap
 
 Goal: make the app understandable without knowing raw IDs, Windows rectangles, or portal internals.
 
+Status: first pass completed. Keep refining based on field-test feedback.
+
 Tasks:
 
 - Create a dashboard-first experience.
@@ -805,6 +808,8 @@ Tasks:
 ### Phase 2: Layout editor UX
 
 Goal: users should arrange visible monitor blocks, apply the layout, validate, save, and test.
+
+Status: first pass completed with scaled drag/resize canvas and advanced raw tables. Continue refining labels/templates.
 
 Tasks:
 
@@ -836,6 +841,8 @@ Target: 3840,540
 
 Goal: make the app feel like a calm, reliable Windows operations tool.
 
+Status: first pass completed with neutral surfaces, accent/danger button styles, dashboard cards, and fewer raw tables in the main workflow.
+
 Tasks:
 
 - Move away from the current raw WPF/DataGrid default look.
@@ -849,6 +856,8 @@ Tasks:
 ### Phase 4: Runtime reliability and diagnostics
 
 Goal: make field testing easier when routing or H2 behavior is wrong.
+
+Status: partially completed. Profile steps, H2 ACK, active layout/routing state, current cursor zone, sample reset, and throttled routing decision logs are visible. Diagnostic bundle export is still open.
 
 Tasks:
 
