@@ -46,7 +46,7 @@ These decisions are fixed unless the user explicitly changes them.
 | Preset numbering | Show both friendly number and raw preset ID, e.g. `Preset 1 / presetId 0` |
 | H2 response policy | Cursor layout is applied only after `ack:"Ok"` and configurable post-ack delay |
 | Presets vs cursor layouts | Managed separately; user chooses how to bind them in execution profiles |
-| Layout editor | MVP uses numeric fields, not drag-and-drop |
+| Layout editor | MVP has numeric fields plus a scaled drag/resize preview with snapping and auto portal generation |
 | Mapping | Ratio-based mapping with edge-segment portals |
 | Hidden monitors | Return cursor immediately to last valid position unless a configured portal applies |
 | Start cursor position | Use profile-specific start position; fallback to center of first visible zone |
@@ -54,6 +54,9 @@ These decisions are fixed unless the user explicitly changes them.
 | HTTP API | Deferred; keep execution service reusable for future HTTP/Stream Deck integration |
 | DPI | App should be DPI-aware; field recommendation is 100% scaling where possible |
 | Safety | Mandatory from the first version |
+| Current H2 test host | `192.168.0.11` |
+| Current test topology | `DISPLAY2 -> DISPLAY1 -> DISPLAY3` in Windows coordinates |
+| Current default profiles | `Ctrl+Alt+1` through `Ctrl+Alt+5`, all calling H2 preset 1 / `presetId 0` |
 
 ---
 
@@ -65,7 +68,7 @@ Do **not** implement these in the first MVP:
 - Generic TCP/UDP HEX console
 - HTTP API
 - Stream Deck integration
-- Drag-and-drop visual layout editor
+- Polished production-grade visual layout editor
 - Low-level mouse hook mode
 - Installer packaging
 - Auto-discovery of H2 visual layout from the processor
@@ -461,7 +464,7 @@ So input injection is not a goal, but input safety is a core requirement.
 
 ## 9. UI guide
 
-Use simple WPF views first. Do not overbuild the UI.
+The first MVP uses simple WPF views and DataGrid-heavy editing. This is acceptable for testing, but the next product phase should reduce direct exposure of raw IDs, raw coordinates, and portal internals.
 
 Recommended tabs/sections:
 
@@ -496,15 +499,19 @@ Show:
 
 ### Cursor Layouts
 
-Numeric editor for:
+MVP editor:
 
 - zone ID
 - display name
 - Windows rect
 - visual rect
 - visible flag
+- scaled visual preview
+- drag/resize blocks with snapping
+- apply detected monitor coordinates
+- apply canvas layout and auto-generate portals
 
-Numeric editor for portals:
+Advanced portal editor:
 
 - from zone
 - from edge
@@ -534,6 +541,52 @@ Controls:
 - routing enabled/disabled
 - emergency unlock button
 - logs
+
+### Next UI direction
+
+Move toward this simplified structure:
+
+```text
+Dashboard
+  - large profile execution buttons
+  - active profile/layout status
+  - H2 ACK status
+  - routing state
+  - emergency unlock
+
+Profiles
+  - user-facing profile names and hotkeys
+  - preset binding
+  - cursor layout binding
+  - hide raw ids by default
+
+Layout Editor
+  - show Monitor 1 / Monitor 2 / Monitor 3 labels
+  - keep DISPLAY ids as internal/advanced data
+  - make "arrange visual layout -> generate portals -> validate -> save" one workflow
+  - hide portal table unless Advanced is expanded
+
+Settings
+  - H2 host/port and connection test
+  - startup/tray options
+  - advanced raw config access
+
+Logs
+  - H2 command results
+  - profile execution
+  - routing safety events
+  - portal mapping diagnostics
+```
+
+Design tone should be a calm desktop operations tool, not a marketing page:
+
+- light neutral workspace background
+- restrained blue/teal accent for active/runnable controls
+- red only for emergency/destructive controls
+- consistent button heights and spacing
+- fewer full-width raw DataGrids in the main workflow
+- cards or rows for profile execution, not giant tables
+- show advanced details only when they help debugging
 
 ---
 
@@ -566,84 +619,48 @@ Implement:
 
 ## 11. Configuration sample shape
 
-Use this shape as a starting point for `config.sample.json`.
+`config.sample.json` is the source of truth for the current test-ready MVP sample.
 
-```json
-{
-  "devices": [
-    {
-      "id": "h2-main",
-      "name": "Main H2",
-      "host": "192.168.0.100",
-      "port": 6000,
-      "deviceId": 0,
-      "timeoutMs": 1000
-    }
-  ],
-  "cursorLayouts": [
-    {
-      "id": "layout-monitor-1-3",
-      "name": "Monitor 1 to Monitor 3",
-      "zones": [
-        {
-          "id": "MONITOR_1",
-          "displayName": "Monitor 1",
-          "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
-          "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
-          "isVisible": true
-        },
-        {
-          "id": "MONITOR_3",
-          "displayName": "Monitor 3",
-          "windowsRect": { "left": 3840, "top": 0, "right": 5760, "bottom": 1080 },
-          "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
-          "isVisible": true
-        }
-      ],
-      "portals": [
-        {
-          "fromZoneId": "MONITOR_1",
-          "fromEdge": "Right",
-          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_3",
-          "toEdge": "Left",
-          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
-        },
-        {
-          "fromZoneId": "MONITOR_3",
-          "fromEdge": "Left",
-          "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_1",
-          "toEdge": "Right",
-          "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
-        }
-      ]
-    }
-  ],
-  "profiles": [
-    {
-      "id": "preset-1-layout-1-3",
-      "name": "H2 Preset 1 + Monitor 1/3 Cursor",
-      "hotkey": "Ctrl+Alt+1",
-      "h2Preset": {
-        "deviceId": "h2-main",
-        "screenId": 0,
-        "presetId": 0,
-        "displayName": "Preset 1 / presetId 0"
-      },
-      "cursorLayoutId": "layout-monitor-1-3",
-      "startPosition": { "x": 960, "y": 540 },
-      "postAckDelayMs": 500,
-      "requireH2AckBeforeCursorLayout": true
-    }
-  ],
-  "safety": {
-    "emergencyHotkey": "Ctrl+Alt+Shift+Esc",
-    "disableRoutingOnMonitorTopologyChange": true,
-    "startWithRoutingDisabled": true
-  }
-}
+Current default H2 settings:
+
+```text
+host: 192.168.0.11
+port: 6000
+deviceId: 0
+screenId: 0
+presetId: 0
+display: Preset 1 / presetId 0
 ```
+
+Current Windows test topology:
+
+```text
+DISPLAY2 -> DISPLAY1 -> DISPLAY3
+
+DISPLAY2: 0,0 to 1920,1080    = user-facing Monitor 1
+DISPLAY1: 1920,0 to 3840,1080 = user-facing Monitor 2
+DISPLAY3: 3840,0 to 5760,1080 = user-facing Monitor 3
+```
+
+Current default profiles:
+
+```text
+Ctrl+Alt+1: Preset 1 + Monitor 1/3 Tunnel
+Ctrl+Alt+2: Preset 1 + Monitor 3/1 Tunnel Reversed
+Ctrl+Alt+3: Preset 1 + Monitor 2 Only
+Ctrl+Alt+4: Preset 1 + Monitor 1/2 Tunnel
+Ctrl+Alt+5: Preset 1 + Monitor 1 Large 2/3 Stack
+```
+
+Important config rules:
+
+- Keep `cursorLayouts[].zones[].id` unique inside a layout.
+- Portal `fromZoneId` and `toZoneId` must match zone IDs exactly, ignoring case.
+- User-facing labels such as "Monitor 1" may differ from Windows device names such as `DISPLAY2`.
+- Prefer stable internal IDs based on detected display names when possible.
+- For the current test PC, `DISPLAY2` is the left monitor, `DISPLAY1` is the middle monitor, and `DISPLAY3` is the right monitor.
+- Existing `config.json` takes precedence over `config.sample.json`; replacing the application ZIP does not overwrite an existing runtime config.
+- If default profiles change and a test PC already has `config.json`, delete or migrate the existing `config.json`.
 
 ---
 
@@ -726,3 +743,180 @@ Treat safety regressions as high-priority issues.
 - Never apply cursor routing if the active layout is invalid.
 - Do not let a failed H2 command create a mismatch between the actual video layout and the cursor layout.
 - Prefer a simple working MVP over a polished but fragile UI.
+
+---
+
+## 16. Current MVP status
+
+The first MVP is functional enough for real H2 and multi-monitor testing.
+
+Implemented:
+
+- .NET 10 solution with separated Core, H2, Windows, WPF App, and test projects.
+- H2 UDP JSON command builder/client/parser for `W0605` and `R0600`.
+- ACK parsing for `Ok`, `Error`, malformed JSON, and unexpected responses.
+- One-command-in-flight H2 UDP handling.
+- Pure cursor routing engine with visible/hidden/outside-zone handling.
+- Full-edge and segmented-edge portal mapping.
+- Ratio-based mapping for different-size visual rectangles.
+- Virtual desktop boundary handling, including rightmost/leftmost edge contact cases.
+- Segmented portal priority when overlapping full-edge portals exist.
+- Windows cursor, monitor topology, hotkey, and startup integration behind interfaces.
+- Polling cursor routing runtime with safe start/stop.
+- Emergency unlock hotkey and button.
+- Cursor clipping for single-visible-zone layouts.
+- Monitor topology change safety shutdown.
+- Tray icon, hide-to-tray, and startup checkbox.
+- WPF shell with device, preset, diagnostics, layout, portal, profile, validation, runtime, and logs tabs.
+- Scaled layout preview with drag/resize, snapping, detected-coordinate application, and auto portal generation.
+- Default test profiles for the current H2 test setup.
+- GitHub Actions Windows build/test/publish artifact flow.
+
+Known MVP limitations:
+
+- UI is still DataGrid-heavy and exposes too many raw technical fields.
+- Layout editing works but is not yet a polished user workflow.
+- Portal diagnostics are not visible enough during runtime testing.
+- There is no installer or signed executable.
+- Existing `config.json` can hide changes made to `config.sample.json`.
+- Monitor naming is still partly technical (`DISPLAY1`, `DISPLAY2`, `DISPLAY3`) and should be abstracted in the UI.
+- No low-level mouse hook yet; routing remains polling-based by design.
+- No automatic H2 layout discovery.
+
+---
+
+## 17. Recommended next work order
+
+Do not start with visual restyling alone. First simplify user workflows, then apply the new UI tone.
+
+### Phase 1: Product workflow cleanup
+
+Goal: make the app understandable without knowing raw IDs, Windows rectangles, or portal internals.
+
+Tasks:
+
+- Create a dashboard-first experience.
+- Make profile execution the primary first screen.
+- Show large buttons or rows for profiles `1` through `5`.
+- Show active profile, active layout, routing enabled, H2 ACK result, and emergency unlock in one place.
+- Hide raw `deviceId`, `screenId`, `presetId`, `zone.Id`, `fromZoneId`, and `toZoneId` from the normal workflow.
+- Keep an Advanced/Debug area for raw IDs, raw coordinates, and portal rows.
+
+### Phase 2: Layout editor UX
+
+Goal: users should arrange visible monitor blocks, apply the layout, validate, save, and test.
+
+Tasks:
+
+- Replace raw zone table as the main editing surface with monitor cards/blocks.
+- Use user-facing labels: Monitor 1, Monitor 2, Monitor 3.
+- Show detected mapping as secondary text, e.g. `Monitor 1 -> DISPLAY2`.
+- Add a clear workflow:
+
+```text
+Detect monitors -> choose visible monitors -> arrange blocks -> apply layout -> validate -> save
+```
+
+- Keep "Use Detected Coordinates" and "Apply Canvas Layout", but rename them to user-facing actions.
+- Add runtime portal diagnostics such as:
+
+```text
+Portal: DISPLAY2 Right 0.5-1.0 -> DISPLAY3 Left
+Target: 3840,540
+```
+
+- Add a one-click preset layout template for the current common layouts:
+  - 1/3 tunnel
+  - 3/1 reversed
+  - 2 only
+  - 1/2 tunnel
+  - 1 large + 2/3 stack
+
+### Phase 3: UI visual redesign
+
+Goal: make the app feel like a calm, reliable Windows operations tool.
+
+Tasks:
+
+- Move away from the current raw WPF/DataGrid default look.
+- Use a left navigation or clearer top-level sections instead of many cramped tabs.
+- Use consistent button sizes, spacing, typography, and state colors.
+- Use a light neutral surface with restrained accent color.
+- Reserve red only for emergency unlock and destructive actions.
+- Make the active/running state visually obvious.
+- Avoid decorative UI that distracts from device control and safety.
+
+### Phase 4: Runtime reliability and diagnostics
+
+Goal: make field testing easier when routing or H2 behavior is wrong.
+
+Tasks:
+
+- Log every profile execution step:
+  - H2 command sent
+  - ACK result
+  - post-ack delay
+  - layout activated
+  - routing started
+- Log portal decisions at a throttled rate.
+- Show last portal decision in the runtime screen.
+- Add a visible "current cursor zone" under the active layout.
+- Add config migration or "reset to bundled sample config" action.
+- Add a "copy diagnostic bundle" action with config, logs, monitor topology, and app version.
+
+### Phase 5: Distribution and release hygiene
+
+Goal: make handoff to the Windows test PC repeatable.
+
+Tasks:
+
+- Keep GitHub Actions artifact generation.
+- Add optional GitHub Release asset workflow for login-free public downloads.
+- Add version number and build SHA in the app UI.
+- Consider signing only after the MVP stabilizes.
+- Keep installer packaging deferred until user workflows are stable.
+
+---
+
+## 18. Project workflow recommendations
+
+Use this working rhythm:
+
+1. Keep each change tied to one field-test problem.
+2. Add or update a core/H2 test when behavior changes.
+3. Do not rely on UI-only testing for cursor routing math.
+4. Push to the PR branch and let GitHub Actions validate Windows build/test/publish.
+5. Download the latest Windows artifact to the test PC.
+6. If a test PC already has `config.json`, decide explicitly whether to keep, migrate, or replace it.
+7. Record every field-test issue with:
+
+```text
+profile used:
+active layout:
+monitor topology:
+expected cursor transition:
+actual cursor transition:
+whether H2 ACK succeeded:
+artifact id / commit SHA:
+```
+
+When modifying the UI:
+
+- Prefer hiding complexity over deleting useful advanced controls.
+- Do not remove safety controls from the main surface.
+- Keep emergency unlock always visible or one click away.
+- Keep raw configuration available in Advanced/Debug until the simplified UI is fully proven.
+- Preserve the current working MVP behavior while redesigning the surface.
+
+When modifying routing:
+
+- Treat cursor trap risk as highest priority.
+- Add tests for every new geometry shape.
+- Include virtual desktop boundary cases when a zone is at the outer edge of Windows coordinates.
+- Prefer deterministic pure-core fixes before changing Win32 runtime behavior.
+
+When modifying H2 behavior:
+
+- Keep cursor layout activation gated by ACK when `RequireH2AckBeforeCursorLayout` is true.
+- Log H2 failures clearly.
+- Avoid applying a cursor layout that could mismatch the actual H2 visual output.
