@@ -129,6 +129,30 @@ public sealed class CursorRoutingEngineTests
     }
 
     [Fact]
+    public void SegmentedPortalTakesPriorityOverOverlappingFullEdgePortal()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("display2", "Monitor 1", new IntRect(0, 0, 1920, 1080), new VisualRect(0, 0, 3840, 2160), true),
+                new CursorZone("display1", "Monitor 2", new IntRect(1920, 0, 3840, 1080), new VisualRect(3840, 0, 5760, 1080), true),
+                new CursorZone("display3", "Monitor 3", new IntRect(3840, 0, 5760, 1080), new VisualRect(3840, 1080, 5760, 2160), true)
+            ],
+            [
+                new CursorPortal("display2", Edge.Right, new EdgeRange(0.0, 1.0), "display1", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("display2", Edge.Right, new EdgeRange(0.0, 0.5), "display1", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("display2", Edge.Right, new EdgeRange(0.5, 1.0), "display3", Edge.Left, new EdgeRange(0.0, 1.0))
+            ]);
+
+        var upper = _engine.Evaluate(layout, new CursorPoint(1919, 270), new CursorPoint(1920, 270), new CursorPoint(1919, 270));
+        var lower = _engine.Evaluate(layout, new CursorPoint(1919, 810), new CursorPoint(1920, 810), new CursorPoint(1919, 810));
+
+        Assert.Equal(new CursorPoint(1920, 540), upper.Target);
+        Assert.Equal(new CursorPoint(3840, 540), lower.Target);
+    }
+
+    [Fact]
     public void DifferentSizeVisualRectanglesStillMapByVisualRatio()
     {
         var layout = new CursorLayout(

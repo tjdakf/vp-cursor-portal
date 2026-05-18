@@ -71,6 +71,7 @@ public sealed class CursorRoutingEngine
         CursorPoint previousPosition,
         CursorPoint currentPosition)
     {
+        var candidatePortals = new List<(CursorPortal Portal, double SourceRatio)>();
         foreach (var portal in layout.Portals.Where(portal =>
             string.Equals(portal.FromZoneId, previousZone.Id, StringComparison.OrdinalIgnoreCase)))
         {
@@ -84,14 +85,26 @@ public sealed class CursorRoutingEngine
                 continue;
             }
 
-            var targetZone = layout.Zones.First(zone =>
-                string.Equals(zone.Id, portal.ToZoneId, StringComparison.OrdinalIgnoreCase));
-            var targetRatio = MapRange(sourceRatio, portal.FromRange, portal.ToRange);
-            var target = MapTargetPoint(targetZone.WindowsRect, portal.ToEdge, targetRatio);
-            return RoutingDecision.MoveToTarget(target, $"Portal mapped '{portal.FromZoneId}' {portal.FromEdge} to '{portal.ToZoneId}' {portal.ToEdge}.");
+            candidatePortals.Add((portal, sourceRatio));
         }
 
-        return null;
+        if (candidatePortals.Count == 0)
+        {
+            return null;
+        }
+
+        var selected = candidatePortals
+            .OrderBy(candidate => candidate.Portal.FromRange.EndRatio - candidate.Portal.FromRange.StartRatio)
+            .ThenBy(candidate => candidate.Portal.FromRange.StartRatio)
+            .First();
+
+        var targetZone = layout.Zones.First(zone =>
+            string.Equals(zone.Id, selected.Portal.ToZoneId, StringComparison.OrdinalIgnoreCase));
+        var targetRatio = MapRange(selected.SourceRatio, selected.Portal.FromRange, selected.Portal.ToRange);
+        var target = MapTargetPoint(targetZone.WindowsRect, selected.Portal.ToEdge, targetRatio);
+        return RoutingDecision.MoveToTarget(
+            target,
+            $"Portal mapped '{selected.Portal.FromZoneId}' {selected.Portal.FromEdge} {selected.Portal.FromRange.StartRatio:0.###}-{selected.Portal.FromRange.EndRatio:0.###} to '{selected.Portal.ToZoneId}' {selected.Portal.ToEdge}.");
     }
 
     private static bool TryGetCrossingRatio(
