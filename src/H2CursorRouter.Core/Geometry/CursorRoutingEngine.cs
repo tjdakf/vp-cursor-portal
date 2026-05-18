@@ -44,12 +44,12 @@ public sealed class CursorRoutingEngine
 
     public CursorPoint ResolveStartPosition(CursorLayout layout, CursorPoint? profileStartPosition)
     {
-        if (profileStartPosition is not null)
+        if (profileStartPosition is not null && IsInsideVisibleZone(layout, profileStartPosition.Value))
         {
             return profileStartPosition.Value;
         }
 
-        if (layout.DefaultStartPosition is not null)
+        if (layout.DefaultStartPosition is not null && IsInsideVisibleZone(layout, layout.DefaultStartPosition.Value))
         {
             return layout.DefaultStartPosition.Value;
         }
@@ -61,6 +61,9 @@ public sealed class CursorRoutingEngine
 
     public CursorZone? FindZone(CursorLayout layout, CursorPoint point) =>
         layout.Zones.FirstOrDefault(zone => zone.WindowsRect.Contains(point));
+
+    private static bool IsInsideVisibleZone(CursorLayout layout, CursorPoint point) =>
+        layout.Zones.Any(zone => zone.IsVisible && zone.WindowsRect.Contains(point));
 
     private RoutingDecision? TryMapPortal(
         CursorLayout layout,

@@ -115,6 +115,41 @@ public sealed class CursorRoutingEngineTests
         Assert.Equal(new CursorPoint(50, 50), start);
     }
 
+    [Fact]
+    public void ProfileStartPositionOutsideVisibleZonesFallsBackToCenterOfFirstVisibleZone()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("visible", "Visible", new IntRect(0, 0, 100, 100), new VisualRect(0, 0, 100, 100), true),
+                new CursorZone("hidden", "Hidden", new IntRect(100, 0, 200, 100), new VisualRect(100, 0, 200, 100), false)
+            ],
+            []);
+
+        var start = _engine.ResolveStartPosition(layout, new CursorPoint(150, 50));
+
+        Assert.Equal(new CursorPoint(50, 50), start);
+    }
+
+    [Fact]
+    public void DefaultStartPositionOutsideVisibleZonesFallsBackToCenterOfFirstVisibleZone()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("visible", "Visible", new IntRect(0, 0, 100, 100), new VisualRect(0, 0, 100, 100), true),
+                new CursorZone("hidden", "Hidden", new IntRect(100, 0, 200, 100), new VisualRect(100, 0, 200, 100), false)
+            ],
+            [],
+            new CursorPoint(150, 50));
+
+        var start = _engine.ResolveStartPosition(layout, null);
+
+        Assert.Equal(new CursorPoint(50, 50), start);
+    }
+
     private static CursorLayout SingleVisibleZoneLayout() => new(
         "layout",
         "layout",

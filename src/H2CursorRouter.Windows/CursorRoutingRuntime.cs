@@ -15,7 +15,7 @@ public sealed class CursorRoutingRuntime : IDisposable
     private CursorLayout? _activeLayout;
     private CursorPoint _lastValidPosition;
     private CursorPoint _previousPosition;
-    private bool _ignoreNextPollAfterMove;
+    private CursorPoint? _pendingProgrammaticMoveTarget;
 
     public CursorRoutingRuntime(
         ICursorService cursorService,
@@ -36,7 +36,8 @@ public sealed class CursorRoutingRuntime : IDisposable
 
     public void ActivateLayout(CursorLayout layout, CursorPoint startPosition, TimeSpan pollInterval)
     {
-        var validation = _layoutValidator.Validate(layout);
+        var runtimeLayout = AddHiddenTopologyZones(layout);
+        var validation = _layoutValidator.Validate(runtimeLayout);
         if (!validation.IsValid)
         {
             LogMessage($"Refused to activate invalid layout: {string.Join("; ", validation.Errors)}");
@@ -44,13 +45,15 @@ public sealed class CursorRoutingRuntime : IDisposable
         }
 
         StopRouting(clearLayout: true);
-        _cursorService.SetPosition(startPosition);
-        _activeLayout = layout;
-        _lastValidPosition = startPosition;
-        _previousPosition = startPosition;
-        _ignoreNextPollAfterMove = true;
+        var safeStartPosition = _routingEngine.ResolveStartPosition(runtimeLayout, startPosition);
+        _cursorService.SetPosition(safeStartPosition);
+        ApplyClipIfSafe(runtimeLayout);
+        _activeLayout = runtimeLayout;
+        _lastValidPosition = safeStartPosition;
+        _previousPosition = safeStartPosition;
+        _pendingProgrammaticMoveTarget = safeStartPosition;
         StartRouting(pollInterval);
-        LogMessage($"Activated cursor layout '{layout.Name}'.");
+        LogMessage($"Activated cursor layout '{runtimeLayout.Name}'.");
     }
 
     public void StopRouting(bool clearLayout)
@@ -112,12 +115,15 @@ public sealed class CursorRoutingRuntime : IDisposable
                 }
 
                 var current = _cursorService.GetPosition();
-                if (_ignoreNextPollAfterMove)
+                if (_pendingProgrammaticMoveTarget is CursorPoint moveTarget)
                 {
-                    _previousPosition = current;
-                    _lastValidPosition = current;
-                    _ignoreNextPollAfterMove = false;
-                    continue;
+                    _previousPosition = moveTarget;
+                    _lastValidPosition = moveTarget;
+                    _pendingProgrammaticMoveTarget = null;
+                    if (current == moveTarget)
+                    {
+                        continue;
+                    }
                 }
 
                 var decision = _routingEngine.Evaluate(layout, _previousPosition, current, _lastValidPosition);
@@ -134,7 +140,7 @@ public sealed class CursorRoutingRuntime : IDisposable
                             _cursorService.SetPosition(decision.Target.Value);
                             _previousPosition = decision.Target.Value;
                             _lastValidPosition = decision.Target.Value;
-                            _ignoreNextPollAfterMove = true;
+                            _pendingProgrammaticMoveTarget = decision.Target.Value;
                         }
 
                         break;
@@ -154,6 +160,75 @@ public sealed class CursorRoutingRuntime : IDisposable
     {
         StopRouting(clearLayout: true);
         LogMessage("Monitor topology changed: routing disabled until layouts are revalidated.");
+    }
+
+    private CursorLayout AddHiddenTopologyZones(CursorLayout layout)
+    {
+        IReadOnlyList<MonitorInfo> monitors;
+        try
+        {
+            monitors = _monitorTopologyService.GetMonitors();
+        }
+        catch (Exception ex)
+        {
+            LogMessage($"Could not augment layout from monitor topology: {ex.Message}");
+            return layout;
+        }
+
+        var zones = layout.Zones.ToList();
+        foreach (var monitor in monitors)
+        {
+            if (zones.Any(zone => zone.WindowsRect == monitor.Bounds))
+            {
+                continue;
+            }
+
+            var id = CreateUniqueHiddenZoneId(monitor.DeviceName, zones);
+            zones.Add(new CursorZone(
+                id,
+                $"{monitor.DeviceName} (hidden)",
+                monitor.Bounds,
+                new VisualRect(monitor.Bounds.Left, monitor.Bounds.Top, monitor.Bounds.Right, monitor.Bounds.Bottom),
+                IsVisible: false));
+        }
+
+        return zones.Count == layout.Zones.Count
+            ? layout
+            : layout with { Zones = zones };
+    }
+
+    private void ApplyClipIfSafe(CursorLayout layout)
+    {
+        var visibleZones = layout.Zones.Where(zone => zone.IsVisible).ToArray();
+        if (visibleZones.Length == 1)
+        {
+            _cursorService.ClipTo(visibleZones[0].WindowsRect);
+            LogMessage($"Cursor clipped to visible zone '{visibleZones[0].Id}'.");
+            return;
+        }
+
+        _cursorService.ReleaseClip();
+    }
+
+    private static string CreateUniqueHiddenZoneId(string deviceName, IReadOnlyList<CursorZone> zones)
+    {
+        var normalized = new string(deviceName
+            .Where(character => char.IsLetterOrDigit(character) || character is '_' or '-')
+            .ToArray());
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = "hidden-monitor";
+        }
+
+        var candidate = normalized;
+        var index = 1;
+        while (zones.Any(zone => string.Equals(zone.Id, candidate, StringComparison.OrdinalIgnoreCase)))
+        {
+            candidate = $"{normalized}-{index++}";
+        }
+
+        return candidate;
     }
 
     private void LogMessage(string message) => Log?.Invoke(this, message);
