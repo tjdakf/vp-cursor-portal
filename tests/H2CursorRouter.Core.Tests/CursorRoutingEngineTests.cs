@@ -66,6 +66,46 @@ public sealed class CursorRoutingEngineTests
     }
 
     [Fact]
+    public void PortalMapsWhenCursorContactsVirtualDesktopRightBoundary()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("rightmost", "Rightmost", new IntRect(3840, 0, 5760, 1080), new VisualRect(0, 0, 1920, 1080), true),
+                new CursorZone("leftmost", "Leftmost", new IntRect(0, 0, 1920, 1080), new VisualRect(1920, 0, 3840, 1080), true)
+            ],
+            [
+                new CursorPortal("rightmost", Edge.Right, new EdgeRange(0, 1), "leftmost", Edge.Left, new EdgeRange(0, 1))
+            ]);
+
+        var decision = _engine.Evaluate(layout, new CursorPoint(5758, 540), new CursorPoint(5759, 540), new CursorPoint(5758, 540));
+
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, decision.Kind);
+        Assert.Equal(new CursorPoint(0, 540), decision.Target);
+    }
+
+    [Fact]
+    public void PortalMapsWhenCursorContactsVirtualDesktopLeftBoundary()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("leftmost", "Leftmost", new IntRect(0, 0, 1920, 1080), new VisualRect(1920, 0, 3840, 1080), true),
+                new CursorZone("rightmost", "Rightmost", new IntRect(3840, 0, 5760, 1080), new VisualRect(0, 0, 1920, 1080), true)
+            ],
+            [
+                new CursorPortal("leftmost", Edge.Left, new EdgeRange(0, 1), "rightmost", Edge.Right, new EdgeRange(0, 1))
+            ]);
+
+        var decision = _engine.Evaluate(layout, new CursorPoint(1, 540), new CursorPoint(0, 540), new CursorPoint(1, 540));
+
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, decision.Kind);
+        Assert.Equal(new CursorPoint(5759, 540), decision.Target);
+    }
+
+    [Fact]
     public void SegmentedPortalMapsWithinSelectedRange()
     {
         var layout = new CursorLayout(

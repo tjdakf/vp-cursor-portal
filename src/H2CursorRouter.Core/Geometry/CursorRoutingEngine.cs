@@ -103,7 +103,7 @@ public sealed class CursorRoutingEngine
     {
         ratio = 0;
 
-        return edge switch
+        var crossed = edge switch
         {
             Edge.Right when previousPosition.X < zone.WindowsRect.Right && currentPosition.X >= zone.WindowsRect.Right =>
                 TryInterpolateRatio(
@@ -147,6 +147,58 @@ public sealed class CursorRoutingEngine
                     out ratio),
             _ => false
         };
+
+        return crossed || TryGetEdgeContactRatio(zone, edge, previousPosition, currentPosition, out ratio);
+    }
+
+    private static bool TryGetEdgeContactRatio(
+        CursorZone zone,
+        Edge edge,
+        CursorPoint previousPosition,
+        CursorPoint currentPosition,
+        out double ratio)
+    {
+        ratio = 0;
+        return edge switch
+        {
+            Edge.Right when previousPosition.X < currentPosition.X &&
+                            currentPosition.X >= zone.WindowsRect.Right - 1 &&
+                            currentPosition.Y >= zone.WindowsRect.Top &&
+                            currentPosition.Y < zone.WindowsRect.Bottom =>
+                TryUseCurrentSecondaryRatio(currentPosition.Y, zone.WindowsRect.Top, zone.WindowsRect.Height, out ratio),
+            Edge.Left when previousPosition.X > currentPosition.X &&
+                           currentPosition.X <= zone.WindowsRect.Left &&
+                           currentPosition.Y >= zone.WindowsRect.Top &&
+                           currentPosition.Y < zone.WindowsRect.Bottom =>
+                TryUseCurrentSecondaryRatio(currentPosition.Y, zone.WindowsRect.Top, zone.WindowsRect.Height, out ratio),
+            Edge.Bottom when previousPosition.Y < currentPosition.Y &&
+                             currentPosition.Y >= zone.WindowsRect.Bottom - 1 &&
+                             currentPosition.X >= zone.WindowsRect.Left &&
+                             currentPosition.X < zone.WindowsRect.Right =>
+                TryUseCurrentSecondaryRatio(currentPosition.X, zone.WindowsRect.Left, zone.WindowsRect.Width, out ratio),
+            Edge.Top when previousPosition.Y > currentPosition.Y &&
+                          currentPosition.Y <= zone.WindowsRect.Top &&
+                          currentPosition.X >= zone.WindowsRect.Left &&
+                          currentPosition.X < zone.WindowsRect.Right =>
+                TryUseCurrentSecondaryRatio(currentPosition.X, zone.WindowsRect.Left, zone.WindowsRect.Width, out ratio),
+            _ => false
+        };
+    }
+
+    private static bool TryUseCurrentSecondaryRatio(
+        int currentSecondary,
+        int secondaryStart,
+        int secondaryLength,
+        out double ratio)
+    {
+        ratio = 0;
+        if (secondaryLength <= 0)
+        {
+            return false;
+        }
+
+        ratio = Clamp01((currentSecondary - secondaryStart) / (double)secondaryLength);
+        return true;
     }
 
     private static bool TryInterpolateRatio(
