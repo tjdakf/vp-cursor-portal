@@ -15,14 +15,14 @@
       "name": "Monitor 1 <-> Monitor 3",
       "zones": [
         {
-          "id": "MONITOR_1",
+          "id": "DISPLAY2",
           "displayName": "Monitor 1",
           "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "isVisible": true
         },
         {
-          "id": "MONITOR_3",
+          "id": "DISPLAY3",
           "displayName": "Monitor 3",
           "windowsRect": { "left": 3840, "top": 0, "right": 5760, "bottom": 1080 },
           "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
@@ -31,18 +31,18 @@
       ],
       "portals": [
         {
-          "fromZoneId": "MONITOR_1",
+          "fromZoneId": "DISPLAY2",
           "fromEdge": "Right",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_3",
+          "toZoneId": "DISPLAY3",
           "toEdge": "Left",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         },
         {
-          "fromZoneId": "MONITOR_3",
+          "fromZoneId": "DISPLAY3",
           "fromEdge": "Left",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_1",
+          "toZoneId": "DISPLAY2",
           "toEdge": "Right",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         }
@@ -54,14 +54,14 @@
       "name": "Monitor 3 <-> Monitor 1 Reversed",
       "zones": [
         {
-          "id": "MONITOR_3",
+          "id": "DISPLAY3",
           "displayName": "Monitor 3",
           "windowsRect": { "left": 3840, "top": 0, "right": 5760, "bottom": 1080 },
           "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "isVisible": true
         },
         {
-          "id": "MONITOR_1",
+          "id": "DISPLAY2",
           "displayName": "Monitor 1",
           "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
@@ -70,18 +70,18 @@
       ],
       "portals": [
         {
-          "fromZoneId": "MONITOR_3",
+          "fromZoneId": "DISPLAY3",
           "fromEdge": "Right",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_1",
+          "toZoneId": "DISPLAY2",
           "toEdge": "Left",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         },
         {
-          "fromZoneId": "MONITOR_1",
+          "fromZoneId": "DISPLAY2",
           "fromEdge": "Left",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_3",
+          "toZoneId": "DISPLAY3",
           "toEdge": "Right",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         }
@@ -93,7 +93,7 @@
       "name": "Monitor 2 Only",
       "zones": [
         {
-          "id": "MONITOR_2",
+          "id": "DISPLAY1",
           "displayName": "Monitor 2",
           "windowsRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
           "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
@@ -108,14 +108,14 @@
       "name": "Monitor 1 <-> Monitor 2",
       "zones": [
         {
-          "id": "MONITOR_1",
+          "id": "DISPLAY2",
           "displayName": "Monitor 1",
           "windowsRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "visualRect": { "left": 0, "top": 0, "right": 1920, "bottom": 1080 },
           "isVisible": true
         },
         {
-          "id": "MONITOR_2",
+          "id": "DISPLAY1",
           "displayName": "Monitor 2",
           "windowsRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
           "visualRect": { "left": 1920, "top": 0, "right": 3840, "bottom": 1080 },
@@ -124,18 +124,18 @@
       ],
       "portals": [
         {
-          "fromZoneId": "MONITOR_1",
+          "fromZoneId": "DISPLAY2",
           "fromEdge": "Right",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_2",
+          "toZoneId": "DISPLAY1",
           "toEdge": "Left",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         },
         {
-          "fromZoneId": "MONITOR_2",
+          "fromZoneId": "DISPLAY1",
           "fromEdge": "Left",
           "fromRange": { "startRatio": 0.0, "endRatio": 1.0 },
-          "toZoneId": "MONITOR_1",
+          "toZoneId": "DISPLAY2",
           "toEdge": "Right",
           "toRange": { "startRatio": 0.0, "endRatio": 1.0 }
         }

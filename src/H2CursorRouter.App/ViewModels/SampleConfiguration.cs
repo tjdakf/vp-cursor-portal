@@ -20,19 +20,19 @@ public static class SampleConfiguration
         var preset = new H2PresetRef("h2-main", 0, 0, "Preset 1 / presetId 0");
 
         var monitor1 = new CursorZone(
-            "MONITOR_1",
+            "DISPLAY2",
             "Monitor 1",
             new IntRect(0, 0, 1920, 1080),
             new VisualRect(0, 0, 1920, 1080),
             true);
         var monitor2 = new CursorZone(
-            "MONITOR_2",
+            "DISPLAY1",
             "Monitor 2",
             new IntRect(1920, 0, 3840, 1080),
             new VisualRect(1920, 0, 3840, 1080),
             true);
         var monitor3 = new CursorZone(
-            "MONITOR_3",
+            "DISPLAY3",
             "Monitor 3",
             new IntRect(3840, 0, 5760, 1080),
             new VisualRect(1920, 0, 3840, 1080),
@@ -46,8 +46,8 @@ public static class SampleConfiguration
                 monitor3
             ],
             [
-                new CursorPortal("MONITOR_1", Edge.Right, new EdgeRange(0.0, 1.0), "MONITOR_3", Edge.Left, new EdgeRange(0.0, 1.0)),
-                new CursorPortal("MONITOR_3", Edge.Left, new EdgeRange(0.0, 1.0), "MONITOR_1", Edge.Right, new EdgeRange(0.0, 1.0))
+                new CursorPortal("DISPLAY2", Edge.Right, new EdgeRange(0.0, 1.0), "DISPLAY3", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY3", Edge.Left, new EdgeRange(0.0, 1.0), "DISPLAY2", Edge.Right, new EdgeRange(0.0, 1.0))
             ],
             new CursorPoint(960, 540));
 
@@ -59,8 +59,8 @@ public static class SampleConfiguration
                 monitor1 with { VisualRect = new VisualRect(1920, 0, 3840, 1080) }
             ],
             [
-                new CursorPortal("MONITOR_3", Edge.Right, new EdgeRange(0.0, 1.0), "MONITOR_1", Edge.Left, new EdgeRange(0.0, 1.0)),
-                new CursorPortal("MONITOR_1", Edge.Left, new EdgeRange(0.0, 1.0), "MONITOR_3", Edge.Right, new EdgeRange(0.0, 1.0))
+                new CursorPortal("DISPLAY3", Edge.Right, new EdgeRange(0.0, 1.0), "DISPLAY2", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY2", Edge.Left, new EdgeRange(0.0, 1.0), "DISPLAY3", Edge.Right, new EdgeRange(0.0, 1.0))
             ],
             new CursorPoint(4800, 540));
 
@@ -81,8 +81,8 @@ public static class SampleConfiguration
                 monitor2
             ],
             [
-                new CursorPortal("MONITOR_1", Edge.Right, new EdgeRange(0.0, 1.0), "MONITOR_2", Edge.Left, new EdgeRange(0.0, 1.0)),
-                new CursorPortal("MONITOR_2", Edge.Left, new EdgeRange(0.0, 1.0), "MONITOR_1", Edge.Right, new EdgeRange(0.0, 1.0))
+                new CursorPortal("DISPLAY2", Edge.Right, new EdgeRange(0.0, 1.0), "DISPLAY1", Edge.Left, new EdgeRange(0.0, 1.0)),
+                new CursorPortal("DISPLAY1", Edge.Left, new EdgeRange(0.0, 1.0), "DISPLAY2", Edge.Right, new EdgeRange(0.0, 1.0))
             ],
             new CursorPoint(960, 540));
 

@@ -91,7 +91,9 @@
                         <Button Content="Add Layout" Command="{Binding AddLayoutCommand}" Margin="0,0,10,0" Padding="12,7" />
                         <Button Content="Remove Layout" Command="{Binding RemoveLayoutCommand}" Margin="0,0,10,0" Padding="12,7" />
                         <Button Content="Create From Monitors" Command="{Binding CreateLayoutFromMonitorsCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Use Detected Coordinates" Command="{Binding ApplyDetectedMonitorCoordinatesCommand}" Margin="0,0,10,0" Padding="12,7" />
                         <Button Content="Auto Portals" Command="{Binding GeneratePortalsCommand}" Margin="0,0,10,0" Padding="12,7" />
+                        <Button Content="Apply Canvas Layout" Command="{Binding ApplyCanvasLayoutCommand}" Margin="0,0,10,0" Padding="12,7" />
                         <Button Content="Map Layout To Profile" Command="{Binding ApplySelectedLayoutToProfileCommand}" Padding="12,7" />
                     </StackPanel>
                     <DataGrid Grid.Row="2" ItemsSource="{Binding SelectedLayoutZones}" SelectedItem="{Binding SelectedZone}" AutoGenerateColumns="True" IsReadOnly="False" />
@@ -100,46 +102,61 @@
                         <Button Content="Remove Zone" Command="{Binding RemoveZoneCommand}" Padding="12,7" />
                     </StackPanel>
                     <Border Grid.Column="1" Grid.RowSpan="4" BorderBrush="#B8C2CC" BorderThickness="1" Margin="12,0,0,0">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas Width="4096" Height="2304" Background="#F2F5F8" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style TargetType="ContentPresenter">
-                                        <Setter Property="Canvas.Left" Value="{Binding VisualLeft}" />
-                                        <Setter Property="Canvas.Top" Value="{Binding VisualTop}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Width="{Binding VisualWidth}" Height="{Binding VisualHeight}">
-                                            <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta">
-                                                <primitives:Thumb.Template>
-                                                    <ControlTemplate TargetType="primitives:Thumb">
-                                                        <Border Background="#D9E8F6" BorderBrush="#2D6C9F" BorderThickness="2">
-                                                            <StackPanel Margin="6">
-                                                                <TextBlock Text="{Binding Id}" FontWeight="SemiBold" Foreground="#1D3448" />
-                                                                <TextBlock Text="{Binding DisplayName}" Foreground="#1D3448" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </ControlTemplate>
-                                                </primitives:Thumb.Template>
-                                            </primitives:Thumb>
-                                            <primitives:Thumb Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ZoneResizeThumb_OnDragDelta">
-                                                <primitives:Thumb.Template>
-                                                    <ControlTemplate TargetType="primitives:Thumb">
-                                                        <Border Background="#2D6C9F" />
-                                                    </ControlTemplate>
-                                                </primitives:Thumb.Template>
-                                            </primitives:Thumb>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,6">
+                                <TextBlock Text="Preview scale" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <Slider Width="140" Minimum="0.08" Maximum="0.5" TickFrequency="0.02" IsSnapToTickEnabled="True" Value="{Binding LayoutPreviewScale}" />
+                                <TextBlock Text="{Binding LayoutPreviewScale, StringFormat={}{0:P0}}" VerticalAlignment="Center" Margin="8,0,16,0" />
+                                <TextBlock Text="Snap 120px" VerticalAlignment="Center" Foreground="#4D5E70" />
+                            </StackPanel>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas Width="{Binding DataContext.LayoutPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    Height="{Binding DataContext.LayoutPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    Background="#F2F5F8">
+                                                <Canvas.LayoutTransform>
+                                                    <ScaleTransform ScaleX="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    ScaleY="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                </Canvas.LayoutTransform>
+                                            </Canvas>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="Canvas.Left" Value="{Binding VisualLeft}" />
+                                            <Setter Property="Canvas.Top" Value="{Binding VisualTop}" />
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Width="{Binding VisualWidth}" Height="{Binding VisualHeight}">
+                                                <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta">
+                                                    <primitives:Thumb.Template>
+                                                        <ControlTemplate TargetType="primitives:Thumb">
+                                                            <Border Background="#D9E8F6" BorderBrush="#2D6C9F" BorderThickness="8">
+                                                                <StackPanel Margin="24">
+                                                                <TextBlock Text="{Binding Id}" FontWeight="SemiBold" Foreground="#1D3448" FontSize="72" />
+                                                                <TextBlock Text="{Binding DisplayName}" Foreground="#1D3448" FontSize="56" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </primitives:Thumb.Template>
+                                                </primitives:Thumb>
+                                                <primitives:Thumb Width="96" Height="96" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ZoneResizeThumb_OnDragDelta">
+                                                    <primitives:Thumb.Template>
+                                                        <ControlTemplate TargetType="primitives:Thumb">
+                                                            <Border Background="#2D6C9F" />
+                                                        </ControlTemplate>
+                                                    </primitives:Thumb.Template>
+                                                </primitives:Thumb>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
                     </Border>
                 </Grid>
             </TabItem>

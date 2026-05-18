@@ -41,6 +41,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _activeProfileName = "";
     private string _profileFilter = "";
     private bool _startWithWindows;
+    private double _layoutPreviewScale = 0.16;
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -98,6 +99,8 @@ public sealed class MainViewModel : ViewModelBase
         AddPortalCommand = new RelayCommand(AddPortal, () => SelectedLayout is not null);
         RemovePortalCommand = new RelayCommand(RemoveSelectedPortal, () => SelectedPortal is not null);
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
+        ApplyDetectedMonitorCoordinatesCommand = new RelayCommand(ApplyDetectedMonitorCoordinates, () => SelectedLayout is not null && Monitors.Count > 0);
+        ApplyCanvasLayoutCommand = new RelayCommand(ApplyCanvasLayout, () => SelectedLayout is not null);
         AddProfileCommand = new RelayCommand(AddProfile);
         RemoveProfileCommand = new RelayCommand(RemoveSelectedProfile, () => SelectedProfile is not null);
         DuplicateProfileCommand = new RelayCommand(DuplicateSelectedProfile, () => SelectedProfile is not null);
@@ -143,6 +146,8 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand AddPortalCommand { get; }
     public ICommand RemovePortalCommand { get; }
     public ICommand CreateLayoutFromMonitorsCommand { get; }
+    public ICommand ApplyDetectedMonitorCoordinatesCommand { get; }
+    public ICommand ApplyCanvasLayoutCommand { get; }
     public ICommand AddProfileCommand { get; }
     public ICommand RemoveProfileCommand { get; }
     public ICommand DuplicateProfileCommand { get; }
@@ -270,6 +275,20 @@ public sealed class MainViewModel : ViewModelBase
             }
         }
     }
+
+    public double LayoutPreviewScale
+    {
+        get => _layoutPreviewScale;
+        set => SetProperty(ref _layoutPreviewScale, Math.Clamp(value, 0.08, 0.5));
+    }
+
+    public double LayoutPreviewCanvasWidth =>
+        Math.Max(3840, SelectedLayoutZones.Count == 0 ? 3840 : SelectedLayoutZones.Max(zone => zone.VisualRight) + LayoutPreviewGridSize * 2);
+
+    public double LayoutPreviewCanvasHeight =>
+        Math.Max(2160, SelectedLayoutZones.Count == 0 ? 2160 : SelectedLayoutZones.Max(zone => zone.VisualBottom) + LayoutPreviewGridSize * 2);
+
+    public double LayoutPreviewGridSize => 120;
 
     public bool StartWithWindows
     {
@@ -623,6 +642,73 @@ public sealed class MainViewModel : ViewModelBase
         AddLog("Created an editable layout from detected Windows monitors. Adjust visible flags and visual rectangles for the active H2 layout.");
     }
 
+    private void ApplyDetectedMonitorCoordinates()
+    {
+        if (SelectedLayout is null || Monitors.Count == 0)
+        {
+            return;
+        }
+
+        var orderedMonitors = Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top).ToArray();
+        var changed = 0;
+        foreach (var zone in SelectedLayoutZones)
+        {
+            var monitor = FindMonitorForZone(zone, orderedMonitors);
+            if (monitor is null)
+            {
+                continue;
+            }
+
+            zone.WindowsLeft = monitor.Left;
+            zone.WindowsTop = monitor.Top;
+            zone.WindowsRight = monitor.Right;
+            zone.WindowsBottom = monitor.Bottom;
+            zone.DisplayName = NormalizeDeviceName(monitor.DeviceName);
+            changed++;
+        }
+
+        CollectionViewSource.GetDefaultView(SelectedLayoutZones)?.Refresh();
+        RefreshCursorZone();
+        AddLog($"Applied detected Windows monitor coordinates to {changed} zone(s) in layout '{SelectedLayout.Name}'.");
+    }
+
+    private void ApplyCanvasLayout()
+    {
+        if (SelectedLayout is null)
+        {
+            return;
+        }
+
+        var visibleZones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
+        if (visibleZones.Length == 0)
+        {
+            AddLog("Cannot apply canvas layout because no visible zones are selected.");
+            return;
+        }
+
+        var minLeft = visibleZones.Min(zone => zone.VisualLeft);
+        var minTop = visibleZones.Min(zone => zone.VisualTop);
+        foreach (var zone in visibleZones)
+        {
+            var width = SnapSize(zone.VisualWidth);
+            var height = SnapSize(zone.VisualHeight);
+            var left = SnapToGrid(zone.VisualLeft - minLeft);
+            var top = SnapToGrid(zone.VisualTop - minTop);
+            zone.VisualLeft = left;
+            zone.VisualTop = top;
+            zone.VisualRight = left + width;
+            zone.VisualBottom = top + height;
+        }
+
+        var firstVisible = visibleZones.OrderBy(zone => zone.VisualTop).ThenBy(zone => zone.VisualLeft).First();
+        SelectedLayout.DefaultStartX = firstVisible.WindowsLeft + (firstVisible.WindowsRight - firstVisible.WindowsLeft) / 2;
+        SelectedLayout.DefaultStartY = firstVisible.WindowsTop + (firstVisible.WindowsBottom - firstVisible.WindowsTop) / 2;
+        OnPropertyChanged(nameof(SelectedLayout));
+        GeneratePortalsFromVisualAdjacency();
+        RefreshLayoutPreviewCanvasSize();
+        AddLog($"Applied canvas layout '{SelectedLayout.Name}': snapped zones, normalized visual origin, generated portals, and updated default start position.");
+    }
+
     private void AddProfile()
     {
         var index = Profiles.Count + 1;
@@ -890,18 +976,26 @@ public sealed class MainViewModel : ViewModelBase
 
     public void MoveZoneVisual(ZoneRow zone, double deltaX, double deltaY)
     {
-        zone.VisualLeft += deltaX;
-        zone.VisualRight += deltaX;
-        zone.VisualTop += deltaY;
-        zone.VisualBottom += deltaY;
+        var width = zone.VisualWidth;
+        var height = zone.VisualHeight;
+        var left = SnapHorizontal(zone, zone.VisualLeft + deltaX, width);
+        var top = SnapVertical(zone, zone.VisualTop + deltaY, height);
+        zone.VisualLeft = left;
+        zone.VisualRight = left + width;
+        zone.VisualTop = top;
+        zone.VisualBottom = top + height;
         SelectedZone = zone;
+        RefreshLayoutPreviewCanvasSize();
     }
 
     public void ResizeZoneVisual(ZoneRow zone, double deltaWidth, double deltaHeight)
     {
-        zone.VisualWidth += deltaWidth;
-        zone.VisualHeight += deltaHeight;
+        var right = SnapHorizontalEdge(zone, zone.VisualRight + deltaWidth);
+        var bottom = SnapVerticalEdge(zone, zone.VisualBottom + deltaHeight);
+        zone.VisualWidth = Math.Max(LayoutPreviewGridSize, right - zone.VisualLeft);
+        zone.VisualHeight = Math.Max(LayoutPreviewGridSize, bottom - zone.VisualTop);
         SelectedZone = zone;
+        RefreshLayoutPreviewCanvasSize();
     }
 
     private void RaiseCommandStates()
@@ -916,6 +1010,8 @@ public sealed class MainViewModel : ViewModelBase
             AddPortalCommand,
             RemovePortalCommand,
             CreateLayoutFromMonitorsCommand,
+            ApplyDetectedMonitorCoordinatesCommand,
+            ApplyCanvasLayoutCommand,
             RemoveProfileCommand,
             DuplicateProfileCommand,
             SetCurrentCursorAsStartCommand,
@@ -970,7 +1066,106 @@ public sealed class MainViewModel : ViewModelBase
         {
             SelectedLayoutPortals.Add(portal);
         }
+
+        RefreshLayoutPreviewCanvasSize();
     }
+
+    private void RefreshLayoutPreviewCanvasSize()
+    {
+        OnPropertyChanged(nameof(LayoutPreviewCanvasWidth));
+        OnPropertyChanged(nameof(LayoutPreviewCanvasHeight));
+    }
+
+    private MonitorRow? FindMonitorForZone(ZoneRow zone, IReadOnlyList<MonitorRow> orderedMonitors)
+    {
+        var zoneId = NormalizeZoneId(zone.Id);
+        var direct = orderedMonitors.FirstOrDefault(monitor =>
+            string.Equals(NormalizeZoneId(monitor.DeviceName), zoneId, StringComparison.OrdinalIgnoreCase));
+        if (direct is not null)
+        {
+            return direct;
+        }
+
+        var ordinal = TryParseMonitorOrdinal(zone.Id)
+            ?? TryParseMonitorOrdinal(zone.DisplayName);
+        if (ordinal is not null && ordinal.Value >= 1 && ordinal.Value <= orderedMonitors.Count)
+        {
+            return orderedMonitors[ordinal.Value - 1];
+        }
+
+        return orderedMonitors.FirstOrDefault(monitor =>
+            zone.WindowsLeft == monitor.Left &&
+            zone.WindowsTop == monitor.Top &&
+            zone.WindowsRight == monitor.Right &&
+            zone.WindowsBottom == monitor.Bottom);
+    }
+
+    private double SnapHorizontal(ZoneRow zone, double proposedLeft, double width)
+    {
+        var candidates = SelectedLayoutZones
+            .Where(other => !ReferenceEquals(other, zone))
+            .SelectMany(other => new[] { other.VisualLeft, other.VisualRight, other.VisualLeft - width, other.VisualRight - width });
+        return SnapToNearest(proposedLeft, candidates);
+    }
+
+    private double SnapVertical(ZoneRow zone, double proposedTop, double height)
+    {
+        var candidates = SelectedLayoutZones
+            .Where(other => !ReferenceEquals(other, zone))
+            .SelectMany(other => new[] { other.VisualTop, other.VisualBottom, other.VisualTop - height, other.VisualBottom - height });
+        return SnapToNearest(proposedTop, candidates);
+    }
+
+    private double SnapHorizontalEdge(ZoneRow zone, double proposedRight)
+    {
+        var candidates = SelectedLayoutZones
+            .Where(other => !ReferenceEquals(other, zone))
+            .SelectMany(other => new[] { other.VisualLeft, other.VisualRight });
+        return Math.Max(zone.VisualLeft + LayoutPreviewGridSize, SnapToNearest(proposedRight, candidates));
+    }
+
+    private double SnapVerticalEdge(ZoneRow zone, double proposedBottom)
+    {
+        var candidates = SelectedLayoutZones
+            .Where(other => !ReferenceEquals(other, zone))
+            .SelectMany(other => new[] { other.VisualTop, other.VisualBottom });
+        return Math.Max(zone.VisualTop + LayoutPreviewGridSize, SnapToNearest(proposedBottom, candidates));
+    }
+
+    private double SnapToNearest(double value, IEnumerable<double> candidates)
+    {
+        var snapped = SnapToGrid(value);
+        var tolerance = LayoutPreviewGridSize / 2;
+        foreach (var candidate in candidates)
+        {
+            if (Math.Abs(value - candidate) < Math.Abs(value - snapped) && Math.Abs(value - candidate) <= tolerance)
+            {
+                snapped = candidate;
+            }
+        }
+
+        return snapped;
+    }
+
+    private double SnapToGrid(double value) =>
+        Math.Round(value / LayoutPreviewGridSize, MidpointRounding.AwayFromZero) * LayoutPreviewGridSize;
+
+    private double SnapSize(double value) =>
+        Math.Max(LayoutPreviewGridSize, SnapToGrid(value));
+
+    private static int? TryParseMonitorOrdinal(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var ordinal) ? ordinal : null;
+    }
+
+    private static string NormalizeDeviceName(string deviceName) =>
+        deviceName.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase);
 
     private static void AddVerticalAdjacency(ZoneRow left, ZoneRow right, double tolerance, ICollection<PortalRow> portals)
     {
