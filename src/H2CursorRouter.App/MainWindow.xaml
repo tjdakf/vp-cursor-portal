@@ -10,7 +10,7 @@
         Loaded="OnLoaded"
         Closing="OnClosing">
     <DockPanel>
-        <Border DockPanel.Dock="Top" Background="#1F2933" Padding="18,12">
+        <Border DockPanel.Dock="Top" Background="{StaticResource ShellBrush}" Padding="20,14">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -20,8 +20,8 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="vp-cursor-portal" Foreground="White" FontSize="20" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding RuntimeStatus}" Foreground="#D8E1E8" Margin="0,4,0,0" />
+                    <TextBlock Text="vp-cursor-portal" Foreground="White" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding RuntimeStatus}" Foreground="{StaticResource ShellMutedBrush}" Margin="0,4,0,0" />
                 </StackPanel>
                 <Button Grid.Column="1" Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                 <Button Grid.Column="2" Content="Save Config" Command="{Binding SaveConfigurationCommand}" />
@@ -92,12 +92,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#F8FAFB"
-                                                    BorderBrush="{StaticResource BorderBrushSoft}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="6"
-                                                    Padding="12"
-                                                    Margin="0,0,10,0">
+                                            <Border Style="{StaticResource InsetCardStyle}">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto" />
@@ -194,7 +189,7 @@
                                 <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#F8FAFB" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                                            <Border Style="{StaticResource InsetCardStyle}" Margin="0,0,0,8">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
                                                     <TextBlock Text="{Binding Id, StringFormat={}Internal key: {0}}" Style="{StaticResource MutedTextStyle}" />
@@ -220,14 +215,14 @@
                                     <TextBlock Text="Snap 120px" Style="{StaticResource MutedTextStyle}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </StackPanel>
-                            <Border BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="#E8EDF1" Padding="10">
+                            <Border BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="{StaticResource PanelAltBrush}" CornerRadius="10" Padding="10">
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <Canvas Width="{Binding DataContext.LayoutPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                         Height="{Binding DataContext.LayoutPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        Background="#F8FAFB">
+                                                        Background="{StaticResource PanelElevatedBrush}">
                                                     <Canvas.LayoutTransform>
                                                         <ScaleTransform ScaleX="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                         ScaleY="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
@@ -247,10 +242,10 @@
                                                     <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta">
                                                         <primitives:Thumb.Template>
                                                             <ControlTemplate TargetType="primitives:Thumb">
-                                                                <Border Background="#DDEFF0" BorderBrush="#136F7A" BorderThickness="8">
+                                                                <Border Background="{StaticResource AccentSoftBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="8">
                                                                     <StackPanel Margin="24">
-                                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="#163D43" FontSize="64" TextWrapping="Wrap" />
-                                                                        <TextBlock Text="{Binding Id}" Foreground="#315A61" FontSize="40" />
+                                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="64" TextWrapping="Wrap" />
+                                                                        <TextBlock Text="{Binding Id}" Foreground="{StaticResource MutedTextBrush}" FontSize="40" />
                                                                     </StackPanel>
                                                                 </Border>
                                                             </ControlTemplate>
@@ -259,7 +254,7 @@
                                                     <primitives:Thumb Width="96" Height="96" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ZoneResizeThumb_OnDragDelta">
                                                         <primitives:Thumb.Template>
                                                             <ControlTemplate TargetType="primitives:Thumb">
-                                                                <Border Background="#136F7A" />
+                                                                <Border Background="{StaticResource AccentBrush}" />
                                                             </ControlTemplate>
                                                         </primitives:Thumb.Template>
                                                     </primitives:Thumb>
