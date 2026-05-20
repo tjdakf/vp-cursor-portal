@@ -159,6 +159,23 @@ public partial class MainWindow : Window
         Activate();
     }
 
+    private void MinimizeButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
+
+    private void CloseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private void ZoneMoveThumb_OnDragDelta(object sender, DragDeltaEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is ZoneRow zone)
