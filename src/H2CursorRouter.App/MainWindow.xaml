@@ -71,84 +71,48 @@
             <TabItem Header="Dashboard">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.45*" />
+                            <ColumnDefinition Width="0.95*" />
+                        </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <UniformGrid Columns="5" Margin="0,0,0,4">
-                            <Border Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Routing" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="{Binding RoutingStateText}" FontSize="22" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding LastRoutingEvent}" Style="{StaticResource MutedTextStyle}" Margin="0,6,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Active Profile" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="{Binding ActiveProfileName}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding LastH2AckStatus}" Style="{StaticResource MutedTextStyle}" Margin="0,6,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Active Layout" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding ActiveLayoutId}" Style="{StaticResource MutedTextStyle}" Margin="0,6,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource CardStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="Cursor" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="{Binding CurrentCursorPosition}" FontSize="18" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding CurrentCursorZone}" Style="{StaticResource MutedTextStyle}" Margin="0,6,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                                <StackPanel>
-                                    <TextBlock Text="Safety" Style="{StaticResource SectionTitleStyle}" />
-                                    <Button Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,8" />
-                                    <Button Content="Stop Routing" Command="{Binding StopRoutingCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
-                                </StackPanel>
-                            </Border>
-                        </UniformGrid>
-
-                        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}">
                             <DockPanel>
-                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                                    <TextBlock Text="Profiles 1-5" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="Execute the field-test profiles directly. H2 ACK gating and emergency unlock behavior are unchanged." Style="{StaticResource MutedTextStyle}" />
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                                    <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="{Binding ActiveProfileName, StringFormat={}Active: {0}}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,0" />
                                 </StackPanel>
                                 <ItemsControl ItemsSource="{Binding DashboardProfiles}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="5" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Style="{StaticResource ProfileCardStyle}">
+                                            <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,12">
                                                 <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="*" />
-                                                        <RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
-                                                    <TextBlock Grid.Row="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,8" />
-                                                    <TextBlock Grid.Row="2" Text="{Binding PresetSummary}" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBlock Grid.Row="3" Text="{Binding LayoutSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,0" />
-                                                    <TextBlock Grid.Row="4" Text="{Binding StartSummary, StringFormat={}Start: {0}}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,10" />
-                                                    <Button Grid.Row="5"
-                                                            Content="Execute"
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="112" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                            <Border Background="{StaticResource AccentSoftBrush}" CornerRadius="6" Padding="8,3" Margin="0,0,8,0">
+                                                                <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding StartSummary, StringFormat={}Start {0}}" Style="{StaticResource MutedTextStyle}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding PresetSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,8,0,0" />
+                                                        <TextBlock Text="{Binding LayoutSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,3,0,0" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1"
+                                                            Content="Run"
                                                             Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                             CommandParameter="{Binding}"
-                                                            Margin="0" />
+                                                            VerticalAlignment="Center"
+                                                            Margin="12,0,0,0" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -157,18 +121,51 @@
                             </DockPanel>
                         </Border>
 
-                        <Grid Grid.Row="2">
+                        <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Runtime" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                <UniformGrid Columns="2" Margin="0,16,0,0">
+                                    <StackPanel Margin="0,0,12,14">
+                                        <TextBlock Text="Routing" Style="{StaticResource MutedTextStyle}" />
+                                        <TextBlock Text="{Binding RoutingStateText}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,0,14">
+                                        <TextBlock Text="Cursor" Style="{StaticResource MutedTextStyle}" />
+                                        <TextBlock Text="{Binding CurrentCursorPosition}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                        <TextBlock Text="{Binding CurrentCursorZone}" Style="{StaticResource MutedTextStyle}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="Layout" Style="{StaticResource MutedTextStyle}" />
+                                        <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding ActiveLayoutId}" Style="{StaticResource MutedTextStyle}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="H2 ACK" Style="{StaticResource MutedTextStyle}" />
+                                        <TextBlock Text="{Binding LastH2AckStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Column="1" Grid.Row="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource CardStyle}">
+
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
                                 <StackPanel>
-                                    <TextBlock Text="Runtime Log" Style="{StaticResource SectionTitleStyle}" />
-                                    <ListBox ItemsSource="{Binding Logs}" Height="250" />
+                                    <TextBlock Text="Safety" Style="{StaticResource SectionTitleStyle}" />
+                                    <Button Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,8" />
+                                    <Button Content="Stop Routing" Command="{Binding StopRoutingCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                    <TextBlock Text="{Binding LastRoutingEvent}" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,0" />
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+
+                            <Border Grid.Row="1" Style="{StaticResource CardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="Config And Artifact" Style="{StaticResource SectionTitleStyle}" />
                                     <TextBlock Text="{Binding ConfigPath}" Style="{StaticResource MutedTextStyle}" />
@@ -178,6 +175,13 @@
                                 </StackPanel>
                             </Border>
                         </Grid>
+
+                        <Border Grid.ColumnSpan="2" Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Runtime Log" Style="{StaticResource SectionTitleStyle}" />
+                                <ListBox ItemsSource="{Binding Logs}" Height="220" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </ScrollViewer>
             </TabItem>
