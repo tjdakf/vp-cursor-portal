@@ -301,8 +301,16 @@ public sealed class MainViewModel : ViewModelBase
     public string H2ConnectionStatus
     {
         get => _h2ConnectionStatus;
-        private set => SetProperty(ref _h2ConnectionStatus, value);
+        private set
+        {
+            if (SetProperty(ref _h2ConnectionStatus, value))
+            {
+                OnPropertyChanged(nameof(IsH2Online));
+            }
+        }
     }
+
+    public bool IsH2Online => H2ConnectionStatus.StartsWith("Online:", StringComparison.OrdinalIgnoreCase);
 
     public string LastRoutingEvent
     {
@@ -1158,7 +1166,7 @@ public sealed class MainViewModel : ViewModelBase
     private void RefreshDashboardProfiles()
     {
         DashboardProfiles.Clear();
-        foreach (var profile in Profiles.Take(5))
+        foreach (var profile in Profiles)
         {
             DashboardProfiles.Add(profile);
         }

@@ -4,9 +4,9 @@
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="vp-cursor-portal"
-        Width="1240"
+        Width="1360"
         Height="860"
-        MinWidth="1040"
+        MinWidth="1280"
         MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -72,8 +72,8 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.45*" />
-                            <ColumnDefinition Width="0.95*" />
+                            <ColumnDefinition Width="*" MinWidth="620" />
+                            <ColumnDefinition Width="380" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -81,9 +81,9 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}">
+                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}" MinHeight="660">
                             <DockPanel>
-                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                                     <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
                                 </StackPanel>
                                 <ItemsControl ItemsSource="{Binding DashboardProfiles}">
@@ -92,20 +92,22 @@
                                             <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,8">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="96" />
-                                                        <ColumnDefinition Width="1.1*" />
-                                                        <ColumnDefinition Width="1.7*" />
-                                                        <ColumnDefinition Width="72" />
-                                                        <ColumnDefinition Width="72" />
+                                                        <ColumnDefinition Width="112" />
+                                                        <ColumnDefinition Width="230" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="68" />
+                                                        <ColumnDefinition Width="68" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
-                                                    <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="8,0" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
                                                     <Button Grid.Column="3"
                                                             Content="Run"
                                                             Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                             CommandParameter="{Binding}"
                                                             VerticalAlignment="Center"
+                                                            MinHeight="30"
+                                                            Padding="10,4"
                                                             Margin="8,0,0,0" />
                                                     <Button Grid.Column="4"
                                                             Content="Edit"
@@ -113,6 +115,8 @@
                                                             Click="EditProfileButton_OnClick"
                                                             Style="{StaticResource SecondaryButtonStyle}"
                                                             VerticalAlignment="Center"
+                                                            MinHeight="30"
+                                                            Padding="10,4"
                                                             Margin="8,0,0,0" />
                                                 </Grid>
                                             </Border>
@@ -136,7 +140,14 @@
                                     </StackPanel>
                                     <StackPanel>
                                         <TextBlock Text="H2 Connection" Style="{StaticResource MutedTextStyle}" />
-                                        <TextBlock Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        <Grid Margin="0,3,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse Style="{StaticResource ConnectionIndicatorStyle}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        </Grid>
                                     </StackPanel>
                                 </UniformGrid>
                             </StackPanel>

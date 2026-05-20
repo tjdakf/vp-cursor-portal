@@ -16,6 +16,7 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#1C6B5A" />
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#155244" />
         <SolidColorBrush x:Key="AccentSoftBrush" Color="#E7F2EE" />
+        <SolidColorBrush x:Key="OfflineBrush" Color="#A3A3A3" />
         <SolidColorBrush x:Key="DangerBrush" Color="#B3262E" />
         <SolidColorBrush x:Key="DangerHoverBrush" Color="#8F1D24" />
 
@@ -171,8 +172,21 @@
 
         <Style x:Key="ProfileCardStyle" TargetType="Border" BasedOn="{StaticResource InsetCardStyle}">
             <Setter Property="Background" Value="#FBFBFA" />
-            <Setter Property="Padding" Value="14" />
+            <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+
+        <Style x:Key="ConnectionIndicatorStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="Fill" Value="{StaticResource OfflineBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,1,8,0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsH2Online}" Value="True">
+                    <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
@@ -190,15 +204,16 @@
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="18" />
+            <Setter Property="Padding" Value="20" />
         </Style>
 
         <Style TargetType="TabItem">
-            <Setter Property="Width" Value="174" />
-            <Setter Property="Padding" Value="14,11" />
-            <Setter Property="Margin" Value="0,0,16,8" />
+            <Setter Property="Width" Value="210" />
+            <Setter Property="Padding" Value="18,13" />
+            <Setter Property="Margin" Value="0,0,20,8" />
             <Setter Property="Foreground" Value="#5F6872" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
