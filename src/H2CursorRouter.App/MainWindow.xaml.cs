@@ -190,7 +190,7 @@ public partial class MainWindow : Window
 
     private void EditProfileButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if ((sender as Button)?.Tag is ProfileRow profile)
+        if ((sender as System.Windows.Controls.Button)?.Tag is ProfileRow profile)
         {
             _viewModel.SelectedProfile = profile;
             MainTabs.SelectedIndex = 2;
