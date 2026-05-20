@@ -228,6 +228,7 @@ public sealed class ProfileRow : ViewModelBase
             if (SetProperty(ref _deviceId, value))
             {
                 OnPropertyChanged(nameof(PresetSummary));
+                OnPropertyChanged(nameof(Description));
             }
         }
     }
@@ -240,6 +241,7 @@ public sealed class ProfileRow : ViewModelBase
             if (SetProperty(ref _screenId, value))
             {
                 OnPropertyChanged(nameof(PresetSummary));
+                OnPropertyChanged(nameof(Description));
             }
         }
     }
@@ -252,6 +254,7 @@ public sealed class ProfileRow : ViewModelBase
             if (SetProperty(ref _presetId, value))
             {
                 OnPropertyChanged(nameof(PresetSummary));
+                OnPropertyChanged(nameof(Description));
             }
         }
     }
@@ -264,6 +267,7 @@ public sealed class ProfileRow : ViewModelBase
             if (SetProperty(ref _presetDisplayName, value))
             {
                 OnPropertyChanged(nameof(PresetSummary));
+                OnPropertyChanged(nameof(Description));
             }
         }
     }
@@ -276,6 +280,7 @@ public sealed class ProfileRow : ViewModelBase
             if (SetProperty(ref _cursorLayoutId, value))
             {
                 OnPropertyChanged(nameof(LayoutSummary));
+                OnPropertyChanged(nameof(Description));
             }
         }
     }
@@ -324,6 +329,8 @@ public sealed class ProfileRow : ViewModelBase
     public string LayoutSummary => string.IsNullOrWhiteSpace(CursorLayoutId)
         ? "H2 preset only"
         : CursorLayoutId!;
+
+    public string Description => $"{PresetSummary} - {LayoutSummary}";
 
     public string StartSummary => StartX is not null && StartY is not null
         ? $"{StartX}, {StartY}"

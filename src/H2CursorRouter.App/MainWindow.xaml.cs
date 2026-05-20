@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using H2CursorRouter.App.ViewModels;
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
 
         RegisterProfileHotkeys(handle);
         InitializeTrayIcon();
+        _ = _viewModel.RefreshDashboardStatusAsync();
 
         if (_startInTray)
         {
@@ -174,6 +176,25 @@ public partial class MainWindow : Window
     private void CloseButton_OnClick(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void MainTabs_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.Source, MainTabs) || MainTabs.SelectedIndex != 0)
+        {
+            return;
+        }
+
+        _ = _viewModel.RefreshDashboardStatusAsync();
+    }
+
+    private void EditProfileButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is ProfileRow profile)
+        {
+            _viewModel.SelectedProfile = profile;
+            MainTabs.SelectedIndex = 2;
+        }
     }
 
     private void ZoneMoveThumb_OnDragDelta(object sender, DragDeltaEventArgs e)

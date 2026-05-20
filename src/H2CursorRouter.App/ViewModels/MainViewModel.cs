@@ -40,9 +40,11 @@ public sealed class MainViewModel : ViewModelBase
     private string _currentCursorZone = "";
     private string _activeProfileName = "";
     private string _lastH2AckStatus = "No H2 command sent yet.";
+    private string _h2ConnectionStatus = "Not checked yet.";
     private string _lastRoutingEvent = "Routing disabled on startup.";
     private string _profileFilter = "";
     private bool _startWithWindows;
+    private bool _isCheckingH2Connection;
     private double _layoutPreviewScale = 0.16;
 
     public MainViewModel(
@@ -296,6 +298,12 @@ public sealed class MainViewModel : ViewModelBase
         private set => SetProperty(ref _lastH2AckStatus, value);
     }
 
+    public string H2ConnectionStatus
+    {
+        get => _h2ConnectionStatus;
+        private set => SetProperty(ref _h2ConnectionStatus, value);
+    }
+
     public string LastRoutingEvent
     {
         get => _lastRoutingEvent;
@@ -374,6 +382,12 @@ public sealed class MainViewModel : ViewModelBase
         await ExecuteProfileAsync(SelectedProfile);
     }
 
+    public async Task RefreshDashboardStatusAsync()
+    {
+        RefreshDiagnostics();
+        await RefreshH2ConnectionStatusAsync();
+    }
+
     private async Task ExecuteProfileFromCommandAsync(ProfileRow? profile)
     {
         if (profile is null)
@@ -422,6 +436,9 @@ public sealed class MainViewModel : ViewModelBase
                 LastH2AckStatus = result.IsSuccess
                     ? $"OK: {profile.H2Preset.DisplayName ?? $"presetId {profile.H2Preset.PresetId}"}"
                     : $"Failed: {result.Message}";
+                H2ConnectionStatus = result.IsSuccess
+                    ? $"Online: {device.Host}:{device.Port}"
+                    : $"No response: {result.Message}";
                 AddLog(result.IsSuccess ? "H2 preset load acknowledged." : $"H2 preset load failed: {result.Message}");
                 if (!string.IsNullOrWhiteSpace(result.ResponseJson))
                 {
@@ -490,6 +507,7 @@ public sealed class MainViewModel : ViewModelBase
         var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, SelectedDevice.PresetEnumScreenId);
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
         {
+            H2ConnectionStatus = $"No response: {result.Message}";
             AddLog($"Preset enum request failed: {result.Message}");
             return;
         }
@@ -517,10 +535,12 @@ public sealed class MainViewModel : ViewModelBase
                 });
             }
 
+            H2ConnectionStatus = $"Online: {device.Host}:{device.Port}";
             AddLog($"Loaded {parsed.Count} presets from H2.");
         }
         catch (Exception exception)
         {
+            H2ConnectionStatus = $"Unexpected response: {exception.Message}";
             AddLog($"Preset enum response could not be parsed: {exception.Message}");
             AddLog($"Raw preset enum response: {result.ResponseJson}");
         }
@@ -564,6 +584,40 @@ public sealed class MainViewModel : ViewModelBase
         };
         Devices.Add(row);
         SelectedDevice = row;
+    }
+
+    private async Task RefreshH2ConnectionStatusAsync()
+    {
+        if (_isCheckingH2Connection)
+        {
+            return;
+        }
+
+        var selectedDevice = SelectedDevice ?? Devices.FirstOrDefault();
+        if (selectedDevice is null)
+        {
+            H2ConnectionStatus = "No H2 device configured.";
+            return;
+        }
+
+        _isCheckingH2Connection = true;
+        try
+        {
+            var device = selectedDevice.ToModel();
+            H2ConnectionStatus = $"Checking {device.Host}:{device.Port}...";
+            var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, selectedDevice.PresetEnumScreenId);
+            H2ConnectionStatus = result.IsSuccess
+                ? $"Online: {device.Host}:{device.Port}"
+                : $"No response: {result.Message}";
+        }
+        catch (Exception exception)
+        {
+            H2ConnectionStatus = $"Check failed: {exception.Message}";
+        }
+        finally
+        {
+            _isCheckingH2Connection = false;
+        }
     }
 
     private void RemoveSelectedDevice()

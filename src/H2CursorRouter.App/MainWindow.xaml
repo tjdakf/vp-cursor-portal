@@ -67,7 +67,7 @@
             </Grid>
         </Border>
 
-        <TabControl Grid.Row="2" Margin="0" TabStripPlacement="Left">
+        <TabControl x:Name="MainTabs" Grid.Row="2" Margin="0" TabStripPlacement="Left" SelectionChanged="MainTabs_OnSelectionChanged">
             <TabItem Header="Dashboard">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="2">
@@ -85,34 +85,35 @@
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,14">
                                     <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
-                                    <TextBlock Text="{Binding ActiveProfileName, StringFormat={}Active: {0}}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,0" />
                                 </StackPanel>
                                 <ItemsControl ItemsSource="{Binding DashboardProfiles}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,12">
+                                            <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,8">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="112" />
+                                                        <ColumnDefinition Width="96" />
+                                                        <ColumnDefinition Width="1.1*" />
+                                                        <ColumnDefinition Width="1.7*" />
+                                                        <ColumnDefinition Width="72" />
+                                                        <ColumnDefinition Width="72" />
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                                            <Border Background="{StaticResource AccentSoftBrush}" CornerRadius="6" Padding="8,3" Margin="0,0,8,0">
-                                                                <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" />
-                                                            </Border>
-                                                            <TextBlock Text="{Binding StartSummary, StringFormat={}Start {0}}" Style="{StaticResource MutedTextStyle}" VerticalAlignment="Center" />
-                                                        </StackPanel>
-                                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                        <TextBlock Text="{Binding PresetSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,8,0,0" />
-                                                        <TextBlock Text="{Binding LayoutSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,3,0,0" />
-                                                    </StackPanel>
-                                                    <Button Grid.Column="1"
+                                                    <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="8,0" />
+                                                    <Button Grid.Column="3"
                                                             Content="Run"
                                                             Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                             CommandParameter="{Binding}"
                                                             VerticalAlignment="Center"
-                                                            Margin="12,0,0,0" />
+                                                            Margin="8,0,0,0" />
+                                                    <Button Grid.Column="4"
+                                                            Content="Edit"
+                                                            Tag="{Binding}"
+                                                            Click="EditProfileButton_OnClick"
+                                                            Style="{StaticResource SecondaryButtonStyle}"
+                                                            VerticalAlignment="Center"
+                                                            Margin="8,0,0,0" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -124,24 +125,18 @@
                         <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
                             <StackPanel>
                                 <TextBlock Text="Runtime" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
-                                <UniformGrid Columns="2" Margin="0,16,0,0">
+                                <UniformGrid Columns="1" Margin="0,16,0,0">
                                     <StackPanel Margin="0,0,12,14">
                                         <TextBlock Text="Routing" Style="{StaticResource MutedTextStyle}" />
                                         <TextBlock Text="{Binding RoutingStateText}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
                                     </StackPanel>
-                                    <StackPanel Margin="0,0,0,14">
-                                        <TextBlock Text="Cursor" Style="{StaticResource MutedTextStyle}" />
-                                        <TextBlock Text="{Binding CurrentCursorPosition}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
-                                        <TextBlock Text="{Binding CurrentCursorZone}" Style="{StaticResource MutedTextStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,12,0">
+                                    <StackPanel Margin="0,0,12,14">
                                         <TextBlock Text="Layout" Style="{StaticResource MutedTextStyle}" />
                                         <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding ActiveLayoutId}" Style="{StaticResource MutedTextStyle}" />
                                     </StackPanel>
                                     <StackPanel>
-                                        <TextBlock Text="H2 ACK" Style="{StaticResource MutedTextStyle}" />
-                                        <TextBlock Text="{Binding LastH2AckStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        <TextBlock Text="H2 Connection" Style="{StaticResource MutedTextStyle}" />
+                                        <TextBlock Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </UniformGrid>
                             </StackPanel>
@@ -167,10 +162,7 @@
 
                             <Border Grid.Row="1" Style="{StaticResource CardStyle}">
                                 <StackPanel>
-                                    <TextBlock Text="Config And Artifact" Style="{StaticResource SectionTitleStyle}" />
-                                    <TextBlock Text="{Binding ConfigPath}" Style="{StaticResource MutedTextStyle}" />
-                                    <TextBlock Text="{Binding ArtifactWorkflowHint}" Style="{StaticResource MutedTextStyle}" Margin="0,8,0,14" />
-                                    <Button Content="Reset To Bundled Sample" Command="{Binding ResetToSampleConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,0,8" />
+                                    <TextBlock Text="Startup" Style="{StaticResource SectionTitleStyle}" />
                                     <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
