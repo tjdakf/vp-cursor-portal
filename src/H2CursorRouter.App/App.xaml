@@ -3,9 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Startup="OnStartup">
     <Application.Resources>
-        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F7F7F4" />
-        <SolidColorBrush x:Key="ShellBrush" Color="#111827" />
-        <SolidColorBrush x:Key="ShellMutedBrush" Color="#CBD5E1" />
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5F5F2" />
+        <SolidColorBrush x:Key="ShellBrush" Color="#0F141C" />
+        <SolidColorBrush x:Key="ShellMutedBrush" Color="#A8B3C1" />
         <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
         <SolidColorBrush x:Key="PanelAltBrush" Color="#F3F4F1" />
         <SolidColorBrush x:Key="PanelElevatedBrush" Color="#FAFAF8" />
@@ -35,8 +35,8 @@
         </Style>
 
         <Style TargetType="Button">
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Padding" Value="16,7" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="14,6" />
             <Setter Property="Margin" Value="0,0,10,0" />
             <Setter Property="Background" Value="{StaticResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
@@ -51,7 +51,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
+                                CornerRadius="7">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               Margin="{TemplateBinding Padding}" />
@@ -91,13 +91,13 @@
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="16" />
-            <Setter Property="Margin" Value="0,0,14,14" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="Margin" Value="0,0,16,16" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="18" ShadowDepth="1" Direction="270" Opacity="0.08" Color="#111827" />
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="1" Direction="270" Opacity="0.10" Color="#111827" />
                 </Setter.Value>
             </Setter>
         </Style>
@@ -109,6 +109,12 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="0,0,10,0" />
+        </Style>
+
+        <Style x:Key="ProfileCardStyle" TargetType="Border" BasedOn="{StaticResource InsetCardStyle}">
+            <Setter Property="Background" Value="#FBFBFA" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,12,0" />
         </Style>
 
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
@@ -126,13 +132,14 @@
         <Style TargetType="TabControl">
             <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="0" />
+            <Setter Property="Padding" Value="18" />
         </Style>
 
         <Style TargetType="TabItem">
-            <Setter Property="Padding" Value="16,9" />
-            <Setter Property="Margin" Value="0,0,6,10" />
-            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+            <Setter Property="Width" Value="174" />
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="Margin" Value="0,0,16,8" />
+            <Setter Property="Foreground" Value="#5F6872" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
@@ -142,21 +149,21 @@
                                 Background="Transparent"
                                 BorderBrush="Transparent"
                                 BorderThickness="1"
-                                CornerRadius="999"
+                                CornerRadius="9"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header"
-                                              HorizontalAlignment="Center"
+                                              HorizontalAlignment="Left"
                                               VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource PanelAltBrush}" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#ECEDEA" />
                                 <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{StaticResource ShellBrush}" />
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource ShellBrush}" />
-                                <Setter Property="Foreground" Value="White" />
+                                <Setter TargetName="TabBorder" Property="Background" Value="#E8F2EE" />
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#CDE2DA" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="#A5A9A7" />

@@ -10,7 +10,7 @@
         Loaded="OnLoaded"
         Closing="OnClosing">
     <DockPanel>
-        <Border DockPanel.Dock="Top" Background="{StaticResource ShellBrush}" Padding="20,14">
+        <Border DockPanel.Dock="Top" Background="{StaticResource ShellBrush}" Padding="18,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -20,7 +20,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="vp-cursor-portal" Foreground="White" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Text="vp-cursor-portal" Foreground="White" FontSize="20" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding RuntimeStatus}" Foreground="{StaticResource ShellMutedBrush}" Margin="0,4,0,0" />
                 </StackPanel>
                 <Button Grid.Column="1" Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" />
@@ -30,7 +30,7 @@
             </Grid>
         </Border>
 
-        <TabControl Margin="14">
+        <TabControl Margin="0" TabStripPlacement="Left">
             <TabItem Header="Dashboard">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="2">
@@ -92,7 +92,7 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Style="{StaticResource InsetCardStyle}">
+                                            <Border Style="{StaticResource ProfileCardStyle}">
                                                 <Grid>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto" />
@@ -103,7 +103,7 @@
                                                         <RowDefinition Height="Auto" />
                                                     </Grid.RowDefinitions>
                                                     <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
-                                                    <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,8" />
+                                                    <TextBlock Grid.Row="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,8" />
                                                     <TextBlock Grid.Row="2" Text="{Binding PresetSummary}" Style="{StaticResource MutedTextStyle}" />
                                                     <TextBlock Grid.Row="3" Text="{Binding LayoutSummary}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,0" />
                                                     <TextBlock Grid.Row="4" Text="{Binding StartSummary, StringFormat={}Start: {0}}" Style="{StaticResource MutedTextStyle}" Margin="0,4,0,10" />
