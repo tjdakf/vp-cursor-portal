@@ -4,10 +4,11 @@
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="vp-cursor-portal"
-        Width="1360"
-        Height="860"
-        MinWidth="1280"
+        Width="1500"
+        Height="810"
+        MinWidth="1360"
         MinHeight="720"
+        WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
         Loaded="OnLoaded"
@@ -72,7 +73,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <Grid Margin="2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="620" />
+                            <ColumnDefinition Width="*" MinWidth="760" />
                             <ColumnDefinition Width="380" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -81,7 +82,7 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}" MinHeight="660">
+                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}" MinHeight="650">
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                                     <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
@@ -93,7 +94,7 @@
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="112" />
-                                                        <ColumnDefinition Width="230" />
+                                                        <ColumnDefinition Width="250" />
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="68" />
                                                         <ColumnDefinition Width="68" />
