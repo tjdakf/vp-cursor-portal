@@ -89,7 +89,6 @@ public sealed class MainViewModel : ViewModelBase
         ValidationErrors = new ObservableCollection<string>();
         _startWithWindows = _startupRegistrationService.IsRegistered();
 
-        RebuildPresetRowsFromProfiles();
         SelectedDevice = Devices.FirstOrDefault();
         SelectedLayout = Layouts.FirstOrDefault();
         SelectedProfile = Profiles.FirstOrDefault();
@@ -306,11 +305,13 @@ public sealed class MainViewModel : ViewModelBase
             if (SetProperty(ref _h2ConnectionStatus, value))
             {
                 OnPropertyChanged(nameof(IsH2Online));
+                OnPropertyChanged(nameof(IsOnline));
             }
         }
     }
 
     public bool IsH2Online => H2ConnectionStatus.StartsWith("Online:", StringComparison.OrdinalIgnoreCase);
+    public bool IsOnline => IsH2Online;
 
     public string LastRoutingEvent
     {
@@ -440,6 +441,12 @@ public sealed class MainViewModel : ViewModelBase
 
                 AddLog($"Sending W0605 to {device.Host}:{device.Port} screenId={profile.H2Preset.ScreenId} presetId={profile.H2Preset.PresetId}.");
                 var result = await _h2DeviceClient.LoadPresetAsync(device, profile.H2Preset.ScreenId, profile.H2Preset.PresetId);
+                var deviceRow = Devices.FirstOrDefault(row => string.Equals(row.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
+                if (deviceRow is not null)
+                {
+                    deviceRow.IsOnline = result.IsSuccess;
+                }
+
                 h2AckOk = result.IsSuccess;
                 LastH2AckStatus = result.IsSuccess
                     ? $"OK: {profile.H2Preset.DisplayName ?? $"presetId {profile.H2Preset.PresetId}"}"
@@ -513,8 +520,14 @@ public sealed class MainViewModel : ViewModelBase
         var device = SelectedDevice.ToModel();
         AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
         var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, SelectedDevice.PresetEnumScreenId);
+        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, SelectedDevice.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            Presets.Remove(row);
+        }
+
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
         {
+            SelectedDevice.IsOnline = false;
             H2ConnectionStatus = $"No response: {result.Message}";
             AddLog($"Preset enum request failed: {result.Message}");
             return;
@@ -523,31 +536,27 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var parsed = _presetEnumParser.Parse(result.ResponseJson);
-            var removed = Presets.Where(row => row.Source == "H2 Query").ToArray();
-            foreach (var row in removed)
-            {
-                Presets.Remove(row);
-            }
-
             foreach (var preset in parsed)
             {
                 Presets.Add(new PresetRow
                 {
                     DeviceConfigId = SelectedDevice.Id,
+                    DeviceName = SelectedDevice.Name,
                     H2DeviceId = preset.DeviceId,
                     ScreenId = preset.ScreenId,
                     FriendlyPresetNumber = preset.FriendlyPresetNumber,
                     PresetId = preset.PresetId,
-                    DisplayName = preset.DisplayName,
-                    Source = "H2 Query"
+                    DisplayName = string.IsNullOrWhiteSpace(preset.Name) ? "(unnamed)" : preset.Name
                 });
             }
 
+            SelectedDevice.IsOnline = true;
             H2ConnectionStatus = $"Online: {device.Host}:{device.Port}";
-            AddLog($"Loaded {parsed.Count} presets from H2.");
+            AddLog($"Loaded {parsed.Count} presets from H2 device '{SelectedDevice.Name}'.");
         }
         catch (Exception exception)
         {
+            SelectedDevice.IsOnline = false;
             H2ConnectionStatus = $"Unexpected response: {exception.Message}";
             AddLog($"Preset enum response could not be parsed: {exception.Message}");
             AddLog($"Raw preset enum response: {result.ResponseJson}");
@@ -614,12 +623,14 @@ public sealed class MainViewModel : ViewModelBase
             var device = selectedDevice.ToModel();
             H2ConnectionStatus = $"Checking {device.Host}:{device.Port}...";
             var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, selectedDevice.PresetEnumScreenId);
+            selectedDevice.IsOnline = result.IsSuccess;
             H2ConnectionStatus = result.IsSuccess
                 ? $"Online: {device.Host}:{device.Port}"
                 : $"No response: {result.Message}";
         }
         catch (Exception exception)
         {
+            selectedDevice.IsOnline = false;
             H2ConnectionStatus = $"Check failed: {exception.Message}";
         }
         finally
@@ -1013,7 +1024,6 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         await _configFileService.SaveAsync(configuration, _configPath);
-        RebuildPresetRowsFromProfiles();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
         AddLog($"Saved configuration to {_configPath}. Hotkeys were refreshed.");
     }
@@ -1052,27 +1062,6 @@ public sealed class MainViewModel : ViewModelBase
         CurrentCursorPosition = $"{position.X}, {position.Y}";
         var zone = _routingEngine.FindZone(layout, position);
         CurrentCursorZone = zone is null ? "Outside known zones" : $"{zone.Id} ({(zone.IsVisible ? "visible" : "hidden")})";
-    }
-
-    private void RebuildPresetRowsFromProfiles()
-    {
-        foreach (var row in Presets.Where(row => row.Source == "Profile").ToArray())
-        {
-            Presets.Remove(row);
-        }
-
-        foreach (var profile in Profiles.Where(profile => !string.IsNullOrWhiteSpace(profile.DeviceId) && profile.ScreenId is not null && profile.PresetId is not null))
-        {
-            Presets.Add(new PresetRow
-            {
-                DeviceConfigId = profile.DeviceId!,
-                ScreenId = profile.ScreenId!.Value,
-                PresetId = profile.PresetId!.Value,
-                FriendlyPresetNumber = profile.PresetId.Value + 1,
-                DisplayName = profile.PresetDisplayName ?? $"Preset {profile.PresetId.Value + 1} / presetId {profile.PresetId.Value}",
-                Source = "Profile"
-            });
-        }
     }
 
     private AppConfiguration BuildConfiguration() => new(
@@ -1155,7 +1144,6 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Presets.Clear();
-        RebuildPresetRowsFromProfiles();
         FilteredProfiles.Refresh();
         RefreshDashboardProfiles();
         SelectedDevice = Devices.FirstOrDefault();

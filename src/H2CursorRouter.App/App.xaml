@@ -186,6 +186,9 @@
                 <DataTrigger Binding="{Binding IsH2Online}" Value="True">
                     <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                    <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 

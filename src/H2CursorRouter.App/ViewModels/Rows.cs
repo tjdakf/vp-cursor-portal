@@ -5,8 +5,10 @@ using H2CursorRouter.Windows;
 
 namespace H2CursorRouter.App.ViewModels;
 
-public sealed class DeviceRow
+public sealed class DeviceRow : ViewModelBase
 {
+    private bool _isOnline;
+
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Host { get; set; } = "";
@@ -14,6 +16,19 @@ public sealed class DeviceRow
     public int DeviceId { get; set; }
     public int PresetEnumScreenId { get; set; }
     public int TimeoutMs { get; set; } = 1000;
+    public bool IsOnline
+    {
+        get => _isOnline;
+        set
+        {
+            if (SetProperty(ref _isOnline, value))
+            {
+                OnPropertyChanged(nameof(IsH2Online));
+            }
+        }
+    }
+
+    public bool IsH2Online => IsOnline;
 
     public static DeviceRow FromModel(H2DeviceConfig device) => new()
     {
@@ -37,12 +52,12 @@ public sealed class DeviceRow
 public sealed class PresetRow
 {
     public string DeviceConfigId { get; set; } = "";
+    public string DeviceName { get; set; } = "";
     public int H2DeviceId { get; set; }
     public int ScreenId { get; set; }
     public int FriendlyPresetNumber { get; set; }
     public int PresetId { get; set; }
     public string DisplayName { get; set; } = "";
-    public string Source { get; set; } = "";
 }
 
 public sealed class LayoutRow
