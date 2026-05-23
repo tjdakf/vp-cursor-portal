@@ -1486,22 +1486,13 @@ public sealed class MainViewModel : ViewModelBase
 
         foreach (var other in SelectedLayoutZones.Where(other => !ReferenceEquals(other, zone)))
         {
-            Consider(
-                Math.Abs(zone.VisualLeft - other.VisualRight) + RangeGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom) * 0.25,
-                other.VisualRight,
-                zone.VisualTop);
-            Consider(
-                Math.Abs(zone.VisualRight - other.VisualLeft) + RangeGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom) * 0.25,
-                other.VisualLeft - width,
-                zone.VisualTop);
-            Consider(
-                Math.Abs(zone.VisualTop - other.VisualBottom) + RangeGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight) * 0.25,
-                zone.VisualLeft,
-                other.VisualBottom);
-            Consider(
-                Math.Abs(zone.VisualBottom - other.VisualTop) + RangeGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight) * 0.25,
-                zone.VisualLeft,
-                other.VisualTop - height);
+            var verticallyAlignedTop = AlignStartForOverlap(zone.VisualTop, height, other.VisualTop, other.VisualBottom);
+            Consider(other.VisualRight, verticallyAlignedTop);
+            Consider(other.VisualLeft - width, verticallyAlignedTop);
+
+            var horizontallyAlignedLeft = AlignStartForOverlap(zone.VisualLeft, width, other.VisualLeft, other.VisualRight);
+            Consider(horizontallyAlignedLeft, other.VisualBottom);
+            Consider(horizontallyAlignedLeft, other.VisualTop - height);
         }
 
         zone.VisualLeft = SnapToGrid(snappedLeft);
@@ -1509,8 +1500,9 @@ public sealed class MainViewModel : ViewModelBase
         zone.VisualTop = SnapToGrid(snappedTop);
         zone.VisualBottom = zone.VisualTop + height;
 
-        void Consider(double score, double left, double top)
+        void Consider(double left, double top)
         {
+            var score = Math.Abs(zone.VisualLeft - left) + Math.Abs(zone.VisualTop - top);
             if (score < bestScore)
             {
                 bestScore = score;
@@ -1863,19 +1855,20 @@ public sealed class MainViewModel : ViewModelBase
     private double SnapSize(double value) =>
         Math.Max(MinimumVisualSize, SnapToGrid(value));
 
-    private static bool RangesOverlap(double firstStart, double firstEnd, double secondStart, double secondEnd) =>
-        Math.Min(firstEnd, secondEnd) > Math.Max(firstStart, secondStart);
-
-    private static double RangeGap(double firstStart, double firstEnd, double secondStart, double secondEnd)
+    private static double AlignStartForOverlap(double currentStart, double size, double targetStart, double targetEnd)
     {
-        if (RangesOverlap(firstStart, firstEnd, secondStart, secondEnd))
+        var currentEnd = currentStart + size;
+        if (currentEnd <= targetStart)
         {
-            return 0;
+            return targetStart;
         }
 
-        return firstEnd <= secondStart
-            ? secondStart - firstEnd
-            : firstStart - secondEnd;
+        if (currentStart >= targetEnd)
+        {
+            return targetEnd - size;
+        }
+
+        return currentStart;
     }
 
     private static int? TryParseMonitorOrdinal(string? text)
