@@ -351,21 +351,13 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
                             <DataGridTextColumn Header="Hotkey" Binding="{Binding Hotkey}" Width="120" />
-                            <DataGridTextColumn Header="Preset" Binding="{Binding PresetSummary}" Width="180" IsReadOnly="True" />
-                            <DataGridTextColumn Header="Cursor Layout" Binding="{Binding CursorLayoutId}" Width="180" />
-                            <DataGridTextColumn Header="Start X" Binding="{Binding StartX}" Width="80" />
-                            <DataGridTextColumn Header="Start Y" Binding="{Binding StartY}" Width="80" />
-                            <DataGridTextColumn Header="Post ACK Delay" Binding="{Binding PostAckDelayMs}" Width="120" />
-                            <DataGridCheckBoxColumn Header="Require H2 ACK" Binding="{Binding RequireH2AckBeforeCursorLayout}" Width="120" />
+                            <DataGridTextColumn Header="Layout" Binding="{Binding CursorLayoutId}" Width="2*" />
+                            <DataGridTextColumn Header="Preset" Binding="{Binding PresetSummary}" Width="2*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                         <Button Content="Add Profile" Command="{Binding AddProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                         <Button Content="Remove Profile" Command="{Binding RemoveProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                        <Button Content="Duplicate Profile" Command="{Binding DuplicateProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                        <Button Content="Map Selected Preset" Command="{Binding ApplySelectedPresetToProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                        <Button Content="Map Selected Layout" Command="{Binding ApplySelectedLayoutToProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                        <Button Content="Use Current Cursor" Command="{Binding SetCurrentCursorAsStartCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                         <Button Content="Execute Profile" Command="{Binding ExecuteSelectedProfileCommand}" Margin="0" />
                     </StackPanel>
                 </Grid>

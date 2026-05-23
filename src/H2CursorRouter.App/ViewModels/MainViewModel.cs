@@ -24,6 +24,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IH2DeviceClient _h2DeviceClient;
     private readonly IDisplayIdentificationService _displayIdentificationService;
     private readonly ITextInputDialogService _textInputDialogService;
+    private readonly IProfileDialogService _profileDialogService;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly CursorRoutingRuntime _routingRuntime;
@@ -61,6 +62,7 @@ public sealed class MainViewModel : ViewModelBase
         IH2DeviceClient h2DeviceClient,
         IDisplayIdentificationService displayIdentificationService,
         ITextInputDialogService textInputDialogService,
+        IProfileDialogService profileDialogService,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
         CursorRoutingRuntime routingRuntime,
@@ -74,6 +76,7 @@ public sealed class MainViewModel : ViewModelBase
         _h2DeviceClient = h2DeviceClient;
         _displayIdentificationService = displayIdentificationService;
         _textInputDialogService = textInputDialogService;
+        _profileDialogService = profileDialogService;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
@@ -1007,13 +1010,26 @@ public sealed class MainViewModel : ViewModelBase
 
     private void AddProfile()
     {
-        var index = Profiles.Count + 1;
+        var profileName = GetNextProfileName();
+        var result = _profileDialogService.Prompt(
+            "Add profile",
+            profileName,
+            Layouts.ToArray(),
+            SelectedLayout?.Id);
+        if (result is null)
+        {
+            return;
+        }
+
+        var start = CalculateLayoutStart(result.CursorLayoutId);
         var row = new ProfileRow
         {
-            Id = $"profile-{index}",
-            Name = $"Profile {index}",
-            Hotkey = $"Ctrl+Alt+{Math.Min(index, 9)}",
-            CursorLayoutId = SelectedLayout?.Id,
+            Id = CreateUniqueProfileId(result.Name),
+            Name = result.Name,
+            Hotkey = result.Hotkey,
+            CursorLayoutId = result.CursorLayoutId,
+            StartX = start?.X,
+            StartY = start?.Y,
             PostAckDelayMs = 500,
             RequireH2AckBeforeCursorLayout = true
         };
@@ -1021,6 +1037,7 @@ public sealed class MainViewModel : ViewModelBase
         FilteredProfiles.Refresh();
         RefreshDashboardProfiles();
         SelectedProfile = row;
+        AddLog($"Added profile '{row.Name}'.");
     }
 
     private void RemoveSelectedProfile()
@@ -1546,6 +1563,67 @@ public sealed class MainViewModel : ViewModelBase
                 return candidate;
             }
         }
+    }
+
+    private string GetNextProfileName()
+    {
+        var existing = Profiles
+            .Select(profile => profile.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var i = 1; ; i++)
+        {
+            var name = $"profile{i}";
+            if (!existing.Contains(name))
+            {
+                return name;
+            }
+        }
+    }
+
+    private string CreateUniqueProfileId(string name)
+    {
+        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(baseId))
+        {
+            baseId = "profile";
+        }
+
+        var id = baseId.StartsWith("profile-", StringComparison.OrdinalIgnoreCase)
+            ? baseId
+            : $"profile-{baseId}";
+        var existing = Profiles.Select(profile => profile.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!existing.Contains(id))
+        {
+            return id;
+        }
+
+        for (var i = 2; ; i++)
+        {
+            var candidate = $"{id}-{i}";
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private CursorPoint? CalculateLayoutStart(string? layoutId)
+    {
+        if (string.IsNullOrWhiteSpace(layoutId))
+        {
+            return null;
+        }
+
+        var visibleZone = Zones
+            .Where(zone => string.Equals(zone.LayoutId, layoutId, StringComparison.OrdinalIgnoreCase) && zone.IsVisible)
+            .OrderBy(zone => zone.WindowsTop)
+            .ThenBy(zone => zone.WindowsLeft)
+            .FirstOrDefault();
+        return visibleZone is null
+            ? null
+            : new CursorPoint(
+                visibleZone.WindowsLeft + (visibleZone.WindowsRight - visibleZone.WindowsLeft) / 2,
+                visibleZone.WindowsTop + (visibleZone.WindowsBottom - visibleZone.WindowsTop) / 2);
     }
 
     private void RefreshLayoutPreviewCanvasSize()

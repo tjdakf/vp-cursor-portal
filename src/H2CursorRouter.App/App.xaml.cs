@@ -36,6 +36,7 @@ public partial class App : System.Windows.Application
             new H2DeviceClient(),
             new DisplayIdentificationService(),
             new TextInputDialogService(),
+            new ProfileDialogService(),
             cursorService,
             _monitorTopology,
             _runtime,
