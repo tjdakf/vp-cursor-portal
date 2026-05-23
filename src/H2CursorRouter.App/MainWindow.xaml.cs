@@ -219,4 +219,13 @@ public partial class MainWindow : Window
             _viewModel.ResizeZoneVisual(zone, e.HorizontalChange, e.VerticalChange);
         }
     }
+
+    private void ZoneVisual_OnMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is ZoneRow zone)
+        {
+            _viewModel.SelectedZone = zone;
+            e.Handled = false;
+        }
+    }
 }

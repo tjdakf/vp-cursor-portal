@@ -34,6 +34,7 @@ public sealed class MainViewModel : ViewModelBase
     private PresetRow? _selectedPreset;
     private LayoutRow? _selectedLayout;
     private ZoneRow? _selectedZone;
+    private MonitorRow? _selectedAvailableMonitor;
     private PortalRow? _selectedPortal;
     private ProfileRow? _selectedProfile;
     private string _runtimeStatus = "Routing disabled on startup.";
@@ -90,6 +91,7 @@ public sealed class MainViewModel : ViewModelBase
         Monitors = new ObservableCollection<MonitorRow>();
         SelectedLayoutZones = new ObservableCollection<ZoneRow>();
         SelectedLayoutPortals = new ObservableCollection<PortalRow>();
+        AvailableLayoutDisplays = new ObservableCollection<MonitorRow>();
         Logs = new ObservableCollection<string>();
         ValidationErrors = new ObservableCollection<string>();
         _startWithWindows = _startupRegistrationService.IsRegistered();
@@ -106,6 +108,7 @@ public sealed class MainViewModel : ViewModelBase
         RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null);
         AddZoneCommand = new RelayCommand(AddZone, () => SelectedLayout is not null);
         RemoveZoneCommand = new RelayCommand(RemoveSelectedZone, () => SelectedZone is not null);
+        AddDisplayToCanvasCommand = new RelayCommand(AddSelectedDisplayToCanvas, () => SelectedLayout is not null && SelectedAvailableMonitor is not null);
         AddPortalCommand = new RelayCommand(AddPortal, () => SelectedLayout is not null);
         RemovePortalCommand = new RelayCommand(RemoveSelectedPortal, () => SelectedPortal is not null);
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
@@ -149,6 +152,7 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<MonitorRow> Monitors { get; }
     public ObservableCollection<ZoneRow> SelectedLayoutZones { get; }
     public ObservableCollection<PortalRow> SelectedLayoutPortals { get; }
+    public ObservableCollection<MonitorRow> AvailableLayoutDisplays { get; }
     public ObservableCollection<string> Logs { get; }
     public ObservableCollection<string> ValidationErrors { get; }
 
@@ -160,6 +164,7 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand RemoveLayoutCommand { get; }
     public ICommand AddZoneCommand { get; }
     public ICommand RemoveZoneCommand { get; }
+    public ICommand AddDisplayToCanvasCommand { get; }
     public ICommand AddPortalCommand { get; }
     public ICommand RemovePortalCommand { get; }
     public ICommand CreateLayoutFromMonitorsCommand { get; }
@@ -226,6 +231,21 @@ public sealed class MainViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedZone, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedZone));
+                RaiseCommandStates();
+            }
+        }
+    }
+
+    public bool HasSelectedZone => SelectedZone is not null;
+
+    public MonitorRow? SelectedAvailableMonitor
+    {
+        get => _selectedAvailableMonitor;
+        set
+        {
+            if (SetProperty(ref _selectedAvailableMonitor, value))
             {
                 RaiseCommandStates();
             }
@@ -769,9 +789,37 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        foreach (var portal in Portals.Where(portal =>
+                     portal.LayoutId == SelectedZone.LayoutId &&
+                     (string.Equals(portal.FromZoneId, SelectedZone.Id, StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(portal.ToZoneId, SelectedZone.Id, StringComparison.OrdinalIgnoreCase))).ToArray())
+        {
+            Portals.Remove(portal);
+            SelectedLayoutPortals.Remove(portal);
+        }
+
         Zones.Remove(SelectedZone);
         SelectedLayoutZones.Remove(SelectedZone);
         SelectedZone = Zones.FirstOrDefault(zone => zone.LayoutId == SelectedLayout?.Id);
+        RefreshAvailableLayoutDisplays();
+        RefreshLayoutPreviewCanvasSize();
+    }
+
+    private void AddSelectedDisplayToCanvas()
+    {
+        if (SelectedLayout is null || SelectedAvailableMonitor is null)
+        {
+            return;
+        }
+
+        var zone = CreateZoneFromMonitor(SelectedLayout.Id, SelectedAvailableMonitor);
+        Zones.Add(zone);
+        SelectedLayoutZones.Add(zone);
+        SelectedZone = zone;
+        SelectedAvailableMonitor = null;
+        RefreshAvailableLayoutDisplays();
+        RefreshLayoutPreviewCanvasSize();
+        AddLog($"Added display '{zone.DisplayName}' to layout canvas.");
     }
 
     private void AddPortal()
@@ -818,21 +866,7 @@ public sealed class MainViewModel : ViewModelBase
         var ordered = Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top).ToArray();
         foreach (var monitor in ordered)
         {
-            var zone = new ZoneRow
-            {
-                LayoutId = layout.Id,
-                Id = NormalizeZoneId(monitor.DeviceName),
-                DisplayName = monitor.DeviceName,
-                WindowsLeft = monitor.Left,
-                WindowsTop = monitor.Top,
-                WindowsRight = monitor.Right,
-                WindowsBottom = monitor.Bottom,
-                VisualLeft = monitor.Left,
-                VisualTop = monitor.Top,
-                VisualRight = monitor.Right,
-                VisualBottom = monitor.Bottom,
-                IsVisible = true
-            };
+            var zone = CreateZoneFromMonitor(layout.Id, monitor);
             Zones.Add(zone);
             SelectedLayoutZones.Add(zone);
         }
@@ -1107,6 +1141,7 @@ public sealed class MainViewModel : ViewModelBase
             ? "none"
             : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
         AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
+        RefreshAvailableLayoutDisplays();
         RaiseCommandStates();
     }
 
@@ -1294,6 +1329,7 @@ public sealed class MainViewModel : ViewModelBase
             RemoveLayoutCommand,
             AddZoneCommand,
             RemoveZoneCommand,
+            AddDisplayToCanvasCommand,
             AddPortalCommand,
             RemovePortalCommand,
             CreateLayoutFromMonitorsCommand,
@@ -1346,6 +1382,7 @@ public sealed class MainViewModel : ViewModelBase
         SelectedLayoutPortals.Clear();
         if (SelectedLayout is null)
         {
+            RefreshAvailableLayoutDisplays();
             return;
         }
 
@@ -1359,7 +1396,47 @@ public sealed class MainViewModel : ViewModelBase
             SelectedLayoutPortals.Add(portal);
         }
 
+        SelectedZone = SelectedLayoutZones.FirstOrDefault();
+        RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
+    }
+
+    private void RefreshAvailableLayoutDisplays()
+    {
+        var selectedIds = SelectedLayoutZones
+            .Select(zone => NormalizeZoneId(zone.Id))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        AvailableLayoutDisplays.Clear();
+        foreach (var monitor in Monitors.Where(monitor => !selectedIds.Contains(NormalizeZoneId(monitor.DeviceName))))
+        {
+            AvailableLayoutDisplays.Add(monitor);
+        }
+
+        if (SelectedAvailableMonitor is null ||
+            !AvailableLayoutDisplays.Contains(SelectedAvailableMonitor))
+        {
+            SelectedAvailableMonitor = AvailableLayoutDisplays.FirstOrDefault();
+        }
+    }
+
+    private static ZoneRow CreateZoneFromMonitor(string layoutId, MonitorRow monitor)
+    {
+        return new ZoneRow
+        {
+            LayoutId = layoutId,
+            Id = NormalizeZoneId(monitor.DeviceName),
+            DisplayName = monitor.DeviceName,
+            WindowsLeft = monitor.Left,
+            WindowsTop = monitor.Top,
+            WindowsRight = monitor.Right,
+            WindowsBottom = monitor.Bottom,
+            VisualLeft = monitor.Left,
+            VisualTop = monitor.Top,
+            VisualRight = monitor.Right,
+            VisualBottom = monitor.Bottom,
+            IsVisible = true
+        };
     }
 
     private void RefreshLayoutPreviewCanvasSize()
