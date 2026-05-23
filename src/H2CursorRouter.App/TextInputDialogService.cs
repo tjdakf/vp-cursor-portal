@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using WpfButton = System.Windows.Controls.Button;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
+using WpfOrientation = System.Windows.Controls.Orientation;
 using WpfTextBox = System.Windows.Controls.TextBox;
 
 namespace H2CursorRouter.App;
@@ -62,7 +63,7 @@ public sealed class TextInputDialogService : ITextInputDialogService
 
         var buttons = new StackPanel
         {
-            Orientation = Orientation.Horizontal,
+            Orientation = WpfOrientation.Horizontal,
             HorizontalAlignment = WpfHorizontalAlignment.Right,
             Margin = new Thickness(0, 16, 0, 0)
         };
