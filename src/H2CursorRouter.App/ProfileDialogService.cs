@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using H2CursorRouter.App.ViewModels;
 using WpfButton = System.Windows.Controls.Button;
+using WpfCheckBox = System.Windows.Controls.CheckBox;
 using WpfComboBox = System.Windows.Controls.ComboBox;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using WpfOrientation = System.Windows.Controls.Orientation;
@@ -31,7 +32,7 @@ public sealed class ProfileDialogService : IProfileDialogService
             SelectedValue = selectedLayoutId,
             MinWidth = 320
         };
-        var cursorOnlyInput = new CheckBox
+        var cursorOnlyInput = new WpfCheckBox
         {
             Content = "Cursor layout only",
             IsChecked = true,
@@ -128,7 +129,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         WpfTextBox nameInput,
         WpfTextBox hotkeyInput,
         WpfComboBox layoutInput,
-        CheckBox cursorOnlyInput,
+        WpfCheckBox cursorOnlyInput,
         WpfComboBox deviceInput,
         WpfComboBox presetInput,
         out WpfButton okButton,
