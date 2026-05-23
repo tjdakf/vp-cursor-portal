@@ -391,18 +391,43 @@ public sealed class ProfileRow : ViewModelBase
     }
 }
 
-public sealed class MonitorRow
+public sealed class MonitorRow : ViewModelBase
 {
+    private double _previewLeft;
+    private double _previewTop;
+    private double _previewWidth;
+    private double _previewHeight;
+
     public string DeviceName { get; init; } = "";
     public int Left { get; init; }
     public int Top { get; init; }
     public int Right { get; init; }
     public int Bottom { get; init; }
     public bool IsPrimary { get; init; }
-    public double PreviewLeft { get; set; }
-    public double PreviewTop { get; set; }
-    public double PreviewWidth { get; set; }
-    public double PreviewHeight { get; set; }
+    public double PreviewLeft
+    {
+        get => _previewLeft;
+        set => SetProperty(ref _previewLeft, value);
+    }
+
+    public double PreviewTop
+    {
+        get => _previewTop;
+        set => SetProperty(ref _previewTop, value);
+    }
+
+    public double PreviewWidth
+    {
+        get => _previewWidth;
+        set => SetProperty(ref _previewWidth, value);
+    }
+
+    public double PreviewHeight
+    {
+        get => _previewHeight;
+        set => SetProperty(ref _previewHeight, value);
+    }
+
     public string BoundsText => $"{Left},{Top} -> {Right},{Bottom}";
     public string PrimaryText => IsPrimary ? "Primary" : "";
     public int Width => Right - Left;

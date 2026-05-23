@@ -48,6 +48,7 @@ public sealed class MainViewModel : ViewModelBase
     private double _layoutPreviewScale = 0.16;
     private double _displayPreviewCanvasWidth = 640;
     private double _displayPreviewCanvasHeight = 320;
+    private string _displayDiagnostics = "Displays have not been refreshed yet.";
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -279,6 +280,12 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _displayPreviewCanvasHeight;
         private set => SetProperty(ref _displayPreviewCanvasHeight, value);
+    }
+
+    public string DisplayDiagnostics
+    {
+        get => _displayDiagnostics;
+        private set => SetProperty(ref _displayDiagnostics, value);
     }
 
     public string ActiveProfileName
@@ -1097,11 +1104,14 @@ public sealed class MainViewModel : ViewModelBase
             Monitors.Add(MonitorRow.FromModel(monitor));
         }
 
+        RefreshDisplayPreview();
         var monitorSummary = Monitors.Count == 0
             ? "none"
-            : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
+            : string.Join("; ", Monitors.Select(monitor =>
+                $"{monitor.DeviceName} raw={monitor.BoundsText} preview={monitor.PreviewLeft:0.#},{monitor.PreviewTop:0.#} {monitor.PreviewWidth:0.#}x{monitor.PreviewHeight:0.#}"));
+        DisplayDiagnostics =
+            $"Detected={Monitors.Count}, Canvas={DisplayPreviewCanvasWidth:0.#}x{DisplayPreviewCanvasHeight:0.#}, Items={monitorSummary}";
         AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
-        RefreshDisplayPreview();
         RaiseCommandStates();
     }
 
