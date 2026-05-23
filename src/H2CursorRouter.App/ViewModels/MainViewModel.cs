@@ -18,7 +18,6 @@ public sealed class MainViewModel : ViewModelBase
 {
     private const double MinimumVisualSize = 120;
     private const double EdgeSnapTolerance = 24;
-    private const double ReleaseAttachTolerance = 180;
 
     private readonly string _configPath;
     private readonly string _executablePath;
@@ -56,6 +55,7 @@ public sealed class MainViewModel : ViewModelBase
     private double _layoutPreviewScale = 0.16;
     private double _displayPreviewCanvasWidth = 640;
     private double _displayPreviewCanvasHeight = 320;
+    private CursorPoint? _selectedLayoutDraftStartPosition;
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -806,9 +806,10 @@ public sealed class MainViewModel : ViewModelBase
             VisualBottom = 1080,
             IsVisible = true
         };
-        Zones.Add(row);
         SelectedLayoutZones.Add(row);
         SelectedZone = row;
+        NormalizeSelectedLayoutVisualOrigin();
+        RefreshLayoutPreviewCanvasSize();
     }
 
     private void RemoveSelectedZone()
@@ -818,18 +819,16 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        foreach (var portal in Portals.Where(portal =>
+        foreach (var portal in SelectedLayoutPortals.Where(portal =>
                      portal.LayoutId == SelectedZone.LayoutId &&
                      (string.Equals(portal.FromZoneId, SelectedZone.Id, StringComparison.OrdinalIgnoreCase) ||
                       string.Equals(portal.ToZoneId, SelectedZone.Id, StringComparison.OrdinalIgnoreCase))).ToArray())
         {
-            Portals.Remove(portal);
             SelectedLayoutPortals.Remove(portal);
         }
 
-        Zones.Remove(SelectedZone);
         SelectedLayoutZones.Remove(SelectedZone);
-        SelectedZone = Zones.FirstOrDefault(zone => zone.LayoutId == SelectedLayout?.Id);
+        SelectedZone = SelectedLayoutZones.FirstOrDefault();
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
     }
@@ -842,10 +841,10 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         var zone = CreateZoneFromMonitor(SelectedLayout.Id, SelectedAvailableMonitor);
-        Zones.Add(zone);
         SelectedLayoutZones.Add(zone);
         SelectedZone = zone;
         SelectedAvailableMonitor = null;
+        NormalizeSelectedLayoutVisualOrigin();
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
         AddLog($"Added display '{zone.DisplayName}' to layout canvas.");
@@ -865,7 +864,6 @@ public sealed class MainViewModel : ViewModelBase
             FromZoneId = zones.ElementAtOrDefault(0)?.Id ?? "",
             ToZoneId = zones.ElementAtOrDefault(1)?.Id ?? zones.ElementAtOrDefault(0)?.Id ?? ""
         };
-        Portals.Add(row);
         SelectedLayoutPortals.Add(row);
         SelectedPortal = row;
     }
@@ -877,9 +875,8 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        Portals.Remove(SelectedPortal);
         SelectedLayoutPortals.Remove(SelectedPortal);
-        SelectedPortal = Portals.FirstOrDefault(portal => portal.LayoutId == SelectedLayout?.Id);
+        SelectedPortal = SelectedLayoutPortals.FirstOrDefault();
     }
 
     private void CreateLayoutFromMonitors()
@@ -896,10 +893,13 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var monitor in ordered)
         {
             var zone = CreateZoneFromMonitor(layout.Id, monitor);
-            Zones.Add(zone);
             SelectedLayoutZones.Add(zone);
         }
 
+        NormalizeSelectedLayoutVisualOrigin();
+        SelectedZone = SelectedLayoutZones.FirstOrDefault();
+        RefreshAvailableLayoutDisplays();
+        RefreshLayoutPreviewCanvasSize();
         AddLog("Created an editable layout from detected Windows monitors. Adjust visible flags and visual rectangles for the active H2 layout.");
     }
 
@@ -935,39 +935,40 @@ public sealed class MainViewModel : ViewModelBase
 
     private void ApplyCanvasLayout()
     {
+        if (PrepareSelectedLayoutDraft())
+        {
+            AddLog($"Prepared layout '{SelectedLayout?.Name}': attached zones, normalized origin, generated portals, and updated the draft start position.");
+        }
+    }
+
+    private bool PrepareSelectedLayoutDraft()
+    {
         if (SelectedLayout is null)
         {
-            return;
+            return false;
         }
 
+        AttachAllDraftZonesToNearest();
         var visibleZones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
         if (visibleZones.Length == 0)
         {
             AddLog("Cannot apply canvas layout because no visible zones are selected.");
-            return;
+            return false;
         }
 
-        var minLeft = visibleZones.Min(zone => zone.VisualLeft);
-        var minTop = visibleZones.Min(zone => zone.VisualTop);
-        foreach (var zone in visibleZones)
-        {
-            var width = SnapSize(zone.VisualWidth);
-            var height = SnapSize(zone.VisualHeight);
-            var left = SnapToGrid(zone.VisualLeft - minLeft);
-            var top = SnapToGrid(zone.VisualTop - minTop);
-            zone.VisualLeft = left;
-            zone.VisualTop = top;
-            zone.VisualRight = left + width;
-            zone.VisualBottom = top + height;
-        }
+        NormalizeSelectedLayoutVisualOrigin();
 
-        var firstVisible = visibleZones.OrderBy(zone => zone.VisualTop).ThenBy(zone => zone.VisualLeft).First();
-        SelectedLayout.DefaultStartX = firstVisible.WindowsLeft + (firstVisible.WindowsRight - firstVisible.WindowsLeft) / 2;
-        SelectedLayout.DefaultStartY = firstVisible.WindowsTop + (firstVisible.WindowsBottom - firstVisible.WindowsTop) / 2;
-        OnPropertyChanged(nameof(SelectedLayout));
+        var firstVisible = SelectedLayoutZones
+            .Where(zone => zone.IsVisible)
+            .OrderBy(zone => zone.VisualTop)
+            .ThenBy(zone => zone.VisualLeft)
+            .First();
+        _selectedLayoutDraftStartPosition = new CursorPoint(
+            firstVisible.WindowsLeft + (firstVisible.WindowsRight - firstVisible.WindowsLeft) / 2,
+            firstVisible.WindowsTop + (firstVisible.WindowsBottom - firstVisible.WindowsTop) / 2);
         GeneratePortalsFromVisualAdjacency();
         RefreshLayoutPreviewCanvasSize();
-        AddLog($"Applied canvas layout '{SelectedLayout.Name}': snapped zones, normalized visual origin, generated portals, and updated default start position.");
+        return true;
     }
 
     private void SaveSelectedLayoutAsNew()
@@ -986,15 +987,19 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        ApplyCanvasLayout();
+        if (!PrepareSelectedLayoutDraft())
+        {
+            return;
+        }
+
         var newId = CreateUniqueLayoutId(name);
         var newLayout = new LayoutRow
         {
             Id = newId,
             Name = name.Trim(),
             Description = SelectedLayout.Description,
-            DefaultStartX = SelectedLayout.DefaultStartX,
-            DefaultStartY = SelectedLayout.DefaultStartY
+            DefaultStartX = _selectedLayoutDraftStartPosition?.X,
+            DefaultStartY = _selectedLayoutDraftStartPosition?.Y
         };
         Layouts.Add(newLayout);
 
@@ -1013,7 +1018,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedLayout = newLayout;
-        AddLog($"Saved new layout '{newLayout.Name}'. Use Save Config to persist it to config.json.");
+        AddLog($"Saved new layout '{newLayout.Name}' with generated portals. Use Save Config to persist it to config.json.");
     }
 
     private void OverwriteSelectedLayout()
@@ -1023,8 +1028,39 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        ApplyCanvasLayout();
-        AddLog($"Overwrote layout '{SelectedLayout.Name}' with the current canvas. Use Save Config to persist it to config.json.");
+        if (!PrepareSelectedLayoutDraft())
+        {
+            return;
+        }
+
+        foreach (var zone in Zones.Where(zone => string.Equals(zone.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            Zones.Remove(zone);
+        }
+
+        foreach (var portal in Portals.Where(portal => string.Equals(portal.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            Portals.Remove(portal);
+        }
+
+        foreach (var zone in SelectedLayoutZones)
+        {
+            var copy = ZoneRow.FromModel(SelectedLayout.Id, zone.ToModel());
+            copy.LayoutId = SelectedLayout.Id;
+            Zones.Add(copy);
+        }
+
+        foreach (var portal in SelectedLayoutPortals)
+        {
+            var copy = PortalRow.FromModel(SelectedLayout.Id, portal.ToModel());
+            copy.LayoutId = SelectedLayout.Id;
+            Portals.Add(copy);
+        }
+
+        SelectedLayout.DefaultStartX = _selectedLayoutDraftStartPosition?.X;
+        SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
+        OnPropertyChanged(nameof(SelectedLayout));
+        AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals. Use Save Config to persist it to config.json.");
     }
 
     private void AddProfile()
@@ -1167,14 +1203,9 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        foreach (var portal in Portals.Where(portal => portal.LayoutId == SelectedLayout.Id).ToArray())
-        {
-            Portals.Remove(portal);
-        }
-
         SelectedLayoutPortals.Clear();
-        var zones = Zones
-            .Where(zone => zone.LayoutId == SelectedLayout.Id && zone.IsVisible)
+        var zones = SelectedLayoutZones
+            .Where(zone => zone.IsVisible)
             .ToArray();
         var generated = new List<PortalRow>();
         const double tolerance = 2.0;
@@ -1194,11 +1225,10 @@ public sealed class MainViewModel : ViewModelBase
 
         foreach (var portal in generated)
         {
-            Portals.Add(portal);
             SelectedLayoutPortals.Add(portal);
         }
 
-        AddLog($"Generated {generated.Count} portals for layout '{SelectedLayout.Name}' from visual adjacency.");
+        AddLog($"Generated {generated.Count} draft portals for layout '{SelectedLayout.Name}' from visual adjacency.");
     }
 
     private void ValidateConfiguration()
@@ -1428,6 +1458,21 @@ public sealed class MainViewModel : ViewModelBase
 
     public void CompleteZoneVisualEdit(ZoneRow zone)
     {
+        AttachZoneToNearest(zone);
+        NormalizeSelectedLayoutVisualOrigin();
+        RefreshLayoutPreviewCanvasSize();
+    }
+
+    private void AttachAllDraftZonesToNearest()
+    {
+        foreach (var zone in SelectedLayoutZones.ToArray())
+        {
+            AttachZoneToNearest(zone);
+        }
+    }
+
+    private void AttachZoneToNearest(ZoneRow zone)
+    {
         if (SelectedLayoutZones.Count < 2)
         {
             return;
@@ -1435,51 +1480,66 @@ public sealed class MainViewModel : ViewModelBase
 
         var width = zone.VisualWidth;
         var height = zone.VisualHeight;
-        var bestDistance = double.MaxValue;
-        double? snappedLeft = null;
-        double? snappedTop = null;
+        var bestScore = double.MaxValue;
+        double snappedLeft = zone.VisualLeft;
+        double snappedTop = zone.VisualTop;
 
         foreach (var other in SelectedLayoutZones.Where(other => !ReferenceEquals(other, zone)))
         {
-            if (RangesOverlap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom))
-            {
-                Consider(zone.VisualLeft, other.VisualRight, other.VisualRight, null);
-                Consider(zone.VisualRight, other.VisualLeft, other.VisualLeft - width, null);
-            }
-
-            if (RangesOverlap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight))
-            {
-                Consider(zone.VisualTop, other.VisualBottom, null, other.VisualBottom);
-                Consider(zone.VisualBottom, other.VisualTop, null, other.VisualTop - height);
-            }
+            Consider(
+                Math.Abs(zone.VisualLeft - other.VisualRight) + RangeGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom) * 0.25,
+                other.VisualRight,
+                zone.VisualTop);
+            Consider(
+                Math.Abs(zone.VisualRight - other.VisualLeft) + RangeGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom) * 0.25,
+                other.VisualLeft - width,
+                zone.VisualTop);
+            Consider(
+                Math.Abs(zone.VisualTop - other.VisualBottom) + RangeGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight) * 0.25,
+                zone.VisualLeft,
+                other.VisualBottom);
+            Consider(
+                Math.Abs(zone.VisualBottom - other.VisualTop) + RangeGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight) * 0.25,
+                zone.VisualLeft,
+                other.VisualTop - height);
         }
 
-        if (bestDistance <= ReleaseAttachTolerance)
+        zone.VisualLeft = SnapToGrid(snappedLeft);
+        zone.VisualRight = zone.VisualLeft + width;
+        zone.VisualTop = SnapToGrid(snappedTop);
+        zone.VisualBottom = zone.VisualTop + height;
+
+        void Consider(double score, double left, double top)
         {
-            if (snappedLeft.HasValue)
+            if (score < bestScore)
             {
-                zone.VisualLeft = snappedLeft.Value;
-                zone.VisualRight = snappedLeft.Value + width;
-            }
-
-            if (snappedTop.HasValue)
-            {
-                zone.VisualTop = snappedTop.Value;
-                zone.VisualBottom = snappedTop.Value + height;
-            }
-
-            RefreshLayoutPreviewCanvasSize();
-        }
-
-        void Consider(double currentEdge, double targetEdge, double? left, double? top)
-        {
-            var distance = Math.Abs(currentEdge - targetEdge);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
+                bestScore = score;
                 snappedLeft = left;
                 snappedTop = top;
             }
+        }
+    }
+
+    private void NormalizeSelectedLayoutVisualOrigin()
+    {
+        var zones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
+        if (zones.Length == 0)
+        {
+            return;
+        }
+
+        var minLeft = zones.Min(zone => zone.VisualLeft);
+        var minTop = zones.Min(zone => zone.VisualTop);
+        foreach (var zone in zones)
+        {
+            var width = SnapSize(zone.VisualWidth);
+            var height = SnapSize(zone.VisualHeight);
+            var left = SnapToGrid(zone.VisualLeft - minLeft);
+            var top = SnapToGrid(zone.VisualTop - minTop);
+            zone.VisualLeft = left;
+            zone.VisualTop = top;
+            zone.VisualRight = left + width;
+            zone.VisualBottom = top + height;
         }
     }
 
@@ -1544,22 +1604,35 @@ public sealed class MainViewModel : ViewModelBase
 
     private void RefreshSelectedLayoutCollections()
     {
+        if (_selectedZone is not null)
+        {
+            _selectedZone.IsSelected = false;
+        }
+
+        _selectedZone = null;
+        _selectedLayoutDraftStartPosition = null;
         SelectedLayoutZones.Clear();
         SelectedLayoutPortals.Clear();
         if (SelectedLayout is null)
         {
+            OnPropertyChanged(nameof(SelectedZone));
+            OnPropertyChanged(nameof(HasSelectedZone));
             RefreshAvailableLayoutDisplays();
             return;
         }
 
         foreach (var zone in Zones.Where(zone => string.Equals(zone.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)))
         {
-            SelectedLayoutZones.Add(zone);
+            var copy = ZoneRow.FromModel(SelectedLayout.Id, zone.ToModel());
+            copy.LayoutId = SelectedLayout.Id;
+            SelectedLayoutZones.Add(copy);
         }
 
         foreach (var portal in Portals.Where(portal => string.Equals(portal.LayoutId, SelectedLayout.Id, StringComparison.OrdinalIgnoreCase)))
         {
-            SelectedLayoutPortals.Add(portal);
+            var copy = PortalRow.FromModel(SelectedLayout.Id, portal.ToModel());
+            copy.LayoutId = SelectedLayout.Id;
+            SelectedLayoutPortals.Add(copy);
         }
 
         SelectedZone = SelectedLayoutZones.FirstOrDefault();
@@ -1792,6 +1865,18 @@ public sealed class MainViewModel : ViewModelBase
 
     private static bool RangesOverlap(double firstStart, double firstEnd, double secondStart, double secondEnd) =>
         Math.Min(firstEnd, secondEnd) > Math.Max(firstStart, secondStart);
+
+    private static double RangeGap(double firstStart, double firstEnd, double secondStart, double secondEnd)
+    {
+        if (RangesOverlap(firstStart, firstEnd, secondStart, secondEnd))
+        {
+            return 0;
+        }
+
+        return firstEnd <= secondStart
+            ? secondStart - firstEnd
+            : firstStart - secondEnd;
+    }
 
     private static int? TryParseMonitorOrdinal(string? text)
     {

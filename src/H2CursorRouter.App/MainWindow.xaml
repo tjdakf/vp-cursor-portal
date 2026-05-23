@@ -191,172 +191,168 @@
             </TabItem>
 
             <TabItem Header="Layouts">
-                <Grid Margin="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <ComboBox ItemsSource="{Binding AvailableLayoutDisplays}"
-                                                  SelectedItem="{Binding SelectedAvailableMonitor}"
-                                                  DisplayMemberPath="DeviceName"
-                                                  Width="160"
-                                                  Height="34"
-                                                  MaxDropDownHeight="180"
-                                                  Padding="8,3"
-                                                  Margin="0,0,10,0" />
-                                        <Button Content="Add Display" Command="{Binding AddDisplayToCanvasCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0" />
-                                        <Button Content="Remove Selected" Command="{Binding RemoveZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                    <TextBlock Text="Layout Canvas" Style="{StaticResource SectionTitleStyle}" />
+                                    <TextBlock Text="Arrange displays to match the H2 output." Style="{StaticResource MutedTextStyle}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                        <TextBlock Text="Scale" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <Slider Width="150" Minimum="0.08" Maximum="0.5" TickFrequency="0.02" IsSnapToTickEnabled="True" Value="{Binding LayoutPreviewScale}" />
+                                        <TextBlock Text="{Binding LayoutPreviewScale, StringFormat={}{0:P0}}" VerticalAlignment="Center" Margin="8,0,0,0" />
                                     </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="Layout Canvas" Style="{StaticResource SectionTitleStyle}" />
-                                        <TextBlock Text="Arrange displays to match the H2 output." Style="{StaticResource MutedTextStyle}" />
-                                    </StackPanel>
-                                </DockPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <TextBlock Text="Scale" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <Slider Width="150" Minimum="0.08" Maximum="0.5" TickFrequency="0.02" IsSnapToTickEnabled="True" Value="{Binding LayoutPreviewScale}" />
-                                    <TextBlock Text="{Binding LayoutPreviewScale, StringFormat={}{0:P0}}" VerticalAlignment="Center" Margin="8,0,0,0" />
                                 </StackPanel>
-                            </StackPanel>
 
-                            <Grid Grid.Row="1">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="280" />
-                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="280" />
+                                    </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="{StaticResource PanelAltBrush}" CornerRadius="10" Padding="10" MinHeight="410">
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <Canvas Width="{Binding DataContext.LayoutPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            Height="{Binding DataContext.LayoutPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            Background="{StaticResource PanelElevatedBrush}">
-                                                        <Canvas.LayoutTransform>
-                                                            <ScaleTransform ScaleX="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                            ScaleY="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
-                                                        </Canvas.LayoutTransform>
-                                                    </Canvas>
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemContainerStyle>
-                                                <Style TargetType="ContentPresenter">
-                                                    <Setter Property="Canvas.Left" Value="{Binding VisualLeft}" />
-                                                    <Setter Property="Canvas.Top" Value="{Binding VisualTop}" />
-                                                </Style>
-                                            </ItemsControl.ItemContainerStyle>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Width="{Binding VisualWidth}" Height="{Binding VisualHeight}" PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
-                                                        <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta"
-                                                                          DragCompleted="ZoneMoveThumb_OnDragCompleted"
-                                                                          PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
-                                                            <primitives:Thumb.Template>
-                                                                <ControlTemplate TargetType="primitives:Thumb">
-                                                                    <Border CornerRadius="10">
-                                                                        <Border.Style>
-                                                                            <Style TargetType="Border">
-                                                                                <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
-                                                                                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-                                                                                <Setter Property="BorderThickness" Value="6" />
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                                        <Setter Property="Background" Value="#D9F3EE" />
-                                                                                        <Setter Property="BorderBrush" Value="#0F766E" />
-                                                                                        <Setter Property="BorderThickness" Value="12" />
-                                                                                    </DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </Border.Style>
-                                                                        <StackPanel Margin="24">
-                                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="64" TextWrapping="Wrap" />
-                                                                            <TextBlock Text="{Binding Id}" Foreground="{StaticResource MutedTextBrush}" FontSize="40" />
-                                                                        </StackPanel>
-                                                                    </Border>
-                                                                </ControlTemplate>
-                                                            </primitives:Thumb.Template>
-                                                        </primitives:Thumb>
-                                                        <primitives:Thumb Width="96" Height="96" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
-                                                                          DragDelta="ZoneResizeThumb_OnDragDelta"
-                                                                          DragCompleted="ZoneMoveThumb_OnDragCompleted"
-                                                                          PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
-                                                            <primitives:Thumb.Template>
-                                                                <ControlTemplate TargetType="primitives:Thumb">
-                                                                    <Border Background="{StaticResource AccentBrush}" />
-                                                                </ControlTemplate>
-                                                            </primitives:Thumb.Template>
-                                                        </primitives:Thumb>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </Border>
+                                    <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="{StaticResource PanelAltBrush}" CornerRadius="10" Padding="10" MinHeight="410">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Canvas Width="{Binding DataContext.LayoutPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                Height="{Binding DataContext.LayoutPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                Background="{StaticResource PanelElevatedBrush}">
+                                                            <Canvas.LayoutTransform>
+                                                                <ScaleTransform ScaleX="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                ScaleY="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                            </Canvas.LayoutTransform>
+                                                        </Canvas>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle>
+                                                    <Style TargetType="ContentPresenter">
+                                                        <Setter Property="Canvas.Left" Value="{Binding VisualLeft}" />
+                                                        <Setter Property="Canvas.Top" Value="{Binding VisualTop}" />
+                                                    </Style>
+                                                </ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Width="{Binding VisualWidth}" Height="{Binding VisualHeight}" PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                            <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta"
+                                                                              DragCompleted="ZoneMoveThumb_OnDragCompleted"
+                                                                              PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                                <primitives:Thumb.Template>
+                                                                    <ControlTemplate TargetType="primitives:Thumb">
+                                                                        <Border CornerRadius="10">
+                                                                            <Border.Style>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                                                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                                                    <Setter Property="BorderThickness" Value="6" />
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                            <Setter Property="Background" Value="#D9F3EE" />
+                                                                                            <Setter Property="BorderBrush" Value="#0F766E" />
+                                                                                            <Setter Property="BorderThickness" Value="12" />
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Border.Style>
+                                                                            <StackPanel Margin="24">
+                                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="64" TextWrapping="Wrap" />
+                                                                                <TextBlock Text="{Binding Id}" Foreground="{StaticResource MutedTextBrush}" FontSize="40" />
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </primitives:Thumb.Template>
+                                                            </primitives:Thumb>
+                                                            <primitives:Thumb Width="96" Height="96" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
+                                                                              DragDelta="ZoneResizeThumb_OnDragDelta"
+                                                                              DragCompleted="ZoneMoveThumb_OnDragCompleted"
+                                                                              PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                                <primitives:Thumb.Template>
+                                                                    <ControlTemplate TargetType="primitives:Thumb">
+                                                                        <Border Background="{StaticResource AccentBrush}" />
+                                                                    </ControlTemplate>
+                                                                </primitives:Thumb.Template>
+                                                            </primitives:Thumb>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
 
-                                <Border Grid.Column="1" Style="{StaticResource InsetCardStyle}" Margin="16,0,0,0" VerticalAlignment="Top">
-                                    <StackPanel>
-                                        <TextBlock Text="Selected Display" Style="{StaticResource SectionTitleStyle}" />
-                                        <TextBlock Text="{Binding SelectedZone.DisplayName, TargetNullValue=No display selected}" FontWeight="SemiBold" FontSize="17" Margin="0,12,0,2" />
-                                        <TextBlock Text="{Binding SelectedZone.Id}" Style="{StaticResource MutedTextStyle}" Margin="0,0,0,18" />
+                                    <Border Grid.Column="1" Style="{StaticResource InsetCardStyle}" Margin="16,0,0,0" VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <TextBlock Text="Selected Display" Style="{StaticResource SectionTitleStyle}" />
+                                            <TextBlock Text="{Binding SelectedZone.DisplayName, TargetNullValue=No display selected}" FontWeight="SemiBold" FontSize="17" Margin="0,12,0,2" />
+                                            <TextBlock Text="{Binding SelectedZone.Id}" Style="{StaticResource MutedTextStyle}" Margin="0,0,0,18" />
 
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="12" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
-                                                <TextBlock Text="X" Style="{StaticResource MutedTextStyle}" />
-                                                <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
-                                                <TextBlock Text="Y" Style="{StaticResource MutedTextStyle}" />
-                                                <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="1" Grid.Column="0">
-                                                <TextBlock Text="Width" Style="{StaticResource MutedTextStyle}" />
-                                                <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Row="1" Grid.Column="2">
-                                                <TextBlock Text="Height" Style="{StaticResource MutedTextStyle}" />
-                                                <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                                                    <TextBlock Text="X" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
+                                                    <TextBlock Text="Y" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="0">
+                                                    <TextBlock Text="Width" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="2">
+                                                    <TextBlock Text="Height" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,18,0,14" />
+                                            <TextBlock Text="Canvas Displays" FontWeight="SemiBold" />
+                                            <ComboBox ItemsSource="{Binding AvailableLayoutDisplays}"
+                                                      SelectedItem="{Binding SelectedAvailableMonitor}"
+                                                      DisplayMemberPath="DeviceName"
+                                                      Height="34"
+                                                      MaxDropDownHeight="180"
+                                                      Padding="8,3"
+                                                      Margin="0,8,0,8" />
+                                            <Button Content="Add Display" Command="{Binding AddDisplayToCanvasCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
+                                            <Button Content="Remove Selected" Command="{Binding RemoveZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
+
+                                            <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,18,0,14" />
+                                            <TextBlock Text="Layout Actions" FontWeight="SemiBold" />
+                                            <Button Content="Create From Displays" Command="{Binding CreateLayoutFromMonitorsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,8,0,8" />
+                                            <Button Content="Save As New Layout" Command="{Binding SaveLayoutAsNewCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
+                                            <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
+                                            <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </Grid>
-                        </Grid>
-                    </Border>
+                        </Border>
 
-                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
-                                <Button Content="Create From Displays" Command="{Binding CreateLayoutFromMonitorsCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button Content="Apply And Generate Portals" Command="{Binding ApplyCanvasLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button Content="Save As New Layout" Command="{Binding SaveLayoutAsNewCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
-                            </StackPanel>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="160">
+                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
                                     <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*" />
@@ -364,8 +360,9 @@
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>
-                    </Border>
-                </Grid>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Profiles">
