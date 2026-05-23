@@ -23,6 +23,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly FileLogService _fileLogService;
     private readonly IH2DeviceClient _h2DeviceClient;
     private readonly IDisplayIdentificationService _displayIdentificationService;
+    private readonly ITextInputDialogService _textInputDialogService;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly CursorRoutingRuntime _routingRuntime;
@@ -59,6 +60,7 @@ public sealed class MainViewModel : ViewModelBase
         FileLogService fileLogService,
         IH2DeviceClient h2DeviceClient,
         IDisplayIdentificationService displayIdentificationService,
+        ITextInputDialogService textInputDialogService,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
         CursorRoutingRuntime routingRuntime,
@@ -71,6 +73,7 @@ public sealed class MainViewModel : ViewModelBase
         _fileLogService = fileLogService;
         _h2DeviceClient = h2DeviceClient;
         _displayIdentificationService = displayIdentificationService;
+        _textInputDialogService = textInputDialogService;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
@@ -114,6 +117,8 @@ public sealed class MainViewModel : ViewModelBase
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
         ApplyDetectedMonitorCoordinatesCommand = new RelayCommand(ApplyDetectedMonitorCoordinates, () => SelectedLayout is not null && Monitors.Count > 0);
         ApplyCanvasLayoutCommand = new RelayCommand(ApplyCanvasLayout, () => SelectedLayout is not null);
+        SaveLayoutAsNewCommand = new RelayCommand(SaveSelectedLayoutAsNew, () => SelectedLayout is not null);
+        OverwriteSelectedLayoutCommand = new RelayCommand(OverwriteSelectedLayout, () => SelectedLayout is not null);
         AddProfileCommand = new RelayCommand(AddProfile);
         RemoveProfileCommand = new RelayCommand(RemoveSelectedProfile, () => SelectedProfile is not null);
         DuplicateProfileCommand = new RelayCommand(DuplicateSelectedProfile, () => SelectedProfile is not null);
@@ -170,6 +175,8 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand CreateLayoutFromMonitorsCommand { get; }
     public ICommand ApplyDetectedMonitorCoordinatesCommand { get; }
     public ICommand ApplyCanvasLayoutCommand { get; }
+    public ICommand SaveLayoutAsNewCommand { get; }
+    public ICommand OverwriteSelectedLayoutCommand { get; }
     public ICommand AddProfileCommand { get; }
     public ICommand RemoveProfileCommand { get; }
     public ICommand DuplicateProfileCommand { get; }
@@ -941,6 +948,63 @@ public sealed class MainViewModel : ViewModelBase
         AddLog($"Applied canvas layout '{SelectedLayout.Name}': snapped zones, normalized visual origin, generated portals, and updated default start position.");
     }
 
+    private void SaveSelectedLayoutAsNew()
+    {
+        if (SelectedLayout is null)
+        {
+            return;
+        }
+
+        var name = _textInputDialogService.Prompt(
+            "Save layout",
+            "Enter a name for the new layout.",
+            GetNextLayoutName());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        ApplyCanvasLayout();
+        var newId = CreateUniqueLayoutId(name);
+        var newLayout = new LayoutRow
+        {
+            Id = newId,
+            Name = name.Trim(),
+            Description = SelectedLayout.Description,
+            DefaultStartX = SelectedLayout.DefaultStartX,
+            DefaultStartY = SelectedLayout.DefaultStartY
+        };
+        Layouts.Add(newLayout);
+
+        foreach (var zone in SelectedLayoutZones)
+        {
+            var copy = ZoneRow.FromModel(newId, zone.ToModel());
+            copy.LayoutId = newId;
+            Zones.Add(copy);
+        }
+
+        foreach (var portal in SelectedLayoutPortals)
+        {
+            var copy = PortalRow.FromModel(newId, portal.ToModel());
+            copy.LayoutId = newId;
+            Portals.Add(copy);
+        }
+
+        SelectedLayout = newLayout;
+        AddLog($"Saved new layout '{newLayout.Name}'. Use Save Config to persist it to config.json.");
+    }
+
+    private void OverwriteSelectedLayout()
+    {
+        if (SelectedLayout is null)
+        {
+            return;
+        }
+
+        ApplyCanvasLayout();
+        AddLog($"Overwrote layout '{SelectedLayout.Name}' with the current canvas. Use Save Config to persist it to config.json.");
+    }
+
     private void AddProfile()
     {
         var index = Profiles.Count + 1;
@@ -1220,7 +1284,8 @@ public sealed class MainViewModel : ViewModelBase
             Portals.Where(portal => string.Equals(portal.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
                 .Select(portal => portal.ToModel())
                 .ToArray(),
-            start);
+            start,
+            string.IsNullOrWhiteSpace(layout.Description) ? null : layout.Description);
     }
 
     private void ShowValidation(ValidationResult validation)
@@ -1341,6 +1406,8 @@ public sealed class MainViewModel : ViewModelBase
             ApplySelectedPresetToProfileCommand,
             ApplySelectedLayoutToProfileCommand,
             GeneratePortalsCommand,
+            SaveLayoutAsNewCommand,
+            OverwriteSelectedLayoutCommand,
             ExecuteSelectedProfileCommand,
             ExecuteProfileCommand,
             IdentifyDisplaysCommand
@@ -1437,6 +1504,48 @@ public sealed class MainViewModel : ViewModelBase
             VisualBottom = monitor.Bottom,
             IsVisible = true
         };
+    }
+
+    private string GetNextLayoutName()
+    {
+        var existing = Layouts
+            .Select(layout => layout.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var i = 1; ; i++)
+        {
+            var name = $"layout{i}";
+            if (!existing.Contains(name))
+            {
+                return name;
+            }
+        }
+    }
+
+    private string CreateUniqueLayoutId(string name)
+    {
+        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(baseId))
+        {
+            baseId = "layout";
+        }
+
+        var id = baseId.StartsWith("layout-", StringComparison.OrdinalIgnoreCase)
+            ? baseId
+            : $"layout-{baseId}";
+        var existing = Layouts.Select(layout => layout.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!existing.Contains(id))
+        {
+            return id;
+        }
+
+        for (var i = 2; ; i++)
+        {
+            var candidate = $"{id}-{i}";
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
     }
 
     private void RefreshLayoutPreviewCanvasSize()

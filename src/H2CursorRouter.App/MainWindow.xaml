@@ -318,12 +318,15 @@
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                 <Button Content="Create From Displays" Command="{Binding CreateLayoutFromMonitorsCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                                 <Button Content="Apply And Generate Portals" Command="{Binding ApplyCanvasLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button Content="Save As New Layout" Command="{Binding SaveLayoutAsNewCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                                 <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
                             </StackPanel>
                             <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" Height="180">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
-                                    <DataGridTextColumn Header="Internal Id" Binding="{Binding Id}" Width="180" />
+                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*" />
+                                    <DataGridTextColumn Header="Internal Id" Binding="{Binding Id}" Width="170" />
                                 </DataGrid.Columns>
                             </DataGrid>
                         </DockPanel>

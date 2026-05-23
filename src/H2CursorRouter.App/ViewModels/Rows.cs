@@ -64,6 +64,7 @@ public sealed class LayoutRow
 {
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
     public int? DefaultStartX { get; set; }
     public int? DefaultStartY { get; set; }
 
@@ -71,6 +72,7 @@ public sealed class LayoutRow
     {
         Id = layout.Id,
         Name = layout.Name,
+        Description = layout.Description ?? "",
         DefaultStartX = layout.DefaultStartPosition?.X,
         DefaultStartY = layout.DefaultStartPosition?.Y
     };

@@ -5,4 +5,5 @@ public sealed record CursorLayout(
     string Name,
     IReadOnlyList<CursorZone> Zones,
     IReadOnlyList<CursorPortal> Portals,
-    CursorPoint? DefaultStartPosition = null);
+    CursorPoint? DefaultStartPosition = null,
+    string? Description = null);
