@@ -14,9 +14,10 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
         var displayConfigMonitors = GetMonitorsFromDisplayConfig();
-        return displayConfigMonitors.Count > 0
+        var monitorHandleMonitors = GetMonitorsFromMonitorHandles();
+        return displayConfigMonitors.Count >= monitorHandleMonitors.Count
             ? displayConfigMonitors
-            : GetMonitorsFromMonitorHandles();
+            : monitorHandleMonitors;
     }
 
     private static IReadOnlyList<MonitorInfo> GetMonitorsFromDisplayConfig()
@@ -43,13 +44,12 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
         }
 
         var monitors = new List<MonitorInfo>();
+        var seenSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in paths.Take((int)pathCount))
         {
-            var sourceMode = modes.Take((int)modeCount).FirstOrDefault(mode =>
-                mode.InfoType == DisplayConfigModeInfoType.Source &&
-                mode.Id == path.SourceInfo.Id &&
-                mode.AdapterId.Equals(path.SourceInfo.AdapterId));
-            if (sourceMode.SourceMode.Width == 0 || sourceMode.SourceMode.Height == 0)
+            if (!TryGetSourceMode(path, modes, modeCount, out var sourceMode) ||
+                sourceMode.SourceMode.Width == 0 ||
+                sourceMode.SourceMode.Height == 0)
             {
                 continue;
             }
@@ -57,6 +57,12 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
             var deviceName = GetSourceDeviceName(path.SourceInfo.AdapterId, path.SourceInfo.Id);
             var left = sourceMode.SourceMode.Position.X;
             var top = sourceMode.SourceMode.Position.Y;
+            var sourceKey = $"{deviceName}:{left},{top},{sourceMode.SourceMode.Width},{sourceMode.SourceMode.Height}";
+            if (!seenSources.Add(sourceKey))
+            {
+                continue;
+            }
+
             monitors.Add(new MonitorInfo(
                 deviceName,
                 new IntRect(
@@ -68,6 +74,30 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
         }
 
         return monitors;
+    }
+
+    private static bool TryGetSourceMode(
+        DisplayConfigPathInfo path,
+        IReadOnlyList<DisplayConfigModeInfo> modes,
+        uint modeCount,
+        out DisplayConfigModeInfo sourceMode)
+    {
+        if (path.SourceInfo.ModeInfoIdx != InvalidModeInfoIdx &&
+            path.SourceInfo.ModeInfoIdx < modeCount)
+        {
+            var indexedMode = modes[(int)path.SourceInfo.ModeInfoIdx];
+            if (indexedMode.InfoType == DisplayConfigModeInfoType.Source)
+            {
+                sourceMode = indexedMode;
+                return true;
+            }
+        }
+
+        sourceMode = modes.Take((int)modeCount).FirstOrDefault(mode =>
+            mode.InfoType == DisplayConfigModeInfoType.Source &&
+            mode.Id == path.SourceInfo.Id &&
+            mode.AdapterId.Equals(path.SourceInfo.AdapterId));
+        return sourceMode.SourceMode.Width > 0 && sourceMode.SourceMode.Height > 0;
     }
 
     private static string GetSourceDeviceName(Luid adapterId, uint sourceId)
@@ -149,6 +179,7 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
 
     private const int ErrorSuccess = 0;
+    private const uint InvalidModeInfoIdx = 0xffffffff;
 
     [DllImport("user32.dll")]
     private static extern int GetDisplayConfigBufferSizes(QueryDisplayConfigFlags flags, out uint pathCount, out uint modeCount);

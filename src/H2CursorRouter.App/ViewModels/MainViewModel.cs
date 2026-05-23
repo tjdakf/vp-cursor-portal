@@ -1091,11 +1091,16 @@ public sealed class MainViewModel : ViewModelBase
     private void RefreshDiagnostics()
     {
         Monitors.Clear();
-        foreach (var monitor in _monitorTopologyService.GetMonitors())
+        var monitors = _monitorTopologyService.GetMonitors();
+        foreach (var monitor in monitors)
         {
             Monitors.Add(MonitorRow.FromModel(monitor));
         }
 
+        var monitorSummary = Monitors.Count == 0
+            ? "none"
+            : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
+        AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
         RefreshDisplayPreview();
         RaiseCommandStates();
     }
