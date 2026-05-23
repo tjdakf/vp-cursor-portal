@@ -13,49 +13,80 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
-        var displaySettingsMonitors = GetMonitorsFromDisplaySettings();
-        return displaySettingsMonitors.Count > 0
-            ? displaySettingsMonitors
+        var displayConfigMonitors = GetMonitorsFromDisplayConfig();
+        return displayConfigMonitors.Count > 0
+            ? displayConfigMonitors
             : GetMonitorsFromMonitorHandles();
     }
 
-    private static IReadOnlyList<MonitorInfo> GetMonitorsFromDisplaySettings()
+    private static IReadOnlyList<MonitorInfo> GetMonitorsFromDisplayConfig()
     {
-        var monitors = new List<MonitorInfo>();
-        for (uint index = 0; ; index++)
+        if (GetDisplayConfigBufferSizes(QueryDisplayConfigFlags.OnlyActivePaths, out var pathCount, out var modeCount) != ErrorSuccess ||
+            pathCount == 0 ||
+            modeCount == 0)
         {
-            var device = new DisplayDevice { Size = Marshal.SizeOf<DisplayDevice>() };
-            if (!EnumDisplayDevices(null, index, ref device, 0))
-            {
-                break;
-            }
+            return Array.Empty<MonitorInfo>();
+        }
 
-            if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0 ||
-                (device.StateFlags & DisplayDeviceStateFlags.MirroringDriver) != 0 ||
-                string.IsNullOrWhiteSpace(device.DeviceName))
+        var paths = new DisplayConfigPathInfo[pathCount];
+        var modes = new DisplayConfigModeInfo[modeCount];
+        var result = QueryDisplayConfig(
+            QueryDisplayConfigFlags.OnlyActivePaths,
+            ref pathCount,
+            paths,
+            ref modeCount,
+            modes,
+            IntPtr.Zero);
+        if (result != ErrorSuccess)
+        {
+            return Array.Empty<MonitorInfo>();
+        }
+
+        var monitors = new List<MonitorInfo>();
+        foreach (var path in paths.Take((int)pathCount))
+        {
+            var sourceMode = modes.Take((int)modeCount).FirstOrDefault(mode =>
+                mode.InfoType == DisplayConfigModeInfoType.Source &&
+                mode.Id == path.SourceInfo.Id &&
+                mode.AdapterId.Equals(path.SourceInfo.AdapterId));
+            if (sourceMode.SourceMode.Width == 0 || sourceMode.SourceMode.Height == 0)
             {
                 continue;
             }
 
-            var mode = new DevMode { Size = (ushort)Marshal.SizeOf<DevMode>() };
-            if (!EnumDisplaySettingsEx(device.DeviceName, EnumCurrentSettings, ref mode, 0) ||
-                mode.PelsWidth == 0 ||
-                mode.PelsHeight == 0)
-            {
-                continue;
-            }
-
+            var deviceName = GetSourceDeviceName(path.SourceInfo.AdapterId, path.SourceInfo.Id);
+            var left = sourceMode.SourceMode.Position.X;
+            var top = sourceMode.SourceMode.Position.Y;
             monitors.Add(new MonitorInfo(
-                device.DeviceName.TrimEnd('\0'),
+                deviceName,
                 new IntRect(
-                    mode.PositionX,
-                    mode.PositionY,
-                    mode.PositionX + (int)mode.PelsWidth,
-                    mode.PositionY + (int)mode.PelsHeight),
-                (device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0));
+                    left,
+                    top,
+                    left + (int)sourceMode.SourceMode.Width,
+                    top + (int)sourceMode.SourceMode.Height),
+                left == 0 && top == 0));
         }
 
         return monitors;
+    }
+
+    private static string GetSourceDeviceName(Luid adapterId, uint sourceId)
+    {
+        var sourceName = new DisplayConfigSourceDeviceName
+        {
+            Header = new DisplayConfigDeviceInfoHeader
+            {
+                Type = DisplayConfigDeviceInfoType.GetSourceName,
+                Size = (uint)Marshal.SizeOf<DisplayConfigSourceDeviceName>(),
+                AdapterId = adapterId,
+                Id = sourceId
+            }
+        };
+
+        return DisplayConfigGetDeviceInfo(ref sourceName) == ErrorSuccess &&
+               !string.IsNullOrWhiteSpace(sourceName.ViewGdiDeviceName)
+            ? sourceName.ViewGdiDeviceName.TrimEnd('\0')
+            : $"DISPLAY{sourceId + 1}";
     }
 
     private static IReadOnlyList<MonitorInfo> GetMonitorsFromMonitorHandles()
@@ -117,13 +148,22 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
 
-    private const int EnumCurrentSettings = -1;
+    private const int ErrorSuccess = 0;
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool EnumDisplayDevices(string? deviceName, uint deviceNumber, ref DisplayDevice displayDevice, uint flags);
+    [DllImport("user32.dll")]
+    private static extern int GetDisplayConfigBufferSizes(QueryDisplayConfigFlags flags, out uint pathCount, out uint modeCount);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern bool EnumDisplaySettingsEx(string deviceName, int modeNumber, ref DevMode devMode, uint flags);
+    [DllImport("user32.dll")]
+    private static extern int QueryDisplayConfig(
+        QueryDisplayConfigFlags flags,
+        ref uint pathCount,
+        [Out] DisplayConfigPathInfo[] paths,
+        ref uint modeCount,
+        [Out] DisplayConfigModeInfo[] modes,
+        IntPtr currentTopologyId);
+
+    [DllImport("user32.dll")]
+    private static extern int DisplayConfigGetDeviceInfo(ref DisplayConfigSourceDeviceName requestPacket);
 
     [DllImport("user32.dll")]
     private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clipRect, MonitorEnumProc callback, IntPtr data);
@@ -143,72 +183,151 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
         public string DeviceName;
     }
 
-    [Flags]
-    private enum DisplayDeviceStateFlags : uint
+    private enum QueryDisplayConfigFlags : uint
     {
-        AttachedToDesktop = 0x00000001,
-        PrimaryDevice = 0x00000004,
-        MirroringDriver = 0x00000008
+        OnlyActivePaths = 0x00000002
+    }
+
+    private enum DisplayConfigModeInfoType : uint
+    {
+        Source = 1,
+        Target = 2,
+        DesktopImage = 3
+    }
+
+    private enum DisplayConfigDeviceInfoType : uint
+    {
+        GetSourceName = 1
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Luid : IEquatable<Luid>
+    {
+        public uint LowPart;
+        public int HighPart;
+
+        public bool Equals(Luid other) => LowPart == other.LowPart && HighPart == other.HighPart;
+        public override bool Equals(object? obj) => obj is Luid other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(LowPart, HighPart);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigPathInfo
+    {
+        public DisplayConfigPathSourceInfo SourceInfo;
+        public DisplayConfigPathTargetInfo TargetInfo;
+        public uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigPathSourceInfo
+    {
+        public Luid AdapterId;
+        public uint Id;
+        public uint ModeInfoIdx;
+        public uint StatusFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigPathTargetInfo
+    {
+        public Luid AdapterId;
+        public uint Id;
+        public uint ModeInfoIdx;
+        public int OutputTechnology;
+        public int Rotation;
+        public int Scaling;
+        public DisplayConfigRational RefreshRate;
+        public int ScanLineOrdering;
+        public int TargetAvailable;
+        public uint StatusFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigRational
+    {
+        public uint Numerator;
+        public uint Denominator;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigModeInfo
+    {
+        public DisplayConfigModeInfoType InfoType;
+        public uint Id;
+        public Luid AdapterId;
+        public DisplayConfigModeInfoUnion ModeInfo;
+
+        public DisplayConfigSourceMode SourceMode => ModeInfo.SourceMode;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct DisplayConfigModeInfoUnion
+    {
+        [FieldOffset(0)]
+        public DisplayConfigTargetMode TargetMode;
+
+        [FieldOffset(0)]
+        public DisplayConfigSourceMode SourceMode;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigTargetMode
+    {
+        public DisplayConfigVideoSignalInfo TargetVideoSignalInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigVideoSignalInfo
+    {
+        public ulong PixelRate;
+        public DisplayConfigRational HSyncFreq;
+        public DisplayConfigRational VSyncFreq;
+        public DisplayConfig2DRegion ActiveSize;
+        public DisplayConfig2DRegion TotalSize;
+        public uint VideoStandard;
+        public int ScanLineOrdering;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfig2DRegion
+    {
+        public uint Cx;
+        public uint Cy;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigSourceMode
+    {
+        public uint Width;
+        public uint Height;
+        public int PixelFormat;
+        public PointL Position;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointL
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DisplayConfigDeviceInfoHeader
+    {
+        public DisplayConfigDeviceInfoType Type;
+        public uint Size;
+        public Luid AdapterId;
+        public uint Id;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct DisplayDevice
+    private struct DisplayConfigSourceDeviceName
     {
-        public int Size;
+        public DisplayConfigDeviceInfoHeader Header;
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string DeviceName;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceString;
-
-        public DisplayDeviceStateFlags StateFlags;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceId;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string DeviceKey;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct DevMode
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string DeviceName;
-
-        public ushort SpecVersion;
-        public ushort DriverVersion;
-        public ushort Size;
-        public ushort DriverExtra;
-        public uint Fields;
-        public int PositionX;
-        public int PositionY;
-        public uint DisplayOrientation;
-        public uint DisplayFixedOutput;
-        public short Color;
-        public short Duplex;
-        public short YResolution;
-        public short TTOption;
-        public short Collate;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
-        public string FormName;
-
-        public ushort LogPixels;
-        public uint BitsPerPel;
-        public uint PelsWidth;
-        public uint PelsHeight;
-        public uint DisplayFlags;
-        public uint DisplayFrequency;
-        public uint ICMMethod;
-        public uint ICMIntent;
-        public uint MediaType;
-        public uint DitherType;
-        public uint Reserved1;
-        public uint Reserved2;
-        public uint PanningWidth;
-        public uint PanningHeight;
+        public string ViewGdiDeviceName;
     }
 
     [StructLayout(LayoutKind.Sequential)]
