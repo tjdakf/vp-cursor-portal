@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using H2CursorRouter.App.ViewModels;
+using MediaBrushes = System.Windows.Media.Brushes;
+using MediaColor = System.Windows.Media.Color;
+using MediaSolidColorBrush = System.Windows.Media.SolidColorBrush;
+using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 
 namespace H2CursorRouter.App;
 
@@ -48,7 +51,7 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
             WindowStyle = WindowStyle.None,
             ResizeMode = ResizeMode.NoResize,
             AllowsTransparency = true,
-            Background = Brushes.Transparent,
+            Background = MediaBrushes.Transparent,
             Topmost = true,
             ShowInTaskbar = false,
             ShowActivated = false,
@@ -67,35 +70,35 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
         var title = new TextBlock
         {
             Text = monitor.DeviceName,
-            Foreground = Brushes.White,
+            Foreground = MediaBrushes.White,
             FontSize = 42,
             FontWeight = FontWeights.SemiBold,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = WpfHorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center
         };
 
         var subtitle = new TextBlock
         {
             Text = primaryLabel,
-            Foreground = new SolidColorBrush(Color.FromRgb(204, 251, 241)),
+            Foreground = new MediaSolidColorBrush(MediaColor.FromRgb(204, 251, 241)),
             FontSize = 15,
             FontWeight = FontWeights.SemiBold,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = WpfHorizontalAlignment.Center,
             Margin = new Thickness(0, 8, 0, 0)
         };
 
         var bounds = new TextBlock
         {
             Text = boundsLabel,
-            Foreground = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            Foreground = new MediaSolidColorBrush(MediaColor.FromRgb(203, 213, 225)),
             FontSize = 13,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = WpfHorizontalAlignment.Center,
             Margin = new Thickness(0, 8, 0, 0)
         };
 
         var stack = new StackPanel
         {
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = WpfHorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
         stack.Children.Add(title);
@@ -104,8 +107,8 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
 
         return new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(235, 15, 23, 42)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(45, 212, 191)),
+            Background = new MediaSolidColorBrush(MediaColor.FromArgb(235, 15, 23, 42)),
+            BorderBrush = new MediaSolidColorBrush(MediaColor.FromRgb(45, 212, 191)),
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(18),
             Padding = new Thickness(22),
