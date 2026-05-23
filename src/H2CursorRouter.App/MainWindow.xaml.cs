@@ -212,6 +212,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ZoneMoveThumb_OnDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is ZoneRow zone)
+        {
+            _viewModel.CompleteZoneVisualEdit(zone);
+        }
+    }
+
     private void ZoneResizeThumb_OnDragDelta(object sender, DragDeltaEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is ZoneRow zone)
@@ -220,7 +228,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ZoneVisual_OnMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    private void ZoneVisual_OnPreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is ZoneRow zone)
         {

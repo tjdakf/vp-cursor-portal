@@ -84,6 +84,7 @@ public sealed class ZoneRow : ViewModelBase
     private double _visualTop;
     private double _visualRight;
     private double _visualBottom;
+    private bool _isSelected;
 
     public string LayoutId { get; set; } = "";
     public string Id { get; set; } = "";
@@ -159,6 +160,13 @@ public sealed class ZoneRow : ViewModelBase
             OnPropertyChanged();
         }
     }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
+
     public bool IsVisible { get; set; } = true;
 
     public static ZoneRow FromModel(string layoutId, CursorZone zone) => new()

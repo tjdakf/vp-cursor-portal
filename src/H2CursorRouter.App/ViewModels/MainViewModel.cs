@@ -16,6 +16,10 @@ namespace H2CursorRouter.App.ViewModels;
 
 public sealed class MainViewModel : ViewModelBase
 {
+    private const double MinimumVisualSize = 120;
+    private const double EdgeSnapTolerance = 24;
+    private const double ReleaseAttachTolerance = 180;
+
     private readonly string _configPath;
     private readonly string _executablePath;
     private readonly ConfigFileService _configFileService = new();
@@ -240,8 +244,23 @@ public sealed class MainViewModel : ViewModelBase
         get => _selectedZone;
         set
         {
+            if (ReferenceEquals(_selectedZone, value))
+            {
+                return;
+            }
+
+            if (_selectedZone is not null)
+            {
+                _selectedZone.IsSelected = false;
+            }
+
             if (SetProperty(ref _selectedZone, value))
             {
+                if (_selectedZone is not null)
+                {
+                    _selectedZone.IsSelected = true;
+                }
+
                 OnPropertyChanged(nameof(HasSelectedZone));
                 RaiseCommandStates();
             }
@@ -395,7 +414,7 @@ public sealed class MainViewModel : ViewModelBase
     public double LayoutPreviewCanvasHeight =>
         Math.Max(2160, SelectedLayoutZones.Count == 0 ? 2160 : SelectedLayoutZones.Max(zone => zone.VisualBottom) + LayoutPreviewGridSize * 2);
 
-    public double LayoutPreviewGridSize => 120;
+    public double LayoutPreviewGridSize => 2;
 
     public bool StartWithWindows
     {
@@ -1401,10 +1420,67 @@ public sealed class MainViewModel : ViewModelBase
     {
         var right = SnapHorizontalEdge(zone, zone.VisualRight + deltaWidth);
         var bottom = SnapVerticalEdge(zone, zone.VisualBottom + deltaHeight);
-        zone.VisualWidth = Math.Max(LayoutPreviewGridSize, right - zone.VisualLeft);
-        zone.VisualHeight = Math.Max(LayoutPreviewGridSize, bottom - zone.VisualTop);
+        zone.VisualWidth = Math.Max(MinimumVisualSize, right - zone.VisualLeft);
+        zone.VisualHeight = Math.Max(MinimumVisualSize, bottom - zone.VisualTop);
         SelectedZone = zone;
         RefreshLayoutPreviewCanvasSize();
+    }
+
+    public void CompleteZoneVisualEdit(ZoneRow zone)
+    {
+        if (SelectedLayoutZones.Count < 2)
+        {
+            return;
+        }
+
+        var width = zone.VisualWidth;
+        var height = zone.VisualHeight;
+        var bestDistance = double.MaxValue;
+        double? snappedLeft = null;
+        double? snappedTop = null;
+
+        foreach (var other in SelectedLayoutZones.Where(other => !ReferenceEquals(other, zone)))
+        {
+            if (RangesOverlap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom))
+            {
+                Consider(zone.VisualLeft, other.VisualRight, other.VisualRight, null);
+                Consider(zone.VisualRight, other.VisualLeft, other.VisualLeft - width, null);
+            }
+
+            if (RangesOverlap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight))
+            {
+                Consider(zone.VisualTop, other.VisualBottom, null, other.VisualBottom);
+                Consider(zone.VisualBottom, other.VisualTop, null, other.VisualTop - height);
+            }
+        }
+
+        if (bestDistance <= ReleaseAttachTolerance)
+        {
+            if (snappedLeft.HasValue)
+            {
+                zone.VisualLeft = snappedLeft.Value;
+                zone.VisualRight = snappedLeft.Value + width;
+            }
+
+            if (snappedTop.HasValue)
+            {
+                zone.VisualTop = snappedTop.Value;
+                zone.VisualBottom = snappedTop.Value + height;
+            }
+
+            RefreshLayoutPreviewCanvasSize();
+        }
+
+        void Consider(double currentEdge, double targetEdge, double? left, double? top)
+        {
+            var distance = Math.Abs(currentEdge - targetEdge);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                snappedLeft = left;
+                snappedTop = top;
+            }
+        }
     }
 
     private void RaiseCommandStates()
@@ -1683,7 +1759,7 @@ public sealed class MainViewModel : ViewModelBase
         var candidates = SelectedLayoutZones
             .Where(other => !ReferenceEquals(other, zone))
             .SelectMany(other => new[] { other.VisualLeft, other.VisualRight });
-        return Math.Max(zone.VisualLeft + LayoutPreviewGridSize, SnapToNearest(proposedRight, candidates));
+        return Math.Max(zone.VisualLeft + MinimumVisualSize, SnapToNearest(proposedRight, candidates));
     }
 
     private double SnapVerticalEdge(ZoneRow zone, double proposedBottom)
@@ -1691,16 +1767,15 @@ public sealed class MainViewModel : ViewModelBase
         var candidates = SelectedLayoutZones
             .Where(other => !ReferenceEquals(other, zone))
             .SelectMany(other => new[] { other.VisualTop, other.VisualBottom });
-        return Math.Max(zone.VisualTop + LayoutPreviewGridSize, SnapToNearest(proposedBottom, candidates));
+        return Math.Max(zone.VisualTop + MinimumVisualSize, SnapToNearest(proposedBottom, candidates));
     }
 
     private double SnapToNearest(double value, IEnumerable<double> candidates)
     {
         var snapped = SnapToGrid(value);
-        var tolerance = LayoutPreviewGridSize / 2;
         foreach (var candidate in candidates)
         {
-            if (Math.Abs(value - candidate) < Math.Abs(value - snapped) && Math.Abs(value - candidate) <= tolerance)
+            if (Math.Abs(value - candidate) < Math.Abs(value - snapped) && Math.Abs(value - candidate) <= EdgeSnapTolerance)
             {
                 snapped = candidate;
             }
@@ -1713,7 +1788,10 @@ public sealed class MainViewModel : ViewModelBase
         Math.Round(value / LayoutPreviewGridSize, MidpointRounding.AwayFromZero) * LayoutPreviewGridSize;
 
     private double SnapSize(double value) =>
-        Math.Max(LayoutPreviewGridSize, SnapToGrid(value));
+        Math.Max(MinimumVisualSize, SnapToGrid(value));
+
+    private static bool RangesOverlap(double firstStart, double firstEnd, double secondStart, double secondEnd) =>
+        Math.Min(firstEnd, secondEnd) > Math.Max(firstStart, secondStart);
 
     private static int? TryParseMonitorOrdinal(string? text)
     {
