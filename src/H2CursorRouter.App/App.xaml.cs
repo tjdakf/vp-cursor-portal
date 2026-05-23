@@ -34,6 +34,7 @@ public partial class App : System.Windows.Application
             new WindowsStartupRegistrationService(),
             fileLogService,
             new H2DeviceClient(),
+            new DisplayIdentificationService(),
             cursorService,
             _monitorTopology,
             _runtime,

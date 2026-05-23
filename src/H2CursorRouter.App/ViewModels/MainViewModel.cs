@@ -22,6 +22,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IStartupRegistrationService _startupRegistrationService;
     private readonly FileLogService _fileLogService;
     private readonly IH2DeviceClient _h2DeviceClient;
+    private readonly IDisplayIdentificationService _displayIdentificationService;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly CursorRoutingRuntime _routingRuntime;
@@ -48,7 +49,6 @@ public sealed class MainViewModel : ViewModelBase
     private double _layoutPreviewScale = 0.16;
     private double _displayPreviewCanvasWidth = 640;
     private double _displayPreviewCanvasHeight = 320;
-    private string _displayDiagnostics = "Displays have not been refreshed yet.";
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -57,6 +57,7 @@ public sealed class MainViewModel : ViewModelBase
         IStartupRegistrationService startupRegistrationService,
         FileLogService fileLogService,
         IH2DeviceClient h2DeviceClient,
+        IDisplayIdentificationService displayIdentificationService,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
         CursorRoutingRuntime routingRuntime,
@@ -68,6 +69,7 @@ public sealed class MainViewModel : ViewModelBase
         _startupRegistrationService = startupRegistrationService;
         _fileLogService = fileLogService;
         _h2DeviceClient = h2DeviceClient;
+        _displayIdentificationService = displayIdentificationService;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
@@ -123,6 +125,7 @@ public sealed class MainViewModel : ViewModelBase
         EmergencyUnlockCommand = new RelayCommand(EmergencyUnlock);
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
         RefreshDiagnosticsCommand = new RelayCommand(RefreshDiagnostics);
+        IdentifyDisplaysCommand = new AsyncRelayCommand(IdentifyDisplaysAsync, () => Monitors.Count > 0);
         ResetToSampleConfigurationCommand = new RelayCommand(ResetToSampleConfiguration);
 
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
@@ -176,6 +179,7 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand EmergencyUnlockCommand { get; }
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
+    public ICommand IdentifyDisplaysCommand { get; }
     public ICommand ResetToSampleConfigurationCommand { get; }
 
     public DeviceRow? SelectedDevice
@@ -280,12 +284,6 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _displayPreviewCanvasHeight;
         private set => SetProperty(ref _displayPreviewCanvasHeight, value);
-    }
-
-    public string DisplayDiagnostics
-    {
-        get => _displayDiagnostics;
-        private set => SetProperty(ref _displayDiagnostics, value);
     }
 
     public string ActiveProfileName
@@ -1107,12 +1105,16 @@ public sealed class MainViewModel : ViewModelBase
         RefreshDisplayPreview();
         var monitorSummary = Monitors.Count == 0
             ? "none"
-            : string.Join("; ", Monitors.Select(monitor =>
-                $"{monitor.DeviceName} raw={monitor.BoundsText} preview={monitor.PreviewLeft:0.#},{monitor.PreviewTop:0.#} {monitor.PreviewWidth:0.#}x{monitor.PreviewHeight:0.#}"));
-        DisplayDiagnostics =
-            $"Detected={Monitors.Count}, Canvas={DisplayPreviewCanvasWidth:0.#}x{DisplayPreviewCanvasHeight:0.#}, Items={monitorSummary}";
+            : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
         AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
         RaiseCommandStates();
+    }
+
+    private async Task IdentifyDisplaysAsync()
+    {
+        RefreshDiagnostics();
+        await _displayIdentificationService.IdentifyAsync(Monitors.ToArray(), TimeSpan.FromSeconds(3));
+        AddLog("Displayed monitor identification overlays.");
     }
 
     private void RefreshDisplayPreview()
@@ -1304,7 +1306,8 @@ public sealed class MainViewModel : ViewModelBase
             ApplySelectedLayoutToProfileCommand,
             GeneratePortalsCommand,
             ExecuteSelectedProfileCommand,
-            ExecuteProfileCommand
+            ExecuteProfileCommand,
+            IdentifyDisplaysCommand
         })
         {
             switch (command)

@@ -413,15 +413,11 @@
                     </Grid.RowDefinitions>
                     <Border Style="{StaticResource CardStyle}" Margin="0,0,16,12">
                         <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
-                            <StackPanel>
-                                <TextBlock Text="Displays" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding DisplayDiagnostics}"
-                                           Foreground="{StaticResource MutedTextBrush}"
-                                           FontSize="12"
-                                           TextWrapping="Wrap"
-                                           Margin="0,8,170,0" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Identify" Command="{Binding IdentifyDisplaysCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0" />
+                                <Button Content="Refresh" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
                             </StackPanel>
+                            <TextBlock Text="Displays" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
                         </DockPanel>
                     </Border>
                     <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
