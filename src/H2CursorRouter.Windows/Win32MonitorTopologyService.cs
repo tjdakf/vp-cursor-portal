@@ -13,6 +13,53 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
+        var displaySettingsMonitors = GetMonitorsFromDisplaySettings();
+        return displaySettingsMonitors.Count > 0
+            ? displaySettingsMonitors
+            : GetMonitorsFromMonitorHandles();
+    }
+
+    private static IReadOnlyList<MonitorInfo> GetMonitorsFromDisplaySettings()
+    {
+        var monitors = new List<MonitorInfo>();
+        for (uint index = 0; ; index++)
+        {
+            var device = new DisplayDevice { Size = Marshal.SizeOf<DisplayDevice>() };
+            if (!EnumDisplayDevices(null, index, ref device, 0))
+            {
+                break;
+            }
+
+            if ((device.StateFlags & DisplayDeviceStateFlags.AttachedToDesktop) == 0 ||
+                (device.StateFlags & DisplayDeviceStateFlags.MirroringDriver) != 0 ||
+                string.IsNullOrWhiteSpace(device.DeviceName))
+            {
+                continue;
+            }
+
+            var mode = new DevMode { Size = (ushort)Marshal.SizeOf<DevMode>() };
+            if (!EnumDisplaySettingsEx(device.DeviceName, EnumCurrentSettings, ref mode, 0) ||
+                mode.PelsWidth == 0 ||
+                mode.PelsHeight == 0)
+            {
+                continue;
+            }
+
+            monitors.Add(new MonitorInfo(
+                device.DeviceName.TrimEnd('\0'),
+                new IntRect(
+                    mode.PositionX,
+                    mode.PositionY,
+                    mode.PositionX + (int)mode.PelsWidth,
+                    mode.PositionY + (int)mode.PelsHeight),
+                (device.StateFlags & DisplayDeviceStateFlags.PrimaryDevice) != 0));
+        }
+
+        return monitors;
+    }
+
+    private static IReadOnlyList<MonitorInfo> GetMonitorsFromMonitorHandles()
+    {
         var monitors = new List<MonitorInfo>();
         EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (monitor, _, _, _) =>
         {
@@ -70,6 +117,14 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
 
+    private const int EnumCurrentSettings = -1;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool EnumDisplayDevices(string? deviceName, uint deviceNumber, ref DisplayDevice displayDevice, uint flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool EnumDisplaySettingsEx(string deviceName, int modeNumber, ref DevMode devMode, uint flags);
+
     [DllImport("user32.dll")]
     private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clipRect, MonitorEnumProc callback, IntPtr data);
 
@@ -86,6 +141,74 @@ public sealed class Win32MonitorTopologyService : IMonitorTopologyService
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
         public string DeviceName;
+    }
+
+    [Flags]
+    private enum DisplayDeviceStateFlags : uint
+    {
+        AttachedToDesktop = 0x00000001,
+        PrimaryDevice = 0x00000004,
+        MirroringDriver = 0x00000008
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DisplayDevice
+    {
+        public int Size;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceString;
+
+        public DisplayDeviceStateFlags StateFlags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceId;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceKey;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DevMode
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+
+        public ushort SpecVersion;
+        public ushort DriverVersion;
+        public ushort Size;
+        public ushort DriverExtra;
+        public uint Fields;
+        public int PositionX;
+        public int PositionY;
+        public uint DisplayOrientation;
+        public uint DisplayFixedOutput;
+        public short Color;
+        public short Duplex;
+        public short YResolution;
+        public short TTOption;
+        public short Collate;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string FormName;
+
+        public ushort LogPixels;
+        public uint BitsPerPel;
+        public uint PelsWidth;
+        public uint PelsHeight;
+        public uint DisplayFlags;
+        public uint DisplayFrequency;
+        public uint ICMMethod;
+        public uint ICMIntent;
+        public uint MediaType;
+        public uint DitherType;
+        public uint Reserved1;
+        public uint Reserved2;
+        public uint PanningWidth;
+        public uint PanningHeight;
     }
 
     [StructLayout(LayoutKind.Sequential)]
