@@ -17,7 +17,9 @@ public sealed class ProfileDialogService : IProfileDialogService
         string title,
         string defaultName,
         IReadOnlyList<LayoutRow> layouts,
-        string? selectedLayoutId)
+        string? selectedLayoutId,
+        IReadOnlyList<DeviceRow> devices,
+        IReadOnlyList<PresetRow> presets)
     {
         var nameInput = new WpfTextBox { Text = defaultName, MinWidth = 320 };
         var hotkeyInput = new WpfTextBox { Text = "", MinWidth = 320 };
@@ -29,6 +31,47 @@ public sealed class ProfileDialogService : IProfileDialogService
             SelectedValue = selectedLayoutId,
             MinWidth = 320
         };
+        var cursorOnlyInput = new CheckBox
+        {
+            Content = "Cursor layout only",
+            IsChecked = true,
+            Margin = new Thickness(0, 14, 0, 0)
+        };
+        var onlineDevices = devices.Where(device => device.IsOnline).DefaultIfEmpty(devices.FirstOrDefault()).Where(device => device is not null).ToArray();
+        var deviceInput = new WpfComboBox
+        {
+            ItemsSource = onlineDevices,
+            DisplayMemberPath = nameof(DeviceRow.Name),
+            SelectedValuePath = nameof(DeviceRow.Id),
+            SelectedIndex = onlineDevices.Length > 0 ? 0 : -1,
+            MinWidth = 320,
+            IsEnabled = false
+        };
+        var presetInput = new WpfComboBox
+        {
+            DisplayMemberPath = nameof(PresetRow.DisplayName),
+            MinWidth = 320,
+            IsEnabled = false
+        };
+
+        void RefreshPresetChoices()
+        {
+            var selectedDeviceId = deviceInput.SelectedValue as string;
+            presetInput.ItemsSource = presets
+                .Where(preset => string.Equals(preset.DeviceConfigId, selectedDeviceId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(preset => preset.ScreenId)
+                .ThenBy(preset => preset.FriendlyPresetNumber)
+                .ToArray();
+            presetInput.SelectedIndex = presetInput.Items.Count > 0 ? 0 : -1;
+        }
+
+        void RefreshH2Enabled()
+        {
+            var enabled = cursorOnlyInput.IsChecked != true;
+            deviceInput.IsEnabled = enabled;
+            presetInput.IsEnabled = enabled;
+            RefreshPresetChoices();
+        }
 
         var dialog = new Window
         {
@@ -37,8 +80,12 @@ public sealed class ProfileDialogService : IProfileDialogService
             SizeToContent = SizeToContent.Height,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
-            Content = CreateContent(nameInput, hotkeyInput, layoutInput, out var okButton, out var cancelButton)
+            Content = CreateContent(nameInput, hotkeyInput, layoutInput, cursorOnlyInput, deviceInput, presetInput, out var okButton, out var cancelButton)
         };
+        cursorOnlyInput.Checked += (_, _) => RefreshH2Enabled();
+        cursorOnlyInput.Unchecked += (_, _) => RefreshH2Enabled();
+        deviceInput.SelectionChanged += (_, _) => RefreshPresetChoices();
+        RefreshPresetChoices();
 
         dialog.Loaded += (_, _) =>
         {
@@ -66,16 +113,24 @@ public sealed class ProfileDialogService : IProfileDialogService
             return null;
         }
 
+        var selectedPreset = cursorOnlyInput.IsChecked == true ? null : presetInput.SelectedItem as PresetRow;
         return new ProfileDialogResult(
             name,
             string.IsNullOrWhiteSpace(hotkeyInput.Text) ? null : hotkeyInput.Text.Trim(),
-            layoutInput.SelectedValue as string);
+            layoutInput.SelectedValue as string,
+            selectedPreset?.DeviceConfigId,
+            selectedPreset?.ScreenId,
+            selectedPreset?.PresetId,
+            selectedPreset?.DisplayName);
     }
 
     private static UIElement CreateContent(
         WpfTextBox nameInput,
         WpfTextBox hotkeyInput,
         WpfComboBox layoutInput,
+        CheckBox cursorOnlyInput,
+        WpfComboBox deviceInput,
+        WpfComboBox presetInput,
         out WpfButton okButton,
         out WpfButton cancelButton)
     {
@@ -83,15 +138,9 @@ public sealed class ProfileDialogService : IProfileDialogService
         AddField(panel, "Profile name", nameInput);
         AddField(panel, "Hotkey", hotkeyInput);
         AddField(panel, "Cursor layout", layoutInput);
-
-        var note = new TextBlock
-        {
-            Text = "H2 preset binding will be added in the next step. New profiles use cursor-layout-only mode for now.",
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 12, 0, 0),
-            Opacity = 0.72
-        };
-        panel.Children.Add(note);
+        panel.Children.Add(cursorOnlyInput);
+        AddField(panel, "Video processor", deviceInput);
+        AddField(panel, "Preset", presetInput);
 
         var buttons = new StackPanel
         {

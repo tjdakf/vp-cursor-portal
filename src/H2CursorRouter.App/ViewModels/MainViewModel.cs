@@ -1015,7 +1015,9 @@ public sealed class MainViewModel : ViewModelBase
             "Add profile",
             profileName,
             Layouts.ToArray(),
-            SelectedLayout?.Id);
+            SelectedLayout?.Id,
+            Devices.ToArray(),
+            Presets.ToArray());
         if (result is null)
         {
             return;
@@ -1027,6 +1029,10 @@ public sealed class MainViewModel : ViewModelBase
             Id = CreateUniqueProfileId(result.Name),
             Name = result.Name,
             Hotkey = result.Hotkey,
+            DeviceId = result.DeviceId,
+            ScreenId = result.ScreenId,
+            PresetId = result.PresetId,
+            PresetDisplayName = result.PresetDisplayName,
             CursorLayoutId = result.CursorLayoutId,
             StartX = start?.X,
             StartY = start?.Y,

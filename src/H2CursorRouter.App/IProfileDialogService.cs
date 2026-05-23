@@ -8,5 +8,7 @@ public interface IProfileDialogService
         string title,
         string defaultName,
         IReadOnlyList<LayoutRow> layouts,
-        string? selectedLayoutId);
+        string? selectedLayoutId,
+        IReadOnlyList<DeviceRow> devices,
+        IReadOnlyList<PresetRow> presets);
 }
