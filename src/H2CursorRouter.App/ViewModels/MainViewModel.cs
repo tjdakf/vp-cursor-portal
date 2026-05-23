@@ -46,6 +46,8 @@ public sealed class MainViewModel : ViewModelBase
     private bool _startWithWindows;
     private bool _isCheckingH2Connection;
     private double _layoutPreviewScale = 0.16;
+    private double _displayPreviewCanvasWidth = 640;
+    private double _displayPreviewCanvasHeight = 320;
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -265,6 +267,18 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _currentCursorZone;
         private set => SetProperty(ref _currentCursorZone, value);
+    }
+
+    public double DisplayPreviewCanvasWidth
+    {
+        get => _displayPreviewCanvasWidth;
+        private set => SetProperty(ref _displayPreviewCanvasWidth, value);
+    }
+
+    public double DisplayPreviewCanvasHeight
+    {
+        get => _displayPreviewCanvasHeight;
+        private set => SetProperty(ref _displayPreviewCanvasHeight, value);
     }
 
     public string ActiveProfileName
@@ -1082,7 +1096,40 @@ public sealed class MainViewModel : ViewModelBase
             Monitors.Add(MonitorRow.FromModel(monitor));
         }
 
+        RefreshDisplayPreview();
         RaiseCommandStates();
+    }
+
+    private void RefreshDisplayPreview()
+    {
+        if (Monitors.Count == 0)
+        {
+            DisplayPreviewCanvasWidth = 640;
+            DisplayPreviewCanvasHeight = 320;
+            return;
+        }
+
+        var minLeft = Monitors.Min(monitor => monitor.Left);
+        var minTop = Monitors.Min(monitor => monitor.Top);
+        var maxRight = Monitors.Max(monitor => monitor.Right);
+        var maxBottom = Monitors.Max(monitor => monitor.Bottom);
+        var virtualWidth = Math.Max(1, maxRight - minLeft);
+        var virtualHeight = Math.Max(1, maxBottom - minTop);
+        const double maxPreviewWidth = 1120;
+        const double maxPreviewHeight = 360;
+        const double padding = 20;
+        var scale = Math.Min(maxPreviewWidth / virtualWidth, maxPreviewHeight / virtualHeight);
+
+        foreach (var monitor in Monitors)
+        {
+            monitor.PreviewLeft = (monitor.Left - minLeft) * scale + padding;
+            monitor.PreviewTop = (monitor.Top - minTop) * scale + padding;
+            monitor.PreviewWidth = Math.Max(90, monitor.Width * scale);
+            monitor.PreviewHeight = Math.Max(70, monitor.Height * scale);
+        }
+
+        DisplayPreviewCanvasWidth = virtualWidth * scale + padding * 2;
+        DisplayPreviewCanvasHeight = virtualHeight * scale + padding * 2;
     }
 
     private void RefreshCursorZone()

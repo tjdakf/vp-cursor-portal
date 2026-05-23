@@ -418,16 +418,54 @@
                         </DockPanel>
                     </Border>
                     <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
-                        <DataGrid ItemsSource="{Binding Monitors}" AutoGenerateColumns="False" IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Display" Binding="{Binding DeviceName}" Width="*" />
-                                <DataGridTextColumn Header="Left" Binding="{Binding Left}" Width="110" />
-                                <DataGridTextColumn Header="Top" Binding="{Binding Top}" Width="110" />
-                                <DataGridTextColumn Header="Right" Binding="{Binding Right}" Width="110" />
-                                <DataGridTextColumn Header="Bottom" Binding="{Binding Bottom}" Width="110" />
-                                <DataGridCheckBoxColumn Header="Primary" Binding="{Binding IsPrimary}" Width="100" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Monitors}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Width="{Binding DataContext.DisplayPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                Height="{Binding DataContext.DisplayPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                Background="{StaticResource PanelElevatedBrush}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding PreviewLeft}" />
+                                        <Setter Property="Canvas.Top" Value="{Binding PreviewTop}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="{Binding PreviewWidth}"
+                                                Height="{Binding PreviewHeight}"
+                                                Background="{StaticResource AccentSoftBrush}"
+                                                BorderBrush="{StaticResource AccentBrush}"
+                                                BorderThickness="2"
+                                                CornerRadius="8"
+                                                Padding="12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding PrimaryText}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding DeviceName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                                </DockPanel>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding BoundsText}"
+                                                           Foreground="{StaticResource MutedTextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding Width, StringFormat={}{0}px wide}"
+                                                           Foreground="{StaticResource MutedTextBrush}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Border>
                 </Grid>
             </TabItem>

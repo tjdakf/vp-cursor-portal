@@ -391,19 +391,30 @@ public sealed class ProfileRow : ViewModelBase
     }
 }
 
-public sealed record MonitorRow(
-    string DeviceName,
-    int Left,
-    int Top,
-    int Right,
-    int Bottom,
-    bool IsPrimary)
+public sealed class MonitorRow
 {
-    public static MonitorRow FromModel(MonitorInfo monitor) => new(
-        monitor.DeviceName.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase),
-        monitor.Bounds.Left,
-        monitor.Bounds.Top,
-        monitor.Bounds.Right,
-        monitor.Bounds.Bottom,
-        monitor.IsPrimary);
+    public string DeviceName { get; init; } = "";
+    public int Left { get; init; }
+    public int Top { get; init; }
+    public int Right { get; init; }
+    public int Bottom { get; init; }
+    public bool IsPrimary { get; init; }
+    public double PreviewLeft { get; set; }
+    public double PreviewTop { get; set; }
+    public double PreviewWidth { get; set; }
+    public double PreviewHeight { get; set; }
+    public string BoundsText => $"{Left},{Top} -> {Right},{Bottom}";
+    public string PrimaryText => IsPrimary ? "Primary" : "";
+    public int Width => Right - Left;
+    public int Height => Bottom - Top;
+
+    public static MonitorRow FromModel(MonitorInfo monitor) => new()
+    {
+        DeviceName = monitor.DeviceName.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase),
+        Left = monitor.Bounds.Left,
+        Top = monitor.Bounds.Top,
+        Right = monitor.Bounds.Right,
+        Bottom = monitor.Bounds.Bottom,
+        IsPrimary = monitor.IsPrimary
+    };
 }
