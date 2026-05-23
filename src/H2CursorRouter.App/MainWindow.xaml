@@ -339,8 +339,7 @@
                                             <TextBlock Text="Layout Actions" FontWeight="SemiBold" />
                                             <Button Content="Create From Displays" Command="{Binding CreateLayoutFromMonitorsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,8,0,8" />
                                             <Button Content="Save As New Layout" Command="{Binding SaveLayoutAsNewCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
-                                            <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
-                                            <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
+                                            <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
