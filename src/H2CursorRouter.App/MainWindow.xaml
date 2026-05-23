@@ -362,7 +362,7 @@
                             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
                                 <Button Content="Add Device" Command="{Binding AddDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                                 <Button Content="Remove Device" Command="{Binding RemoveDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" />
-                                <Button Content="Get Presets" Command="{Binding GetPresetsCommand}" Margin="0" />
+                                <Button Content="Get All Presets" Command="{Binding GetAllPresetsCommand}" Margin="0" />
                             </StackPanel>
                             <DataGrid ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" AutoGenerateColumns="False" IsReadOnly="False">
                                 <DataGrid.Columns>
@@ -373,7 +373,7 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180" />
+                                    <DataGridTextColumn Header="Device" Binding="{Binding Name}" Width="180" />
                                     <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="160" />
                                     <DataGridTextColumn Header="Port" Binding="{Binding Port}" Width="80" />
                                     <DataGridTextColumn Header="Timeout ms" Binding="{Binding TimeoutMs}" Width="100" />
@@ -385,10 +385,13 @@
                     </Border>
                     <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="H2 Presets" Style="{StaticResource SectionTitleStyle}" />
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right" Content="Get Presets" Command="{Binding GetPresetsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                <TextBlock Text="H2 Presets" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                            </DockPanel>
                             <DataGrid ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" AutoGenerateColumns="False" IsReadOnly="True">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Name" Binding="{Binding DeviceName}" Width="180" />
+                                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="180" />
                                     <DataGridTextColumn Header="Screen ID" Binding="{Binding ScreenId}" Width="100" />
                                     <DataGridTextColumn Header="Preset" Binding="{Binding FriendlyPresetNumber}" Width="100" />
                                     <DataGridTextColumn Header="Display Name" Binding="{Binding DisplayName}" Width="*" />

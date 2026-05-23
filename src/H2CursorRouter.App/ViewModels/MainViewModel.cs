@@ -95,6 +95,7 @@ public sealed class MainViewModel : ViewModelBase
 
         AddDeviceCommand = new RelayCommand(AddDevice);
         RemoveDeviceCommand = new RelayCommand(RemoveSelectedDevice, () => SelectedDevice is not null);
+        GetAllPresetsCommand = new AsyncRelayCommand(GetAllPresetsAsync, () => Devices.Count > 0);
         GetPresetsCommand = new AsyncRelayCommand(GetPresetsAsync, () => SelectedDevice is not null);
         AddLayoutCommand = new RelayCommand(AddLayout);
         RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null);
@@ -146,6 +147,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public ICommand AddDeviceCommand { get; }
     public ICommand RemoveDeviceCommand { get; }
+    public ICommand GetAllPresetsCommand { get; }
     public ICommand GetPresetsCommand { get; }
     public ICommand AddLayoutCommand { get; }
     public ICommand RemoveLayoutCommand { get; }
@@ -517,19 +519,38 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var device = SelectedDevice.ToModel();
+        await GetPresetsForDeviceAsync(SelectedDevice);
+    }
+
+    public async Task GetAllPresetsAsync()
+    {
+        if (Devices.Count == 0)
+        {
+            AddLog("No H2 devices configured.");
+            return;
+        }
+
+        foreach (var deviceRow in Devices.ToArray())
+        {
+            await GetPresetsForDeviceAsync(deviceRow);
+        }
+    }
+
+    private async Task GetPresetsForDeviceAsync(DeviceRow deviceRow)
+    {
+        var device = deviceRow.ToModel();
         AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
-        var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, SelectedDevice.PresetEnumScreenId);
-        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, SelectedDevice.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
+        var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, deviceRow.PresetEnumScreenId);
+        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, deviceRow.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
         {
             Presets.Remove(row);
         }
 
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
         {
-            SelectedDevice.IsOnline = false;
+            deviceRow.IsOnline = false;
             H2ConnectionStatus = $"No response: {result.Message}";
-            AddLog($"Preset enum request failed: {result.Message}");
+            AddLog($"Preset enum request failed for H2 device '{deviceRow.Name}': {result.Message}");
             return;
         }
 
@@ -540,8 +561,8 @@ public sealed class MainViewModel : ViewModelBase
             {
                 Presets.Add(new PresetRow
                 {
-                    DeviceConfigId = SelectedDevice.Id,
-                    DeviceName = SelectedDevice.Name,
+                    DeviceConfigId = deviceRow.Id,
+                    DeviceName = deviceRow.Name,
                     H2DeviceId = preset.DeviceId,
                     ScreenId = preset.ScreenId,
                     FriendlyPresetNumber = preset.FriendlyPresetNumber,
@@ -550,15 +571,15 @@ public sealed class MainViewModel : ViewModelBase
                 });
             }
 
-            SelectedDevice.IsOnline = true;
+            deviceRow.IsOnline = true;
             H2ConnectionStatus = $"Online: {device.Host}:{device.Port}";
-            AddLog($"Loaded {parsed.Count} presets from H2 device '{SelectedDevice.Name}'.");
+            AddLog($"Loaded {parsed.Count} presets from H2 device '{deviceRow.Name}'.");
         }
         catch (Exception exception)
         {
-            SelectedDevice.IsOnline = false;
+            deviceRow.IsOnline = false;
             H2ConnectionStatus = $"Unexpected response: {exception.Message}";
-            AddLog($"Preset enum response could not be parsed: {exception.Message}");
+            AddLog($"Preset enum response from H2 device '{deviceRow.Name}' could not be parsed: {exception.Message}");
             AddLog($"Raw preset enum response: {result.ResponseJson}");
         }
     }
@@ -646,7 +667,13 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        var removedDeviceId = SelectedDevice.Id;
         Devices.Remove(SelectedDevice);
+        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, removedDeviceId, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            Presets.Remove(row);
+        }
+
         SelectedDevice = Devices.FirstOrDefault();
     }
 
@@ -1189,6 +1216,7 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var command in new ICommand[]
         {
             RemoveDeviceCommand,
+            GetAllPresetsCommand,
             GetPresetsCommand,
             RemoveLayoutCommand,
             AddZoneCommand,
