@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using WpfButton = System.Windows.Controls.Button;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
+using WpfTextBox = System.Windows.Controls.TextBox;
 
 namespace H2CursorRouter.App;
 
@@ -9,7 +11,7 @@ public sealed class TextInputDialogService : ITextInputDialogService
 {
     public string? Prompt(string title, string message, string defaultValue)
     {
-        var input = new TextBox
+        var input = new WpfTextBox
         {
             Text = defaultValue,
             MinWidth = 320,
@@ -44,7 +46,7 @@ public sealed class TextInputDialogService : ITextInputDialogService
         return dialog.ShowDialog() == true ? input.Text.Trim() : null;
     }
 
-    private static UIElement CreateContent(string message, TextBox input, out Button okButton, out Button cancelButton)
+    private static UIElement CreateContent(string message, WpfTextBox input, out WpfButton okButton, out WpfButton cancelButton)
     {
         var panel = new StackPanel
         {
@@ -65,14 +67,14 @@ public sealed class TextInputDialogService : ITextInputDialogService
             Margin = new Thickness(0, 16, 0, 0)
         };
 
-        okButton = new Button
+        okButton = new WpfButton
         {
             Content = "OK",
             MinWidth = 82,
             IsDefault = true,
             Margin = new Thickness(0, 0, 8, 0)
         };
-        cancelButton = new Button
+        cancelButton = new WpfButton
         {
             Content = "Cancel",
             MinWidth = 82,
