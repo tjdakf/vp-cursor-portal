@@ -519,6 +519,7 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        Presets.Clear();
         await GetPresetsForDeviceAsync(SelectedDevice);
     }
 
@@ -530,6 +531,7 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
+        Presets.Clear();
         foreach (var deviceRow in Devices.ToArray())
         {
             await GetPresetsForDeviceAsync(deviceRow);
