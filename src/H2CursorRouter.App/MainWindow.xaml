@@ -63,7 +63,7 @@
                 </StackPanel>
                 <Button Grid.Column="1" Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource ToolbarButtonStyle}" />
                 <Button Grid.Column="2" Content="Save Config" Command="{Binding SaveConfigurationCommand}" Style="{StaticResource ToolbarPrimaryButtonStyle}" />
-                <Button Grid.Column="3" Content="Refresh Diagnostics" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource ToolbarButtonStyle}" />
+                <Button Grid.Column="3" Content="Refresh Displays" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource ToolbarButtonStyle}" />
                 <Button Grid.Column="4" Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0" />
             </Grid>
         </Border>
@@ -405,39 +405,30 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Diagnostics">
+            <TabItem Header="Displays">
                 <Grid Margin="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <UniformGrid Columns="4" Margin="0,0,0,12">
-                        <Border Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Cursor" Style="{StaticResource SectionTitleStyle}" />
-                                <TextBlock Text="{Binding CurrentCursorPosition}" FontSize="18" FontWeight="SemiBold" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Current Zone" Style="{StaticResource SectionTitleStyle}" />
-                                <TextBlock Text="{Binding CurrentCursorZone}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource CardStyle}">
-                            <StackPanel>
-                                <TextBlock Text="Last H2 ACK" Style="{StaticResource SectionTitleStyle}" />
-                                <TextBlock Text="{Binding LastH2AckStatus}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                            <StackPanel>
-                                <TextBlock Text="Last Routing Event" Style="{StaticResource SectionTitleStyle}" />
-                                <TextBlock Text="{Binding LastRoutingEvent}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding Monitors}" AutoGenerateColumns="True" IsReadOnly="True" />
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,16,12">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                            <TextBlock Text="Displays" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                        <DataGrid ItemsSource="{Binding Monitors}" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Display" Binding="{Binding DeviceName}" Width="*" />
+                                <DataGridTextColumn Header="Left" Binding="{Binding Left}" Width="110" />
+                                <DataGridTextColumn Header="Top" Binding="{Binding Top}" Width="110" />
+                                <DataGridTextColumn Header="Right" Binding="{Binding Right}" Width="110" />
+                                <DataGridTextColumn Header="Bottom" Binding="{Binding Bottom}" Width="110" />
+                                <DataGridCheckBoxColumn Header="Primary" Binding="{Binding IsPrimary}" Width="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </Grid>
             </TabItem>
 

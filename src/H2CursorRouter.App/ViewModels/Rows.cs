@@ -400,7 +400,7 @@ public sealed record MonitorRow(
     bool IsPrimary)
 {
     public static MonitorRow FromModel(MonitorInfo monitor) => new(
-        monitor.DeviceName,
+        monitor.DeviceName.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase),
         monitor.Bounds.Left,
         monitor.Bounds.Top,
         monitor.Bounds.Right,

@@ -180,12 +180,19 @@ public partial class MainWindow : Window
 
     private void MainTabs_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!ReferenceEquals(e.Source, MainTabs) || MainTabs.SelectedIndex != 0)
+        if (!ReferenceEquals(e.Source, MainTabs))
         {
             return;
         }
 
-        _ = _viewModel.RefreshDashboardStatusAsync();
+        if (MainTabs.SelectedIndex == 0)
+        {
+            _ = _viewModel.RefreshDashboardStatusAsync();
+        }
+        else if (MainTabs.SelectedIndex == 4)
+        {
+            _viewModel.RefreshDisplays();
+        }
     }
 
     private void EditProfileButton_OnClick(object sender, RoutedEventArgs e)

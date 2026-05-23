@@ -123,6 +123,7 @@ public sealed class MainViewModel : ViewModelBase
         ResetToSampleConfigurationCommand = new RelayCommand(ResetToSampleConfiguration);
 
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
+        _monitorTopologyService.TopologyChanged += OnMonitorTopologyChanged;
         RefreshDiagnostics();
         RefreshDashboardProfiles();
         ValidateConfiguration();
@@ -398,6 +399,15 @@ public sealed class MainViewModel : ViewModelBase
         RefreshDiagnostics();
         await RefreshH2ConnectionStatusAsync();
     }
+
+    public void RefreshDisplays() => RefreshDiagnostics();
+
+    private void OnMonitorTopologyChanged(object? sender, EventArgs e) =>
+        Dispatch(() =>
+        {
+            RefreshDiagnostics();
+            AddLog("Display topology changed. Display list refreshed.");
+        });
 
     private async Task ExecuteProfileFromCommandAsync(ProfileRow? profile)
     {
@@ -1072,9 +1082,6 @@ public sealed class MainViewModel : ViewModelBase
             Monitors.Add(MonitorRow.FromModel(monitor));
         }
 
-        var position = _cursorService.GetPosition();
-        CurrentCursorPosition = $"{position.X}, {position.Y}";
-        RefreshCursorZone();
         RaiseCommandStates();
     }
 
