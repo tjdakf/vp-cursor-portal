@@ -59,60 +59,62 @@
 
         <TabControl x:Name="MainTabs" Grid.Row="2" Margin="0" TabStripPlacement="Left" SelectionChanged="MainTabs_OnSelectionChanged">
             <TabItem Header="Dashboard">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="2">
+                <Grid Margin="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" MinWidth="760" />
                             <ColumnDefinition Width="380" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Border Grid.RowSpan="2" Style="{StaticResource CardStyle}" MinHeight="650">
+                        <Border Grid.RowSpan="3" Style="{StaticResource CardStyle}">
                             <DockPanel>
                                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                                     <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
                                 </StackPanel>
-                                <ItemsControl ItemsSource="{Binding DashboardProfiles}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,8">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="112" />
-                                                        <ColumnDefinition Width="250" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="68" />
-                                                        <ColumnDefinition Width="68" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
-                                                    <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
-                                                    <Button Grid.Column="3"
-                                                            Content="Run"
-                                                            Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            CommandParameter="{Binding}"
-                                                            VerticalAlignment="Center"
-                                                            MinHeight="30"
-                                                            Padding="10,4"
-                                                            Margin="8,0,0,0" />
-                                                    <Button Grid.Column="4"
-                                                            Content="Edit"
-                                                            Tag="{Binding}"
-                                                            Click="EditProfileButton_OnClick"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            VerticalAlignment="Center"
-                                                            MinHeight="30"
-                                                            Padding="10,4"
-                                                            Margin="8,0,0,0" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding DashboardProfiles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="112" />
+                                                            <ColumnDefinition Width="250" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="68" />
+                                                            <ColumnDefinition Width="68" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
+                                                        <Button Grid.Column="3"
+                                                                Content="Run"
+                                                                Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                VerticalAlignment="Center"
+                                                                MinHeight="30"
+                                                                Padding="10,4"
+                                                                Margin="8,0,0,0" />
+                                                        <Button Grid.Column="4"
+                                                                Content="Edit"
+                                                                Tag="{Binding}"
+                                                                Click="EditProfileButton_OnClick"
+                                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                                VerticalAlignment="Center"
+                                                                MinHeight="30"
+                                                                Padding="10,4"
+                                                                Margin="8,0,0,0" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
                             </DockPanel>
                         </Border>
 
@@ -143,7 +145,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Grid Grid.Column="1" Grid.Row="1">
+                        <Grid Grid.Column="1" Grid.Row="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -170,7 +172,6 @@
                         </Grid>
 
                     </Grid>
-                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="Layouts">

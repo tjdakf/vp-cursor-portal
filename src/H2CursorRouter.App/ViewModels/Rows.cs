@@ -1,6 +1,7 @@
 using H2CursorRouter.Core.Domain;
 using H2CursorRouter.Core.Geometry;
 using H2CursorRouter.Core.Profiles;
+using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Windows;
 
 namespace H2CursorRouter.App.ViewModels;
@@ -58,6 +59,29 @@ public sealed class PresetRow
     public int FriendlyPresetNumber { get; set; }
     public int PresetId { get; set; }
     public string DisplayName { get; set; } = "";
+    public DateTimeOffset? LastFetchedAtUtc { get; set; }
+
+    public static PresetRow FromCachedPreset(CachedH2Preset preset) => new()
+    {
+        DeviceConfigId = preset.DeviceConfigId,
+        DeviceName = preset.DeviceName,
+        H2DeviceId = preset.H2DeviceId,
+        ScreenId = preset.ScreenId,
+        FriendlyPresetNumber = preset.FriendlyPresetNumber,
+        PresetId = preset.PresetId,
+        DisplayName = preset.DisplayName,
+        LastFetchedAtUtc = preset.LastFetchedAtUtc
+    };
+
+    public CachedH2Preset ToCachedPreset() => new(
+        DeviceConfigId,
+        DeviceName,
+        H2DeviceId,
+        ScreenId,
+        FriendlyPresetNumber,
+        PresetId,
+        DisplayName,
+        LastFetchedAtUtc);
 }
 
 public sealed class LayoutRow : ViewModelBase
@@ -420,7 +444,7 @@ public sealed class ProfileRow : ViewModelBase
 
     public string LayoutSummary => string.IsNullOrWhiteSpace(CursorLayoutId)
         ? "H2 preset only"
-        : string.IsNullOrWhiteSpace(CursorLayoutName) ? CursorLayoutId! : CursorLayoutName!;
+        : string.IsNullOrWhiteSpace(CursorLayoutName) ? "Missing cursor layout" : CursorLayoutName!;
 
     public string Description => $"{PresetSummary} - {LayoutSummary}";
 

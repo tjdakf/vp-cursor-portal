@@ -112,7 +112,7 @@ public sealed class MainViewModel : ViewModelBase
         DashboardProfiles = new ObservableCollection<ProfileRow>();
         FilteredProfiles = CollectionViewSource.GetDefaultView(Profiles);
         FilteredProfiles.Filter = FilterProfile;
-        Presets = new ObservableCollection<PresetRow>();
+        Presets = new ObservableCollection<PresetRow>(configuration.PresetCache.Select(PresetRow.FromCachedPreset));
         Monitors = new ObservableCollection<MonitorRow>();
         SelectedLayoutZones = new ObservableCollection<ZoneRow>();
         SelectedLayoutPortals = new ObservableCollection<PortalRow>();
@@ -122,6 +122,7 @@ public sealed class MainViewModel : ViewModelBase
         _startWithWindows = _startupRegistrationService.IsRegistered();
 
         SelectedDevice = Devices.FirstOrDefault();
+        SelectedPreset = Presets.FirstOrDefault();
         SelectedLayout = Layouts.FirstOrDefault();
         SelectedProfile = Profiles.FirstOrDefault();
 
@@ -134,7 +135,7 @@ public sealed class MainViewModel : ViewModelBase
         DeleteLayoutCommand = new RelayCommand<LayoutRow>(DeleteLayout, IsLayoutPersisted);
         AddZoneCommand = new RelayCommand(AddZone, () => SelectedLayout is not null);
         RemoveZoneCommand = new RelayCommand(RemoveSelectedZone, () => SelectedZone is not null);
-        AddDisplayToCanvasCommand = new RelayCommand(AddSelectedDisplayToCanvas, () => SelectedLayout is not null && SelectedAvailableMonitor is not null);
+        AddDisplayToCanvasCommand = new RelayCommand(AddSelectedDisplayToCanvas, () => SelectedAvailableMonitor is not null);
         AddPortalCommand = new RelayCommand(AddPortal, () => SelectedLayout is not null);
         RemovePortalCommand = new RelayCommand(RemoveSelectedPortal, () => SelectedPortal is not null);
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
@@ -615,9 +616,16 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        Presets.Clear();
         if (await GetPresetsForDeviceAsync(SelectedDevice))
         {
+            foreach (var row in Presets
+                         .Where(row => !string.Equals(row.DeviceConfigId, SelectedDevice.Id, StringComparison.OrdinalIgnoreCase))
+                         .ToArray())
+            {
+                Presets.Remove(row);
+            }
+
+            RefreshSelectedPreset(SelectedDevice.Id);
             AutoSaveConfiguration("Auto-saved configuration after refreshing presets.");
         }
     }
@@ -630,7 +638,6 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        Presets.Clear();
         var loadedAny = false;
         foreach (var deviceRow in Devices.ToArray())
         {
@@ -639,6 +646,7 @@ public sealed class MainViewModel : ViewModelBase
 
         if (loadedAny)
         {
+            RefreshSelectedPreset(SelectedDevice?.Id);
             AutoSaveConfiguration("Auto-saved configuration after refreshing all presets.");
         }
     }
@@ -648,10 +656,6 @@ public sealed class MainViewModel : ViewModelBase
         var device = deviceRow.ToModel();
         AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
         var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, deviceRow.PresetEnumScreenId);
-        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, deviceRow.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
-        {
-            Presets.Remove(row);
-        }
 
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
         {
@@ -664,6 +668,12 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var parsed = _presetEnumParser.Parse(result.ResponseJson);
+            foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, deviceRow.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
+            {
+                Presets.Remove(row);
+            }
+
+            var fetchedAt = DateTimeOffset.UtcNow;
             foreach (var preset in parsed)
             {
                 Presets.Add(new PresetRow
@@ -674,7 +684,8 @@ public sealed class MainViewModel : ViewModelBase
                     ScreenId = preset.ScreenId,
                     FriendlyPresetNumber = preset.FriendlyPresetNumber,
                     PresetId = preset.PresetId,
-                    DisplayName = string.IsNullOrWhiteSpace(preset.Name) ? "(unnamed)" : preset.Name
+                    DisplayName = string.IsNullOrWhiteSpace(preset.Name) ? "(unnamed)" : preset.Name,
+                    LastFetchedAtUtc = fetchedAt
                 });
             }
 
@@ -934,7 +945,13 @@ public sealed class MainViewModel : ViewModelBase
 
     private void AddSelectedDisplayToCanvas()
     {
-        if (SelectedLayout is null || SelectedAvailableMonitor is null)
+        if (SelectedAvailableMonitor is null)
+        {
+            return;
+        }
+
+        EnsureTemporaryLayoutCanvas();
+        if (SelectedLayout is null)
         {
             return;
         }
@@ -947,6 +964,21 @@ public sealed class MainViewModel : ViewModelBase
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
         AddLog($"Added display '{zone.DisplayName}' to layout canvas.");
+    }
+
+    private void EnsureTemporaryLayoutCanvas()
+    {
+        if (SelectedLayout is not null)
+        {
+            return;
+        }
+
+        SelectedLayout = new LayoutRow
+        {
+            Id = $"layout-draft-{DateTime.Now:HHmmss}",
+            Name = GetNextLayoutName(),
+            Displays = "No displays"
+        };
     }
 
     private void AddPortal()
@@ -1183,7 +1215,7 @@ public sealed class MainViewModel : ViewModelBase
             profileName,
             null,
             Layouts.ToArray(),
-            SelectedLayout?.Id,
+            SelectedLayout is not null && IsLayoutPersisted(SelectedLayout) ? SelectedLayout.Id : null,
             false,
             Devices.ToArray(),
             Presets.ToArray(),
@@ -1528,7 +1560,9 @@ public sealed class MainViewModel : ViewModelBase
         Devices.Select(device => device.ToModel()).ToArray(),
         Layouts.Select(BuildLayout).ToArray(),
         Profiles.Select(profile => profile.ToModel()).ToArray(),
-        SafetySettings.Default);
+        SafetySettings.Default,
+        Presets.Select(preset => preset.ToCachedPreset())
+            .ToArray());
 
     private CursorLayout BuildLayout(LayoutRow layout)
     {
@@ -1565,9 +1599,8 @@ public sealed class MainViewModel : ViewModelBase
     private static string FormatLayoutDisplays(IEnumerable<ZoneRow> zones) =>
         LayoutRow.FormatDisplays(zones.Select(zone => zone.ToModel()));
 
-    private bool IsLayoutPersisted(LayoutRow layout) =>
-        Layouts.Any(existing => ReferenceEquals(existing, layout) ||
-                                string.Equals(existing.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
+    private bool IsLayoutPersisted(LayoutRow? layout) =>
+        layout is not null && Layouts.Any(existing => ReferenceEquals(existing, layout));
 
     private static bool ProfileHasH2Preset(ProfileRow profile) =>
         !string.IsNullOrWhiteSpace(profile.DeviceId) &&
@@ -1630,12 +1663,36 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Presets.Clear();
+        foreach (var preset in configuration.PresetCache)
+        {
+            Presets.Add(PresetRow.FromCachedPreset(preset));
+        }
+
         FilteredProfiles.Refresh();
         RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedDevice = Devices.FirstOrDefault();
+        RefreshSelectedPreset(SelectedDevice?.Id);
         SelectedLayout = Layouts.FirstOrDefault();
         SelectedProfile = Profiles.FirstOrDefault();
+    }
+
+    private void RefreshSelectedPreset(string? preferredDeviceId)
+    {
+        var selectedStillExists = SelectedPreset is not null &&
+                                  Presets.Any(preset => ReferenceEquals(preset, SelectedPreset));
+        if (selectedStillExists &&
+            (string.IsNullOrWhiteSpace(preferredDeviceId) ||
+             string.Equals(SelectedPreset!.DeviceConfigId, preferredDeviceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        SelectedPreset = Presets
+                             .OrderBy(preset => string.Equals(preset.DeviceConfigId, preferredDeviceId, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                             .ThenBy(preset => preset.ScreenId)
+                             .ThenBy(preset => preset.FriendlyPresetNumber)
+                             .FirstOrDefault();
     }
 
     private void RefreshDashboardProfiles()

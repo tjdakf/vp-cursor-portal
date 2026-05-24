@@ -8,19 +8,22 @@ public sealed record ConfigDocument(
     IReadOnlyList<ConfigDevice>? Devices,
     IReadOnlyList<CursorLayout>? CursorLayouts,
     IReadOnlyList<ExecutionProfile>? Profiles,
-    SafetySettings? Safety)
+    SafetySettings? Safety,
+    IReadOnlyList<CachedH2Preset>? CachedPresets = null)
 {
     public AppConfiguration ToRuntime() => new(
         (Devices ?? Array.Empty<ConfigDevice>()).Select(device => device.ToRuntime()).ToArray(),
         CursorLayouts ?? Array.Empty<CursorLayout>(),
         Profiles ?? Array.Empty<ExecutionProfile>(),
-        Safety ?? SafetySettings.Default);
+        Safety ?? SafetySettings.Default,
+        CachedPresets ?? Array.Empty<CachedH2Preset>());
 
     public static ConfigDocument FromRuntime(AppConfiguration configuration) => new(
         configuration.Devices.Select(ConfigDevice.FromRuntime).ToArray(),
         configuration.CursorLayouts,
         configuration.Profiles,
-        configuration.Safety);
+        configuration.Safety,
+        configuration.PresetCache);
 }
 
 public sealed record ConfigDevice(

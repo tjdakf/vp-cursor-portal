@@ -64,21 +64,17 @@ public sealed class ProfileDialogService : IProfileDialogService
             IsChecked = isCursorLayoutOnly,
             Margin = new Thickness(0, 14, 0, 0)
         };
-        var onlineDevices = devices
-            .Where(device => device.IsOnline || string.Equals(device.Id, selectedDeviceId, StringComparison.OrdinalIgnoreCase))
-            .DefaultIfEmpty(devices.FirstOrDefault())
-            .Where(device => device is not null)
-            .ToArray();
+        var deviceChoices = devices.ToArray();
         var deviceInput = new WpfComboBox
         {
-            ItemsSource = onlineDevices,
+            ItemsSource = deviceChoices,
             DisplayMemberPath = nameof(DeviceRow.Name),
             SelectedValuePath = nameof(DeviceRow.Id),
             SelectedValue = selectedDeviceId,
             MinWidth = 320,
             IsEnabled = false
         };
-        if (deviceInput.SelectedIndex < 0 && onlineDevices.Length > 0)
+        if (deviceInput.SelectedIndex < 0 && deviceChoices.Length > 0)
         {
             deviceInput.SelectedIndex = 0;
         }
@@ -119,9 +115,12 @@ public sealed class ProfileDialogService : IProfileDialogService
             }
 
             presetInput.ItemsSource = presetChoices.ToArray();
-            presetInput.SelectedItem = presetInput.Items
-                .OfType<PresetRow>()
-                .FirstOrDefault(preset => preset.ScreenId == selectedScreenId && preset.PresetId == selectedPresetId);
+            presetInput.SelectedItem = !string.IsNullOrWhiteSpace(currentDeviceId) &&
+                                       string.Equals(currentDeviceId, selectedDeviceId, StringComparison.OrdinalIgnoreCase)
+                ? presetInput.Items
+                    .OfType<PresetRow>()
+                    .FirstOrDefault(preset => preset.ScreenId == selectedScreenId && preset.PresetId == selectedPresetId)
+                : null;
             if (presetInput.SelectedIndex < 0)
             {
                 presetInput.SelectedIndex = presetInput.Items.Count > 0 ? 0 : -1;

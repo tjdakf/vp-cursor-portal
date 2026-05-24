@@ -86,6 +86,31 @@ public sealed class ValidationAndProfileTests
         Assert.Empty(configuration.CursorLayouts);
         Assert.Empty(configuration.Profiles);
         Assert.Equal(SafetySettings.Default, configuration.Safety);
+        Assert.Empty(configuration.PresetCache);
+    }
+
+    [Fact]
+    public void ConfigDocumentRoundTripsCachedPresets()
+    {
+        var fetchedAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var configuration = new AppConfiguration(
+            [new H2DeviceConfig("h2-main", "Main H2", "192.168.0.100", 6000, 0, TimeSpan.FromSeconds(1))],
+            [],
+            [],
+            SafetySettings.Default,
+            [new CachedH2Preset("h2-main", "Main H2", 0, 0, 1, 0, "Preset 1", fetchedAt)]);
+
+        var restored = ConfigDocument.FromRuntime(configuration).ToRuntime();
+
+        var preset = Assert.Single(restored.PresetCache);
+        Assert.Equal("h2-main", preset.DeviceConfigId);
+        Assert.Equal("Main H2", preset.DeviceName);
+        Assert.Equal(0, preset.H2DeviceId);
+        Assert.Equal(0, preset.ScreenId);
+        Assert.Equal(1, preset.FriendlyPresetNumber);
+        Assert.Equal(0, preset.PresetId);
+        Assert.Equal("Preset 1", preset.DisplayName);
+        Assert.Equal(fetchedAt, preset.LastFetchedAtUtc);
     }
 
     [Fact]
