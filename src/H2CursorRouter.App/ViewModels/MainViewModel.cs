@@ -17,27 +17,21 @@ public sealed class MainViewModel : ViewModelBase
 {
     private readonly string _configPath;
     private readonly string _executablePath;
-    private readonly ConfigFileService _configFileService = new();
     private readonly LayoutEditingService _layoutEditingService = new();
     private readonly MonitorZoneMatcher _monitorZoneMatcher = new();
-    private readonly ConfigurationRowMapper _configurationRowMapper;
+    private readonly ConfigurationCoordinator _configurationCoordinator;
     private readonly IStartupRegistrationService _startupRegistrationService;
     private readonly FileLogService _fileLogService;
     private readonly IH2DeviceClient _h2DeviceClient;
     private readonly IDisplayIdentificationService _displayIdentificationService;
     private readonly ITextInputDialogService _textInputDialogService;
     private readonly IConfirmationDialogService _confirmationDialogService;
-    private readonly IProfileDialogService _profileDialogService;
-    private readonly IDeviceDialogService _deviceDialogService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly ICursorRoutingRuntime _routingRuntime;
-    private readonly AppConfigurationValidator _configurationValidator;
     private readonly ProfileExecutionService _profileExecutionService;
-    private readonly H2PresetEnumParser _presetEnumParser = new();
     private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
     private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
     private bool _startWithWindows;
-    private bool _isCheckingH2Connection;
     private CursorPoint? _selectedLayoutDraftStartPosition;
 
     public MainViewModel(
@@ -65,22 +59,31 @@ public sealed class MainViewModel : ViewModelBase
         _displayIdentificationService = displayIdentificationService;
         _textInputDialogService = textInputDialogService;
         _confirmationDialogService = confirmationDialogService;
-        _profileDialogService = profileDialogService;
-        _deviceDialogService = deviceDialogService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
-        _configurationValidator = configurationValidator;
-        _configurationRowMapper = new ConfigurationRowMapper(_monitorZoneMatcher);
+        var configurationRowMapper = new ConfigurationRowMapper(_monitorZoneMatcher);
+        _configurationCoordinator = new ConfigurationCoordinator(configurationRowMapper, configurationValidator);
         _profileExecutionService = new ProfileExecutionService(
             _h2DeviceClient,
             _routingRuntime,
             routingEngine,
-            _configurationValidator);
+            configurationValidator);
 
-        var rows = _configurationRowMapper.ToRows(configuration);
-        DevicePresets = new DevicePresetViewModel(rows.Devices, rows.Presets);
+        var rows = _configurationCoordinator.ToRows(configuration);
+        DevicePresets = new DevicePresetViewModel(
+            rows.Devices,
+            rows.Presets,
+            _h2DeviceClient,
+            deviceDialogService,
+            AddLog,
+            AutoSaveConfiguration);
         LayoutEditor = new LayoutEditorViewModel(rows.Layouts, rows.Zones, rows.Portals);
-        ProfileList = new ProfileListViewModel(rows.Profiles);
+        ProfileList = new ProfileListViewModel(
+            rows.Profiles,
+            profileDialogService,
+            AddLog,
+            AutoSaveConfiguration,
+            () => HotkeysChanged?.Invoke(this, EventArgs.Empty));
         RuntimeLog = new RuntimeLogViewModel();
         ProfileList.SetFilter(FilterProfile);
         _startWithWindows = _startupRegistrationService.IsRegistered();
@@ -593,101 +596,9 @@ public sealed class MainViewModel : ViewModelBase
         }
     }
 
-    public async Task GetPresetsAsync()
-    {
-        if (SelectedDevice is null)
-        {
-            AddLog("No H2 device selected.");
-            return;
-        }
+    public Task GetPresetsAsync() => DevicePresets.GetPresetsAsync();
 
-        if (await GetPresetsForDeviceAsync(SelectedDevice))
-        {
-            foreach (var row in Presets
-                         .Where(row => !string.Equals(row.DeviceConfigId, SelectedDevice.Id, StringComparison.OrdinalIgnoreCase))
-                         .ToArray())
-            {
-                Presets.Remove(row);
-            }
-
-            RefreshSelectedPreset(SelectedDevice.Id);
-            AutoSaveConfiguration("Auto-saved configuration after refreshing presets.");
-        }
-    }
-
-    public async Task GetAllPresetsAsync()
-    {
-        if (Devices.Count == 0)
-        {
-            AddLog("No H2 devices configured.");
-            return;
-        }
-
-        var loadedAny = false;
-        foreach (var deviceRow in Devices.ToArray())
-        {
-            loadedAny |= await GetPresetsForDeviceAsync(deviceRow);
-        }
-
-        if (loadedAny)
-        {
-            RefreshSelectedPreset(SelectedDevice?.Id);
-            AutoSaveConfiguration("Auto-saved configuration after refreshing all presets.");
-        }
-    }
-
-    private async Task<bool> GetPresetsForDeviceAsync(DeviceRow deviceRow)
-    {
-        var device = deviceRow.ToModel();
-        AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
-        var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, deviceRow.PresetEnumScreenId);
-
-        if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.ResponseJson))
-        {
-            deviceRow.IsOnline = false;
-            H2ConnectionStatus = $"No response: {result.Message}";
-            AddLog($"Preset enum request failed for H2 device '{deviceRow.Name}': {result.Message}");
-            return false;
-        }
-
-        try
-        {
-            var parsed = _presetEnumParser.Parse(result.ResponseJson);
-            foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, deviceRow.Id, StringComparison.OrdinalIgnoreCase)).ToArray())
-            {
-                Presets.Remove(row);
-            }
-
-            var fetchedAt = DateTimeOffset.UtcNow;
-            foreach (var preset in parsed)
-            {
-                Presets.Add(new PresetRow
-                {
-                    DeviceConfigId = deviceRow.Id,
-                    DeviceName = deviceRow.Name,
-                    H2DeviceId = preset.DeviceId,
-                    ScreenId = preset.ScreenId,
-                    FriendlyPresetNumber = preset.FriendlyPresetNumber,
-                    PresetId = preset.PresetId,
-                    DisplayName = string.IsNullOrWhiteSpace(preset.Name) ? "(unnamed)" : preset.Name,
-                    LastFetchedAtUtc = fetchedAt
-                });
-            }
-
-            deviceRow.IsOnline = true;
-            H2ConnectionStatus = $"Online: {device.Host}:{device.Port}";
-            AddLog($"Loaded {parsed.Count} presets from H2 device '{deviceRow.Name}'.");
-            return true;
-        }
-        catch (Exception exception)
-        {
-            deviceRow.IsOnline = false;
-            H2ConnectionStatus = $"Unexpected response: {exception.Message}";
-            AddLog($"Preset enum response from H2 device '{deviceRow.Name}' could not be parsed: {exception.Message}");
-            AddLog($"Raw preset enum response: {result.ResponseJson}");
-            return false;
-        }
-    }
+    public Task GetAllPresetsAsync() => DevicePresets.GetAllPresetsAsync();
 
     public void EmergencyUnlock()
     {
@@ -713,86 +624,11 @@ public sealed class MainViewModel : ViewModelBase
         RefreshRuntimeState();
     }
 
-    private void AddDevice()
-    {
-        var result = _deviceDialogService.Prompt(
-            "",
-            "192.168.0.11",
-            H2DeviceConfig.DefaultPort);
-        if (result is null)
-        {
-            return;
-        }
+    private void AddDevice() => DevicePresets.AddDevice(CreateUniqueDeviceId);
 
-        var row = new DeviceRow
-        {
-            Id = CreateUniqueDeviceId(result.Name),
-            Name = result.Name,
-            Host = result.Host,
-            Port = result.Port,
-            DeviceId = 0,
-            TimeoutMs = 1000
-        };
-        Devices.Add(row);
-        SelectedDevice = row;
-        AddLog($"Added H2 device '{row.Name}' at {row.Host}:{row.Port}.");
-        AutoSaveConfiguration("Auto-saved configuration after adding device.");
-    }
+    private Task RefreshH2ConnectionStatusAsync() => DevicePresets.RefreshH2ConnectionStatusAsync();
 
-    private async Task RefreshH2ConnectionStatusAsync()
-    {
-        if (_isCheckingH2Connection)
-        {
-            return;
-        }
-
-        var selectedDevice = SelectedDevice ?? Devices.FirstOrDefault();
-        if (selectedDevice is null)
-        {
-            H2ConnectionStatus = "No H2 device configured.";
-            return;
-        }
-
-        _isCheckingH2Connection = true;
-        try
-        {
-            var device = selectedDevice.ToModel();
-            H2ConnectionStatus = $"Checking {device.Host}:{device.Port}...";
-            var result = await _h2DeviceClient.GetPresetEnumAsync(device, device.DeviceId, selectedDevice.PresetEnumScreenId);
-            selectedDevice.IsOnline = result.IsSuccess;
-            H2ConnectionStatus = result.IsSuccess
-                ? $"Online: {device.Host}:{device.Port}"
-                : $"No response: {result.Message}";
-        }
-        catch (Exception exception)
-        {
-            selectedDevice.IsOnline = false;
-            H2ConnectionStatus = $"Check failed: {exception.Message}";
-        }
-        finally
-        {
-            _isCheckingH2Connection = false;
-        }
-    }
-
-    private void RemoveSelectedDevice()
-    {
-        if (SelectedDevice is null)
-        {
-            return;
-        }
-
-        var removedDeviceId = SelectedDevice.Id;
-        Devices.Remove(SelectedDevice);
-        foreach (var row in Presets.Where(row => string.Equals(row.DeviceConfigId, removedDeviceId, StringComparison.OrdinalIgnoreCase)).ToArray())
-        {
-            Presets.Remove(row);
-        }
-
-        SelectedDevice = Devices.FirstOrDefault();
-        AddLog("Removed H2 device.");
-        AutoSaveConfiguration("Auto-saved configuration after removing device.");
-    }
+    private void RemoveSelectedDevice() => DevicePresets.RemoveSelectedDevice();
 
     private void DeleteLayout(LayoutRow layout)
     {
@@ -1141,109 +977,13 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private void AddProfile()
-    {
-        var profileName = GetNextProfileName();
-        var result = _profileDialogService.Prompt(
-            "Add profile",
-            profileName,
-            null,
-            Layouts.ToArray(),
-            SelectedLayout is not null && IsLayoutPersisted(SelectedLayout) ? SelectedLayout.Id : null,
-            false,
-            Devices.ToArray(),
-            Presets.ToArray(),
-            null,
-            null,
-            null,
-            null);
-        if (result is null)
-        {
-            return;
-        }
-
-        var start = CalculateLayoutStart(result.CursorLayoutId);
-        var row = new ProfileRow
-        {
-            Id = CreateUniqueProfileId(result.Name),
-            Name = result.Name,
-            Hotkey = result.Hotkey,
-            DeviceId = result.DeviceId,
-            ScreenId = result.ScreenId,
-            PresetId = result.PresetId,
-            PresetDisplayName = result.PresetDisplayName,
-            CursorLayoutId = result.CursorLayoutId,
-            StartX = start?.X,
-            StartY = start?.Y,
-            PostAckDelayMs = 500,
-            RequireH2AckBeforeCursorLayout = true
-        };
-        Profiles.Add(row);
-        FilteredProfiles.Refresh();
-        RefreshProfileLayoutNames();
-        RefreshDashboardProfiles();
-        SelectedProfile = row;
-        HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog($"Added profile '{row.Name}'.");
-        AutoSaveConfiguration("Auto-saved configuration after adding profile.");
-    }
+        => ProfileList.AddProfile(CreateProfileEditContext());
 
     public void EditProfile(ProfileRow profile)
-    {
-        var result = _profileDialogService.Prompt(
-            "Edit profile",
-            profile.Name,
-            profile.Hotkey,
-            Layouts.ToArray(),
-            profile.CursorLayoutId,
-            !ProfileHasH2Preset(profile),
-            Devices.ToArray(),
-            Presets.ToArray(),
-            profile.DeviceId,
-            profile.ScreenId,
-            profile.PresetId,
-            profile.PresetDisplayName);
-        if (result is null)
-        {
-            return;
-        }
-
-        var start = CalculateLayoutStart(result.CursorLayoutId);
-        profile.Name = result.Name;
-        profile.Hotkey = result.Hotkey;
-        profile.DeviceId = result.DeviceId;
-        profile.ScreenId = result.ScreenId;
-        profile.PresetId = result.PresetId;
-        profile.PresetDisplayName = result.PresetDisplayName;
-        profile.CursorLayoutId = result.CursorLayoutId;
-        profile.StartX = start?.X;
-        profile.StartY = start?.Y;
-        profile.PostAckDelayMs = 500;
-        profile.RequireH2AckBeforeCursorLayout = true;
-        SelectedProfile = profile;
-        FilteredProfiles.Refresh();
-        RefreshProfileLayoutNames();
-        RefreshDashboardProfiles();
-        HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog($"Updated profile '{profile.Name}'.");
-        AutoSaveConfiguration("Auto-saved configuration after updating profile.");
-    }
+        => ProfileList.EditProfile(profile, CreateProfileEditContext());
 
     private void RemoveSelectedProfile()
-    {
-        if (SelectedProfile is null)
-        {
-            return;
-        }
-
-        Profiles.Remove(SelectedProfile);
-        FilteredProfiles.Refresh();
-        RefreshProfileLayoutNames();
-        RefreshDashboardProfiles();
-        SelectedProfile = Profiles.FirstOrDefault();
-        HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog("Removed profile.");
-        AutoSaveConfiguration("Auto-saved configuration after removing profile.");
-    }
+        => ProfileList.RemoveSelectedProfile();
 
     private void GeneratePortalsFromVisualAdjacency()
     {
@@ -1278,7 +1018,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private void ValidateConfiguration()
     {
-        var validation = _configurationValidator.Validate(BuildConfiguration());
+        var validation = _configurationCoordinator.Validate(BuildConfiguration());
         ShowValidation(validation);
         AddLog(validation.IsValid
             ? "Configuration validation passed."
@@ -1300,7 +1040,7 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var configuration = BuildConfiguration();
-            var validation = _configurationValidator.Validate(configuration);
+            var validation = _configurationCoordinator.Validate(configuration);
             ShowValidation(validation);
             if (!validation.IsValid)
             {
@@ -1311,7 +1051,7 @@ public sealed class MainViewModel : ViewModelBase
             await _configurationSaveLock.WaitAsync();
             try
             {
-                await _configFileService.SaveAsync(configuration, _configPath);
+                await _configurationCoordinator.SaveAsync(configuration, _configPath);
             }
             finally
             {
@@ -1335,13 +1075,7 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private void SetDeviceOnline(string deviceId, bool isOnline)
-    {
-        var deviceRow = Devices.FirstOrDefault(row => string.Equals(row.Id, deviceId, StringComparison.OrdinalIgnoreCase));
-        if (deviceRow is not null)
-        {
-            deviceRow.IsOnline = isOnline;
-        }
-    }
+        => DevicePresets.SetDeviceOnline(deviceId, isOnline);
 
     private void SelectLayout(string layoutId)
     {
@@ -1409,7 +1143,17 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private AppConfiguration BuildConfiguration() =>
-        _configurationRowMapper.BuildConfiguration(Devices, Layouts, Zones, Portals, Profiles, Presets, Monitors);
+        _configurationCoordinator.BuildConfiguration(Devices, Layouts, Zones, Portals, Profiles, Presets, Monitors);
+
+    private ProfileEditContext CreateProfileEditContext() => new(
+        Layouts.ToArray(),
+        SelectedLayout is not null && IsLayoutPersisted(SelectedLayout) ? SelectedLayout.Id : null,
+        Devices.ToArray(),
+        Presets.ToArray(),
+        GetNextProfileName,
+        CreateUniqueProfileId,
+        CalculateLayoutStart,
+        RefreshProfileLayoutNames);
 
     private bool IsLayoutPersisted(LayoutRow? layout) =>
         layout is not null && Layouts.Any(existing => ReferenceEquals(existing, layout));
@@ -1443,7 +1187,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private void LoadConfigurationIntoRows(AppConfiguration configuration)
     {
-        var rows = _configurationRowMapper.ToRows(configuration);
+        var rows = _configurationCoordinator.ToRows(configuration);
 
         Devices.Clear();
         foreach (var device in rows.Devices)
@@ -1485,37 +1229,13 @@ public sealed class MainViewModel : ViewModelBase
         RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedDevice = Devices.FirstOrDefault();
-        RefreshSelectedPreset(SelectedDevice?.Id);
+        DevicePresets.RefreshSelectedPreset(SelectedDevice?.Id);
         SelectedLayout = Layouts.FirstOrDefault();
         SelectedProfile = Profiles.FirstOrDefault();
     }
 
-    private void RefreshSelectedPreset(string? preferredDeviceId)
-    {
-        var selectedStillExists = SelectedPreset is not null &&
-                                  Presets.Any(preset => ReferenceEquals(preset, SelectedPreset));
-        if (selectedStillExists &&
-            (string.IsNullOrWhiteSpace(preferredDeviceId) ||
-             string.Equals(SelectedPreset!.DeviceConfigId, preferredDeviceId, StringComparison.OrdinalIgnoreCase)))
-        {
-            return;
-        }
-
-        SelectedPreset = Presets
-                             .OrderBy(preset => string.Equals(preset.DeviceConfigId, preferredDeviceId, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-                             .ThenBy(preset => preset.ScreenId)
-                             .ThenBy(preset => preset.FriendlyPresetNumber)
-                             .FirstOrDefault();
-    }
-
     private void RefreshDashboardProfiles()
-    {
-        DashboardProfiles.Clear();
-        foreach (var profile in Profiles)
-        {
-            DashboardProfiles.Add(profile);
-        }
-    }
+        => ProfileList.RefreshDashboardProfiles();
 
     private void RefreshProfileLayoutNames()
     {
