@@ -119,41 +119,33 @@
                             </DockPanel>
                         </Border>
 
-                        <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
-                            <StackPanel>
-                                <TextBlock Text="Runtime" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
-                                <UniformGrid Columns="1" Margin="0,16,0,0">
-                                    <StackPanel Margin="0,0,12,14">
-                                        <TextBlock Text="Routing" Style="{StaticResource MutedTextStyle}" />
-                                        <TextBlock Text="{Binding RoutingStateText}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,12,14">
-                                        <TextBlock Text="Layout" Style="{StaticResource MutedTextStyle}" />
-                                        <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="H2 Connection" Style="{StaticResource MutedTextStyle}" />
-                                        <Grid Margin="0,3,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Ellipse Style="{StaticResource ConnectionIndicatorStyle}" />
-                                            <TextBlock Grid.Column="1" Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
-                                        </Grid>
-                                    </StackPanel>
-                                </UniformGrid>
-                            </StackPanel>
-                        </Border>
-
-                        <Grid Grid.Column="1" Grid.Row="2">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="1" Grid.RowSpan="3">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Runtime" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                    <UniformGrid Columns="1" Margin="0,16,0,0">
+                                        <StackPanel Margin="0,0,12,14">
+                                            <TextBlock Text="Routing" Style="{StaticResource MutedTextStyle}" />
+                                            <TextBlock Text="{Binding RoutingStateText}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,12,14">
+                                            <TextBlock Text="Layout" Style="{StaticResource MutedTextStyle}" />
+                                            <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="H2 Connection" Style="{StaticResource MutedTextStyle}" />
+                                            <Grid Margin="0,3,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Style="{StaticResource ConnectionIndicatorStyle}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Border>
 
                             <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
                                 <StackPanel>
@@ -164,13 +156,13 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                            <Border Style="{StaticResource CardStyle}">
                                 <StackPanel>
                                     <TextBlock Text="Startup" Style="{StaticResource SectionTitleStyle}" />
                                     <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
-                        </Grid>
+                        </StackPanel>
 
                     </Grid>
             </TabItem>
