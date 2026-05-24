@@ -19,6 +19,8 @@ public sealed class MainViewModel : ViewModelBase
     private readonly string _executablePath;
     private readonly ConfigFileService _configFileService = new();
     private readonly LayoutEditingService _layoutEditingService = new();
+    private readonly MonitorZoneMatcher _monitorZoneMatcher = new();
+    private readonly ConfigurationRowMapper _configurationRowMapper;
     private readonly IStartupRegistrationService _startupRegistrationService;
     private readonly FileLogService _fileLogService;
     private readonly IH2DeviceClient _h2DeviceClient;
@@ -82,23 +84,23 @@ public sealed class MainViewModel : ViewModelBase
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
         _configurationValidator = configurationValidator;
+        _configurationRowMapper = new ConfigurationRowMapper(_monitorZoneMatcher);
         _profileExecutionService = new ProfileExecutionService(
             _h2DeviceClient,
             _routingRuntime,
             routingEngine,
             _configurationValidator);
 
-        Devices = new ObservableCollection<DeviceRow>(configuration.Devices.Select(DeviceRow.FromModel));
-        Layouts = new ObservableCollection<LayoutRow>(configuration.CursorLayouts.Select(LayoutRow.FromModel));
-        Zones = new ObservableCollection<ZoneRow>(configuration.CursorLayouts.SelectMany(layout =>
-            layout.Zones.Select(zone => ZoneRow.FromModel(layout.Id, zone))));
-        Portals = new ObservableCollection<PortalRow>(configuration.CursorLayouts.SelectMany(layout =>
-            layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal))));
-        Profiles = new ObservableCollection<ProfileRow>(configuration.Profiles.Select(ProfileRow.FromModel));
+        var rows = _configurationRowMapper.ToRows(configuration);
+        Devices = new ObservableCollection<DeviceRow>(rows.Devices);
+        Layouts = new ObservableCollection<LayoutRow>(rows.Layouts);
+        Zones = new ObservableCollection<ZoneRow>(rows.Zones);
+        Portals = new ObservableCollection<PortalRow>(rows.Portals);
+        Profiles = new ObservableCollection<ProfileRow>(rows.Profiles);
         DashboardProfiles = new ObservableCollection<ProfileRow>();
         FilteredProfiles = CollectionViewSource.GetDefaultView(Profiles);
         FilteredProfiles.Filter = FilterProfile;
-        Presets = new ObservableCollection<PresetRow>(configuration.PresetCache.Select(PresetRow.FromCachedPreset));
+        Presets = new ObservableCollection<PresetRow>(rows.Presets);
         Monitors = new ObservableCollection<MonitorRow>();
         SelectedLayoutZones = new ObservableCollection<ZoneRow>();
         SelectedLayoutPortals = new ObservableCollection<PortalRow>();
@@ -800,7 +802,7 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var zone = CreateZoneFromMonitor(SelectedLayout.Id, SelectedAvailableMonitor);
+        var zone = _monitorZoneMatcher.CreateZoneFromMonitor(SelectedLayout.Id, SelectedAvailableMonitor);
         SelectedLayoutZones.Add(zone);
         SelectedZone = zone;
         SelectedAvailableMonitor = null;
@@ -873,7 +875,7 @@ public sealed class MainViewModel : ViewModelBase
         var ordered = Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top).ToArray();
         foreach (var monitor in ordered)
         {
-            var zone = CreateZoneFromMonitor(layout.Id, monitor);
+            var zone = _monitorZoneMatcher.CreateZoneFromMonitor(layout.Id, monitor);
             SelectedLayoutZones.Add(zone);
         }
 
@@ -944,7 +946,7 @@ public sealed class MainViewModel : ViewModelBase
             Description = SelectedLayout.Description,
             DefaultStartX = _selectedLayoutDraftStartPosition?.X,
             DefaultStartY = _selectedLayoutDraftStartPosition?.Y,
-            Displays = FormatLayoutDisplays(SelectedLayoutZones)
+            Displays = ConfigurationRowMapper.FormatLayoutDisplays(SelectedLayoutZones)
         };
         Layouts.Add(newLayout);
 
@@ -1012,7 +1014,7 @@ public sealed class MainViewModel : ViewModelBase
 
         SelectedLayout.DefaultStartX = _selectedLayoutDraftStartPosition?.X;
         SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
-        SelectedLayout.Displays = FormatLayoutDisplays(SelectedLayoutZones);
+        SelectedLayout.Displays = ConfigurationRowMapper.FormatLayoutDisplays(SelectedLayoutZones);
         OnPropertyChanged(nameof(SelectedLayout));
         RefreshProfileLayoutNames();
         AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals.");
@@ -1287,48 +1289,8 @@ public sealed class MainViewModel : ViewModelBase
         DisplayPreviewCanvasHeight = virtualHeight * scale + padding * 2;
     }
 
-    private AppConfiguration BuildConfiguration() => new(
-        Devices.Select(device => device.ToModel()).ToArray(),
-        Layouts.Select(BuildLayout).ToArray(),
-        Profiles.Select(profile => profile.ToModel()).ToArray(),
-        SafetySettings.Default,
-        Presets.Select(preset => preset.ToCachedPreset())
-            .ToArray());
-
-    private CursorLayout BuildLayout(LayoutRow layout)
-    {
-        var start = layout.DefaultStartX is not null && layout.DefaultStartY is not null
-            ? new CursorPoint(layout.DefaultStartX.Value, layout.DefaultStartY.Value)
-            : (CursorPoint?)null;
-
-        return new CursorLayout(
-            layout.Id,
-            layout.Name,
-            Zones.Where(zone => string.Equals(zone.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
-                .Select(BuildZone)
-                .ToArray(),
-            Portals.Where(portal => string.Equals(portal.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
-                .Select(portal => portal.ToModel())
-                .ToArray(),
-            start,
-            string.IsNullOrWhiteSpace(layout.Description) ? null : layout.Description);
-    }
-
-    private CursorZone BuildZone(ZoneRow zone)
-    {
-        var model = zone.ToModel();
-        var monitor = FindMonitorForZone(zone, Monitors);
-        return monitor is null
-            ? model
-            : model with
-            {
-                WindowsRect = new IntRect(monitor.Left, monitor.Top, monitor.Right, monitor.Bottom),
-                DisplayName = zone.DisplayName
-            };
-    }
-
-    private static string FormatLayoutDisplays(IEnumerable<ZoneRow> zones) =>
-        LayoutRow.FormatDisplays(zones.Select(zone => zone.ToModel()));
+    private AppConfiguration BuildConfiguration() =>
+        _configurationRowMapper.BuildConfiguration(Devices, Layouts, Zones, Portals, Profiles, Presets, Monitors);
 
     private bool IsLayoutPersisted(LayoutRow? layout) =>
         layout is not null && Layouts.Any(existing => ReferenceEquals(existing, layout));
@@ -1362,40 +1324,42 @@ public sealed class MainViewModel : ViewModelBase
 
     private void LoadConfigurationIntoRows(AppConfiguration configuration)
     {
+        var rows = _configurationRowMapper.ToRows(configuration);
+
         Devices.Clear();
-        foreach (var device in configuration.Devices.Select(DeviceRow.FromModel))
+        foreach (var device in rows.Devices)
         {
             Devices.Add(device);
         }
 
         Layouts.Clear();
-        foreach (var layout in configuration.CursorLayouts.Select(LayoutRow.FromModel))
+        foreach (var layout in rows.Layouts)
         {
             Layouts.Add(layout);
         }
 
         Zones.Clear();
-        foreach (var zone in configuration.CursorLayouts.SelectMany(layout => layout.Zones.Select(zone => ZoneRow.FromModel(layout.Id, zone))))
+        foreach (var zone in rows.Zones)
         {
             Zones.Add(zone);
         }
 
         Portals.Clear();
-        foreach (var portal in configuration.CursorLayouts.SelectMany(layout => layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal))))
+        foreach (var portal in rows.Portals)
         {
             Portals.Add(portal);
         }
 
         Profiles.Clear();
-        foreach (var profile in configuration.Profiles.Select(ProfileRow.FromModel))
+        foreach (var profile in rows.Profiles)
         {
             Profiles.Add(profile);
         }
 
         Presets.Clear();
-        foreach (var preset in configuration.PresetCache)
+        foreach (var preset in rows.Presets)
         {
-            Presets.Add(PresetRow.FromCachedPreset(preset));
+            Presets.Add(preset);
         }
 
         FilteredProfiles.Refresh();
@@ -1578,11 +1542,11 @@ public sealed class MainViewModel : ViewModelBase
     private void RefreshAvailableLayoutDisplays()
     {
         var selectedIds = SelectedLayoutZones
-            .Select(zone => NormalizeZoneId(zone.Id))
+            .Select(zone => MonitorZoneMatcher.NormalizeZoneId(zone.Id))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         AvailableLayoutDisplays.Clear();
-        foreach (var monitor in Monitors.Where(monitor => !selectedIds.Contains(NormalizeZoneId(monitor.DeviceName))))
+        foreach (var monitor in Monitors.Where(monitor => !selectedIds.Contains(MonitorZoneMatcher.NormalizeZoneId(monitor.DeviceName))))
         {
             AvailableLayoutDisplays.Add(monitor);
         }
@@ -1592,25 +1556,6 @@ public sealed class MainViewModel : ViewModelBase
         {
             SelectedAvailableMonitor = AvailableLayoutDisplays.FirstOrDefault();
         }
-    }
-
-    private static ZoneRow CreateZoneFromMonitor(string layoutId, MonitorRow monitor)
-    {
-        return new ZoneRow
-        {
-            LayoutId = layoutId,
-            Id = NormalizeZoneId(monitor.DeviceName),
-            DisplayName = monitor.DeviceName,
-            WindowsLeft = monitor.Left,
-            WindowsTop = monitor.Top,
-            WindowsRight = monitor.Right,
-            WindowsBottom = monitor.Bottom,
-            VisualLeft = monitor.Left,
-            VisualTop = monitor.Top,
-            VisualRight = monitor.Right,
-            VisualBottom = monitor.Bottom,
-            IsVisible = true
-        };
     }
 
     private string GetNextLayoutName()
@@ -1630,7 +1575,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private string CreateUniqueLayoutId(string name)
     {
-        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        var baseId = MonitorZoneMatcher.NormalizeZoneId(name).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(baseId))
         {
             baseId = "layout";
@@ -1672,7 +1617,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private string CreateUniqueProfileId(string name)
     {
-        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        var baseId = MonitorZoneMatcher.NormalizeZoneId(name).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(baseId))
         {
             baseId = "profile";
@@ -1699,7 +1644,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private string CreateUniqueDeviceId(string name)
     {
-        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        var baseId = MonitorZoneMatcher.NormalizeZoneId(name).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(baseId))
         {
             baseId = "device";
@@ -1749,56 +1694,8 @@ public sealed class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(LayoutPreviewCanvasHeight));
     }
 
-    private MonitorRow? FindMonitorForZone(ZoneRow zone, IReadOnlyList<MonitorRow> orderedMonitors)
-    {
-        var zoneId = NormalizeZoneId(zone.Id);
-        var direct = orderedMonitors.FirstOrDefault(monitor =>
-            string.Equals(NormalizeZoneId(monitor.DeviceName), zoneId, StringComparison.OrdinalIgnoreCase));
-        if (direct is not null)
-        {
-            return direct;
-        }
-
-        return orderedMonitors.FirstOrDefault(monitor =>
-            zone.WindowsLeft == monitor.Left &&
-            zone.WindowsTop == monitor.Top &&
-            zone.WindowsRight == monitor.Right &&
-            zone.WindowsBottom == monitor.Bottom);
-    }
-
-    private int RefreshSelectedLayoutWindowsCoordinatesFromDetectedDisplays()
-    {
-        if (Monitors.Count == 0)
-        {
-            return 0;
-        }
-
-        var changed = 0;
-        foreach (var zone in SelectedLayoutZones)
-        {
-            var monitor = FindMonitorForZone(zone, Monitors);
-            if (monitor is null)
-            {
-                continue;
-            }
-
-            if (zone.WindowsLeft == monitor.Left &&
-                zone.WindowsTop == monitor.Top &&
-                zone.WindowsRight == monitor.Right &&
-                zone.WindowsBottom == monitor.Bottom)
-            {
-                continue;
-            }
-
-            zone.WindowsLeft = monitor.Left;
-            zone.WindowsTop = monitor.Top;
-            zone.WindowsRight = monitor.Right;
-            zone.WindowsBottom = monitor.Bottom;
-            changed++;
-        }
-
-        return changed;
-    }
+    private int RefreshSelectedLayoutWindowsCoordinatesFromDetectedDisplays() =>
+        _monitorZoneMatcher.RefreshWindowsCoordinatesFromDetectedDisplays(SelectedLayoutZones, Monitors);
 
     private static bool Contains(string? value, string filter) =>
         value?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
@@ -1816,12 +1713,6 @@ public sealed class MainViewModel : ViewModelBase
         message.Contains("Emergency unlock", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("Monitor topology changed", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("Cursor clipped", StringComparison.OrdinalIgnoreCase);
-
-    private static string NormalizeZoneId(string text)
-    {
-        var chars = text.Where(char.IsLetterOrDigit).ToArray();
-        return chars.Length == 0 ? "MONITOR" : new string(chars).ToUpperInvariant();
-    }
 
     private static void Dispatch(Action action)
     {
