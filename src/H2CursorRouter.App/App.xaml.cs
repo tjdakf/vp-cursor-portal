@@ -61,16 +61,20 @@ public partial class App : System.Windows.Application
     private static async Task<(AppConfiguration Configuration, string ConfigPath)> LoadConfigurationAsync()
     {
         var configService = new ConfigFileService();
-        if (File.Exists("config.json"))
+        var baseDirectory = AppContext.BaseDirectory;
+        var configPath = Path.Combine(baseDirectory, "config.json");
+        var sampleConfigPath = Path.Combine(baseDirectory, "config.sample.json");
+
+        if (File.Exists(configPath))
         {
-            return (await configService.LoadAsync("config.json"), "config.json");
+            return (await configService.LoadAsync(configPath), configPath);
         }
 
-        if (File.Exists("config.sample.json"))
+        if (File.Exists(sampleConfigPath))
         {
-            return (await configService.LoadAsync("config.sample.json"), "config.json");
+            return (await configService.LoadAsync(sampleConfigPath), configPath);
         }
 
-        return (SampleConfiguration.Create(), "config.json");
+        return (SampleConfiguration.Create(), configPath);
     }
 }

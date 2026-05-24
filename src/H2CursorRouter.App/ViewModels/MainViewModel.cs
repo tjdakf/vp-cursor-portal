@@ -46,6 +46,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly AppConfigurationValidator _configurationValidator;
     private readonly H2PresetEnumParser _presetEnumParser = new();
     private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
+    private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
     private DeviceRow? _selectedDevice;
     private PresetRow? _selectedPreset;
     private LayoutRow? _selectedLayout;
@@ -1464,7 +1465,16 @@ public sealed class MainViewModel : ViewModelBase
                 return;
             }
 
-            await _configFileService.SaveAsync(configuration, _configPath);
+            await _configurationSaveLock.WaitAsync();
+            try
+            {
+                await _configFileService.SaveAsync(configuration, _configPath);
+            }
+            finally
+            {
+                _configurationSaveLock.Release();
+            }
+
             HotkeysChanged?.Invoke(this, EventArgs.Empty);
             AddLog(successMessage);
         }
