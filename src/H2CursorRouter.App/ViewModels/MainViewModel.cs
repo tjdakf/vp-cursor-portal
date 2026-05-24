@@ -18,6 +18,8 @@ public sealed class MainViewModel : ViewModelBase
 {
     private const double MinimumVisualSize = 120;
     private const double EdgeSnapTolerance = 24;
+    private const double EdgeGapScoreWeight = 10;
+    private const double SameLineSnapTolerance = 40;
 
     private readonly string _configPath;
     private readonly string _executablePath;
@@ -1487,12 +1489,28 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var other in SelectedLayoutZones.Where(other => !ReferenceEquals(other, zone)))
         {
             var verticallyAlignedTop = AlignStartForOverlap(zone.VisualTop, height, other.VisualTop, other.VisualBottom);
-            Consider(other.VisualRight, verticallyAlignedTop);
-            Consider(other.VisualLeft - width, verticallyAlignedTop);
+            Consider(
+                other.VisualRight,
+                verticallyAlignedTop,
+                Math.Abs(zone.VisualLeft - other.VisualRight),
+                AxisGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom));
+            Consider(
+                other.VisualLeft - width,
+                verticallyAlignedTop,
+                Math.Abs(zone.VisualRight - other.VisualLeft),
+                AxisGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom));
 
             var horizontallyAlignedLeft = AlignStartForOverlap(zone.VisualLeft, width, other.VisualLeft, other.VisualRight);
-            Consider(horizontallyAlignedLeft, other.VisualBottom);
-            Consider(horizontallyAlignedLeft, other.VisualTop - height);
+            Consider(
+                horizontallyAlignedLeft,
+                other.VisualBottom,
+                Math.Abs(zone.VisualTop - other.VisualBottom),
+                AxisGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight));
+            Consider(
+                horizontallyAlignedLeft,
+                other.VisualTop - height,
+                Math.Abs(zone.VisualBottom - other.VisualTop),
+                AxisGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight));
         }
 
         zone.VisualLeft = SnapToGrid(snappedLeft);
@@ -1500,9 +1518,9 @@ public sealed class MainViewModel : ViewModelBase
         zone.VisualTop = SnapToGrid(snappedTop);
         zone.VisualBottom = zone.VisualTop + height;
 
-        void Consider(double left, double top)
+        void Consider(double left, double top, double edgeGap, double crossAxisGap)
         {
-            var score = Math.Abs(zone.VisualLeft - left) + Math.Abs(zone.VisualTop - top);
+            var score = edgeGap * EdgeGapScoreWeight + crossAxisGap + (Math.Abs(zone.VisualLeft - left) + Math.Abs(zone.VisualTop - top)) * 0.01;
             if (score < bestScore)
             {
                 bestScore = score;
@@ -1855,9 +1873,31 @@ public sealed class MainViewModel : ViewModelBase
     private double SnapSize(double value) =>
         Math.Max(MinimumVisualSize, SnapToGrid(value));
 
+    private static double AxisGap(double firstStart, double firstEnd, double secondStart, double secondEnd)
+    {
+        if (firstEnd >= secondStart && secondEnd >= firstStart)
+        {
+            return 0;
+        }
+
+        return firstEnd < secondStart
+            ? secondStart - firstEnd
+            : firstStart - secondEnd;
+    }
+
     private static double AlignStartForOverlap(double currentStart, double size, double targetStart, double targetEnd)
     {
         var currentEnd = currentStart + size;
+        if (Math.Abs(currentStart - targetStart) <= SameLineSnapTolerance)
+        {
+            return targetStart;
+        }
+
+        if (Math.Abs(currentEnd - targetEnd) <= SameLineSnapTolerance)
+        {
+            return targetEnd - size;
+        }
+
         if (currentEnd <= targetStart)
         {
             return targetStart;

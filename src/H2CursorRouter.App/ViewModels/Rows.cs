@@ -98,8 +98,11 @@ public sealed class ZoneRow : ViewModelBase
         get => _visualLeft;
         set
         {
+            var width = VisualWidth;
             if (SetProperty(ref _visualLeft, value))
             {
+                _visualRight = _visualLeft + width;
+                OnPropertyChanged(nameof(VisualRight));
                 OnPropertyChanged(nameof(VisualWidth));
             }
         }
@@ -110,8 +113,11 @@ public sealed class ZoneRow : ViewModelBase
         get => _visualTop;
         set
         {
+            var height = VisualHeight;
             if (SetProperty(ref _visualTop, value))
             {
+                _visualBottom = _visualTop + height;
+                OnPropertyChanged(nameof(VisualBottom));
                 OnPropertyChanged(nameof(VisualHeight));
             }
         }
@@ -143,20 +149,20 @@ public sealed class ZoneRow : ViewModelBase
 
     public double VisualWidth
     {
-        get => Math.Max(20, VisualRight - VisualLeft);
+        get => Math.Max(1, VisualRight - VisualLeft);
         set
         {
-            VisualRight = VisualLeft + Math.Max(20, value);
+            VisualRight = VisualLeft + Math.Max(1, value);
             OnPropertyChanged();
         }
     }
 
     public double VisualHeight
     {
-        get => Math.Max(20, VisualBottom - VisualTop);
+        get => Math.Max(1, VisualBottom - VisualTop);
         set
         {
-            VisualBottom = VisualTop + Math.Max(20, value);
+            VisualBottom = VisualTop + Math.Max(1, value);
             OnPropertyChanged();
         }
     }

@@ -307,19 +307,19 @@
                                                 </Grid.RowDefinitions>
                                                 <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
                                                     <TextBlock Text="X" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
                                                     <TextBlock Text="Y" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="1" Grid.Column="0">
                                                     <TextBlock Text="Width" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="1" Grid.Column="2">
                                                     <TextBlock Text="Height" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=PropertyChanged, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
                                                 </StackPanel>
                                             </Grid>
 
