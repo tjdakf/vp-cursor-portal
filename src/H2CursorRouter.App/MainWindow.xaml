@@ -396,7 +396,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
                             <DataGridTextColumn Header="Hotkey" Binding="{Binding Hotkey}" Width="120" />
-                            <DataGridTextColumn Header="Layout" Binding="{Binding CursorLayoutId}" Width="2*" />
+                            <DataGridTextColumn Header="Layout" Binding="{Binding LayoutSummary}" Width="2*" />
                             <DataGridTextColumn Header="Preset" Binding="{Binding PresetSummary}" Width="2*" IsReadOnly="True" />
                         </DataGrid.Columns>
                     </DataGrid>

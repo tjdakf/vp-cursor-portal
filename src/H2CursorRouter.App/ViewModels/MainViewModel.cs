@@ -155,13 +155,14 @@ public sealed class MainViewModel : ViewModelBase
         ExecuteProfileCommand = new AsyncRelayCommand<ProfileRow>(ExecuteProfileFromCommandAsync, profile => profile is not null);
         EmergencyUnlockCommand = new RelayCommand(EmergencyUnlock);
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
-        RefreshDiagnosticsCommand = new RelayCommand(RefreshDiagnostics);
+        RefreshDiagnosticsCommand = new RelayCommand(() => RefreshDiagnostics(log: true));
         IdentifyDisplaysCommand = new AsyncRelayCommand(IdentifyDisplaysAsync, () => Monitors.Count > 0);
         ResetToSampleConfigurationCommand = new RelayCommand(ResetToSampleConfiguration);
 
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
         _monitorTopologyService.TopologyChanged += OnMonitorTopologyChanged;
-        RefreshDiagnostics();
+        RefreshDiagnostics(log: true);
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         ValidateConfiguration();
         AddLog($"Application started with routing disabled. Config path: {_configPath}");
@@ -481,16 +482,16 @@ public sealed class MainViewModel : ViewModelBase
 
     public async Task RefreshDashboardStatusAsync()
     {
-        RefreshDiagnostics();
+        RefreshDiagnostics(log: false);
         await RefreshH2ConnectionStatusAsync();
     }
 
-    public void RefreshDisplays() => RefreshDiagnostics();
+    public void RefreshDisplays() => RefreshDiagnostics(log: true);
 
     private void OnMonitorTopologyChanged(object? sender, EventArgs e) =>
         Dispatch(() =>
         {
-            RefreshDiagnostics();
+            RefreshDiagnostics(log: false);
             AddLog("Display topology changed. Display list refreshed.");
         });
 
@@ -719,9 +720,8 @@ public sealed class MainViewModel : ViewModelBase
 
     private void AddDevice()
     {
-        var index = Devices.Count + 1;
         var result = _deviceDialogService.Prompt(
-            index == 1 ? "Main H2" : $"H2 {index}",
+            "",
             "192.168.0.11",
             H2DeviceConfig.DefaultPort);
         if (result is null)
@@ -879,6 +879,7 @@ public sealed class MainViewModel : ViewModelBase
         Layouts.Remove(layout);
         SelectedLayout = Layouts.FirstOrDefault();
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
         AddLog($"Deleted layout '{layout.Name}'.");
@@ -1118,6 +1119,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedLayout = newLayout;
+        RefreshProfileLayoutNames();
         AddLog($"Saved new layout '{newLayout.Name}' with generated portals.");
         AutoSaveConfiguration("Auto-saved configuration after saving layout.");
     }
@@ -1168,6 +1170,7 @@ public sealed class MainViewModel : ViewModelBase
         SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
         SelectedLayout.Displays = FormatLayoutDisplays(SelectedLayoutZones);
         OnPropertyChanged(nameof(SelectedLayout));
+        RefreshProfileLayoutNames();
         AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals.");
         AutoSaveConfiguration("Auto-saved configuration after overwriting layout.");
     }
@@ -1211,6 +1214,7 @@ public sealed class MainViewModel : ViewModelBase
         };
         Profiles.Add(row);
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedProfile = row;
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
@@ -1252,6 +1256,7 @@ public sealed class MainViewModel : ViewModelBase
         profile.RequireH2AckBeforeCursorLayout = true;
         SelectedProfile = profile;
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
         AddLog($"Updated profile '{profile.Name}'.");
@@ -1267,6 +1272,7 @@ public sealed class MainViewModel : ViewModelBase
 
         Profiles.Remove(SelectedProfile);
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedProfile = Profiles.FirstOrDefault();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
@@ -1298,6 +1304,7 @@ public sealed class MainViewModel : ViewModelBase
         };
         Profiles.Add(copy);
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedProfile = copy;
         AddLog($"Duplicated profile '{copy.Name}'. Assign a hotkey before saving if needed.");
@@ -1310,7 +1317,8 @@ public sealed class MainViewModel : ViewModelBase
         ActiveProfileName = "";
         LastH2AckStatus = "No H2 command sent since configuration reset.";
         LastRoutingEvent = "Empty bundled configuration loaded in memory; Save Config has not been run.";
-        RefreshDiagnostics();
+        RefreshDiagnostics(log: true);
+        RefreshProfileLayoutNames();
         ValidateConfiguration();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
         AddLog("Loaded empty bundled configuration in memory. Use Save Config to write it to config.json.");
@@ -1352,6 +1360,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedProfile.CursorLayoutId = SelectedLayout.Id;
+        RefreshProfileLayoutNames();
         OnPropertyChanged(nameof(SelectedProfile));
         AddLog($"Mapped layout '{SelectedLayout.Name}' to profile '{SelectedProfile.Name}'.");
     }
@@ -1440,7 +1449,7 @@ public sealed class MainViewModel : ViewModelBase
         RefreshRuntimeState();
     }
 
-    private void RefreshDiagnostics()
+    private void RefreshDiagnostics(bool log)
     {
         Monitors.Clear();
         var monitors = _monitorTopologyService.GetMonitors();
@@ -1450,17 +1459,20 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         RefreshDisplayPreview();
-        var monitorSummary = Monitors.Count == 0
-            ? "none"
-            : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
-        AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
+        if (log)
+        {
+            var monitorSummary = Monitors.Count == 0
+                ? "none"
+                : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
+            AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
+        }
         RefreshAvailableLayoutDisplays();
         RaiseCommandStates();
     }
 
     private async Task IdentifyDisplaysAsync()
     {
-        RefreshDiagnostics();
+        RefreshDiagnostics(log: true);
         await _displayIdentificationService.IdentifyAsync(Monitors.ToArray(), TimeSpan.FromSeconds(3));
         AddLog("Displayed monitor identification overlays.");
     }
@@ -1619,6 +1631,7 @@ public sealed class MainViewModel : ViewModelBase
 
         Presets.Clear();
         FilteredProfiles.Refresh();
+        RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         SelectedDevice = Devices.FirstOrDefault();
         SelectedLayout = Layouts.FirstOrDefault();
@@ -1631,6 +1644,21 @@ public sealed class MainViewModel : ViewModelBase
         foreach (var profile in Profiles)
         {
             DashboardProfiles.Add(profile);
+        }
+    }
+
+    private void RefreshProfileLayoutNames()
+    {
+        var layoutNames = Layouts.ToDictionary(
+            layout => layout.Id,
+            layout => layout.Name,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var profile in Profiles)
+        {
+            profile.CursorLayoutName = !string.IsNullOrWhiteSpace(profile.CursorLayoutId) &&
+                                       layoutNames.TryGetValue(profile.CursorLayoutId, out var layoutName)
+                ? layoutName
+                : null;
         }
     }
 
@@ -1805,6 +1833,7 @@ public sealed class MainViewModel : ViewModelBase
                Contains(profile.Hotkey, ProfileFilter) ||
                Contains(profile.DeviceId, ProfileFilter) ||
                Contains(profile.CursorLayoutId, ProfileFilter) ||
+               Contains(profile.LayoutSummary, ProfileFilter) ||
                Contains(profile.PresetDisplayName, ProfileFilter);
     }
 

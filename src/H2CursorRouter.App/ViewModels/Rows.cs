@@ -290,6 +290,7 @@ public sealed class ProfileRow : ViewModelBase
     private int? _presetId;
     private string? _presetDisplayName;
     private string? _cursorLayoutId;
+    private string? _cursorLayoutName;
     private int? _startX;
     private int? _startY;
     private int _postAckDelayMs = 500;
@@ -363,6 +364,19 @@ public sealed class ProfileRow : ViewModelBase
         }
     }
 
+    public string? CursorLayoutName
+    {
+        get => _cursorLayoutName;
+        set
+        {
+            if (SetProperty(ref _cursorLayoutName, value))
+            {
+                OnPropertyChanged(nameof(LayoutSummary));
+                OnPropertyChanged(nameof(Description));
+            }
+        }
+    }
+
     public int? StartX
     {
         get => _startX;
@@ -406,7 +420,7 @@ public sealed class ProfileRow : ViewModelBase
 
     public string LayoutSummary => string.IsNullOrWhiteSpace(CursorLayoutId)
         ? "H2 preset only"
-        : CursorLayoutId!;
+        : string.IsNullOrWhiteSpace(CursorLayoutName) ? CursorLayoutId! : CursorLayoutName!;
 
     public string Description => $"{PresetSummary} - {LayoutSummary}";
 
