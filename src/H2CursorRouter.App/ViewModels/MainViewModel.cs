@@ -124,7 +124,7 @@ public sealed class MainViewModel : ViewModelBase
         GetAllPresetsCommand = new AsyncRelayCommand(GetAllPresetsAsync, () => Devices.Count > 0);
         GetPresetsCommand = new AsyncRelayCommand(GetPresetsAsync, () => SelectedDevice is not null);
         AddLayoutCommand = new RelayCommand(AddLayout);
-        RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null);
+        RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout));
         AddZoneCommand = new RelayCommand(AddZone, () => SelectedLayout is not null);
         RemoveZoneCommand = new RelayCommand(RemoveSelectedZone, () => SelectedZone is not null);
         AddDisplayToCanvasCommand = new RelayCommand(AddSelectedDisplayToCanvas, () => SelectedLayout is not null && SelectedAvailableMonitor is not null);
@@ -134,13 +134,13 @@ public sealed class MainViewModel : ViewModelBase
         ApplyDetectedMonitorCoordinatesCommand = new RelayCommand(ApplyDetectedMonitorCoordinates, () => SelectedLayout is not null && Monitors.Count > 0);
         ApplyCanvasLayoutCommand = new RelayCommand(ApplyCanvasLayout, () => SelectedLayout is not null);
         SaveLayoutAsNewCommand = new RelayCommand(SaveSelectedLayoutAsNew, () => SelectedLayout is not null);
-        OverwriteSelectedLayoutCommand = new RelayCommand(OverwriteSelectedLayout, () => SelectedLayout is not null);
+        OverwriteSelectedLayoutCommand = new RelayCommand(OverwriteSelectedLayout, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout));
         AddProfileCommand = new RelayCommand(AddProfile);
         RemoveProfileCommand = new RelayCommand(RemoveSelectedProfile, () => SelectedProfile is not null);
         DuplicateProfileCommand = new RelayCommand(DuplicateSelectedProfile, () => SelectedProfile is not null);
         SetCurrentCursorAsStartCommand = new RelayCommand(SetCurrentCursorAsProfileStart, () => SelectedProfile is not null);
         ApplySelectedPresetToProfileCommand = new RelayCommand(ApplySelectedPresetToProfile, () => SelectedPreset is not null && SelectedProfile is not null);
-        ApplySelectedLayoutToProfileCommand = new RelayCommand(ApplySelectedLayoutToProfile, () => SelectedLayout is not null && SelectedProfile is not null);
+        ApplySelectedLayoutToProfileCommand = new RelayCommand(ApplySelectedLayoutToProfile, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout) && SelectedProfile is not null);
         GeneratePortalsCommand = new RelayCommand(GeneratePortalsFromVisualAdjacency, () => SelectedLayout is not null);
         ValidateConfigurationCommand = new RelayCommand(ValidateConfiguration);
         SaveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
@@ -894,9 +894,9 @@ public sealed class MainViewModel : ViewModelBase
         var layout = new LayoutRow
         {
             Id = $"layout-detected-{DateTime.Now:HHmmss}",
-            Name = "Detected Windows Monitors"
+            Name = GetNextLayoutName(),
+            Displays = "No displays"
         };
-        Layouts.Add(layout);
         SelectedLayout = layout;
 
         var ordered = Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top).ToArray();
@@ -910,7 +910,7 @@ public sealed class MainViewModel : ViewModelBase
         SelectedZone = SelectedLayoutZones.FirstOrDefault();
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
-        AddLog("Created an editable layout from detected Windows monitors. Adjust visible flags and visual rectangles for the active H2 layout.");
+        AddLog("Loaded detected Windows displays into a temporary layout canvas. Use Save As New Layout to add it to the layout list.");
     }
 
     private void ApplyDetectedMonitorCoordinates()
@@ -1036,6 +1036,12 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (SelectedLayout is null)
         {
+            return;
+        }
+
+        if (!IsLayoutPersisted(SelectedLayout))
+        {
+            AddLog("Temporary canvas layouts cannot be overwritten. Use Save As New Layout to add it to the layout list.");
             return;
         }
 
@@ -1374,6 +1380,10 @@ public sealed class MainViewModel : ViewModelBase
 
     private static string FormatLayoutDisplays(IEnumerable<ZoneRow> zones) =>
         LayoutRow.FormatDisplays(zones.Select(zone => zone.ToModel()));
+
+    private bool IsLayoutPersisted(LayoutRow layout) =>
+        Layouts.Any(existing => ReferenceEquals(existing, layout) ||
+                                string.Equals(existing.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
 
     private void ShowValidation(ValidationResult validation)
     {
