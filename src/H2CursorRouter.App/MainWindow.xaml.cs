@@ -239,12 +239,12 @@ public partial class MainWindow : Window
 
     private void LayoutNumberTextBox_OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.Key != System.Windows.Input.Key.Enter || sender is not TextBox textBox)
+        if (e.Key != System.Windows.Input.Key.Enter || sender is not System.Windows.Controls.TextBox textBox)
         {
             return;
         }
 
-        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        textBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
         if (textBox.DataContext is MainViewModel { SelectedZone: not null } viewModel)
         {
             viewModel.CompleteZoneVisualEdit(viewModel.SelectedZone);
