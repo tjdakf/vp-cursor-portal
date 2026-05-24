@@ -32,12 +32,13 @@ internal sealed class ConfigurationRowMapper
         IEnumerable<PortalRow> portals,
         IEnumerable<ProfileRow> profiles,
         IEnumerable<PresetRow> presets,
-        IReadOnlyList<MonitorRow> monitors) =>
+        IReadOnlyList<MonitorRow> monitors,
+        SafetySettings safetySettings) =>
         new(
             devices.Select(device => device.ToModel()).ToArray(),
             layouts.Select(layout => BuildLayout(layout, zones, portals, monitors)).ToArray(),
             profiles.Select(profile => profile.ToModel()).ToArray(),
-            SafetySettings.Default,
+            safetySettings,
             presets.Select(preset => preset.ToCachedPreset()).ToArray());
 
     public CursorLayout BuildLayout(

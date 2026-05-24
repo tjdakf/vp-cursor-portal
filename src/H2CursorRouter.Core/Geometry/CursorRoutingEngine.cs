@@ -263,12 +263,18 @@ public sealed class CursorRoutingEngine
 
     private static int RatioToCoordinate(int start, int length, double ratio)
     {
+        if (length <= 1)
+        {
+            return start;
+        }
+
         if (ratio >= 1.0)
         {
             return start + length - 1;
         }
 
-        return start + (int)Math.Round(length * ratio, MidpointRounding.AwayFromZero);
+        var offset = (int)Math.Round(length * ratio, MidpointRounding.AwayFromZero);
+        return start + Math.Clamp(offset, 0, length - 1);
     }
 
     private static double Clamp01(double value) =>
