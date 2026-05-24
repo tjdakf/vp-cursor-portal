@@ -36,6 +36,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IH2DeviceClient _h2DeviceClient;
     private readonly IDisplayIdentificationService _displayIdentificationService;
     private readonly ITextInputDialogService _textInputDialogService;
+    private readonly IConfirmationDialogService _confirmationDialogService;
     private readonly IProfileDialogService _profileDialogService;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
@@ -75,6 +76,7 @@ public sealed class MainViewModel : ViewModelBase
         IH2DeviceClient h2DeviceClient,
         IDisplayIdentificationService displayIdentificationService,
         ITextInputDialogService textInputDialogService,
+        IConfirmationDialogService confirmationDialogService,
         IProfileDialogService profileDialogService,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
@@ -89,6 +91,7 @@ public sealed class MainViewModel : ViewModelBase
         _h2DeviceClient = h2DeviceClient;
         _displayIdentificationService = displayIdentificationService;
         _textInputDialogService = textInputDialogService;
+        _confirmationDialogService = confirmationDialogService;
         _profileDialogService = profileDialogService;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
@@ -125,6 +128,7 @@ public sealed class MainViewModel : ViewModelBase
         GetPresetsCommand = new AsyncRelayCommand(GetPresetsAsync, () => SelectedDevice is not null);
         AddLayoutCommand = new RelayCommand(AddLayout);
         RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout));
+        DeleteLayoutCommand = new RelayCommand<LayoutRow>(DeleteLayout, IsLayoutPersisted);
         AddZoneCommand = new RelayCommand(AddZone, () => SelectedLayout is not null);
         RemoveZoneCommand = new RelayCommand(RemoveSelectedZone, () => SelectedZone is not null);
         AddDisplayToCanvasCommand = new RelayCommand(AddSelectedDisplayToCanvas, () => SelectedLayout is not null && SelectedAvailableMonitor is not null);
@@ -183,6 +187,7 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand GetPresetsCommand { get; }
     public ICommand AddLayoutCommand { get; }
     public ICommand RemoveLayoutCommand { get; }
+    public ICommand DeleteLayoutCommand { get; }
     public ICommand AddZoneCommand { get; }
     public ICommand RemoveZoneCommand { get; }
     public ICommand AddDisplayToCanvasCommand { get; }
@@ -782,7 +787,43 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var layoutId = SelectedLayout.Id;
+        DeleteLayout(SelectedLayout);
+    }
+
+    private void DeleteLayout(LayoutRow layout)
+    {
+        if (!IsLayoutPersisted(layout))
+        {
+            return;
+        }
+
+        var affectedProfiles = Profiles
+            .Where(profile => string.Equals(profile.CursorLayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var h2BackedProfiles = affectedProfiles.Count(ProfileHasH2Preset);
+        var layoutOnlyProfiles = affectedProfiles.Length - h2BackedProfiles;
+        var profileMessage = affectedProfiles.Length == 0
+            ? ""
+            : $"{Environment.NewLine}{Environment.NewLine}Profiles using this layout: {affectedProfiles.Length}. H2 preset profiles will keep only the preset. Layout-only profiles removed: {layoutOnlyProfiles}.";
+
+        if (!_confirmationDialogService.Confirm(
+                "Delete layout",
+                $"Delete layout '{layout.Name}'? This cannot be undone.{profileMessage}"))
+        {
+            return;
+        }
+
+        DeleteLayoutWithoutConfirmation(layout);
+    }
+
+    private void DeleteLayoutWithoutConfirmation(LayoutRow layout)
+    {
+        var layoutId = layout.Id;
+        if (string.Equals(ActiveLayoutId, layoutId, StringComparison.OrdinalIgnoreCase))
+        {
+            StopRouting(clearLayout: true);
+        }
+
         foreach (var zone in Zones.Where(zone => zone.LayoutId == layoutId).ToArray())
         {
             Zones.Remove(zone);
@@ -793,8 +834,26 @@ public sealed class MainViewModel : ViewModelBase
             Portals.Remove(portal);
         }
 
-        Layouts.Remove(SelectedLayout);
+        foreach (var profile in Profiles.Where(profile => string.Equals(profile.CursorLayoutId, layoutId, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            if (ProfileHasH2Preset(profile))
+            {
+                profile.CursorLayoutId = null;
+                profile.StartX = null;
+                profile.StartY = null;
+            }
+            else
+            {
+                Profiles.Remove(profile);
+            }
+        }
+
+        Layouts.Remove(layout);
         SelectedLayout = Layouts.FirstOrDefault();
+        FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
+        AddLog($"Deleted layout '{layout.Name}'. Use Save Config to persist the deletion.");
     }
 
     private void AddZone()
@@ -1385,6 +1444,11 @@ public sealed class MainViewModel : ViewModelBase
         Layouts.Any(existing => ReferenceEquals(existing, layout) ||
                                 string.Equals(existing.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
 
+    private static bool ProfileHasH2Preset(ProfileRow profile) =>
+        !string.IsNullOrWhiteSpace(profile.DeviceId) &&
+        profile.ScreenId is not null &&
+        profile.PresetId is not null;
+
     private void ShowValidation(ValidationResult validation)
     {
         ValidationErrors.Clear();
@@ -1576,6 +1640,7 @@ public sealed class MainViewModel : ViewModelBase
             GetAllPresetsCommand,
             GetPresetsCommand,
             RemoveLayoutCommand,
+            DeleteLayoutCommand,
             AddZoneCommand,
             RemoveZoneCommand,
             AddDisplayToCanvasCommand,
@@ -1601,6 +1666,9 @@ public sealed class MainViewModel : ViewModelBase
             {
                 case RelayCommand relay:
                     relay.RaiseCanExecuteChanged();
+                    break;
+                case RelayCommand<LayoutRow> layoutRelay:
+                    layoutRelay.RaiseCanExecuteChanged();
                     break;
                 case AsyncRelayCommand async:
                     async.RaiseCanExecuteChanged();
