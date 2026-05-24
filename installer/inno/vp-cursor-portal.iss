@@ -1,5 +1,7 @@
 #define MyAppName "vp-cursor-portal"
+#ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
+#endif
 #define MyAppPublisher "H2 Cursor Router"
 #define MyAppExeName "H2CursorRouter.App.exe"
 #ifndef PublishDir
@@ -39,7 +41,7 @@ Name: "{group}\vp-cursor-portal"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\vp-cursor-portal"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch vp-cursor-portal"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch vp-cursor-portal"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [Code]
 function InitializeUninstall(): Boolean;

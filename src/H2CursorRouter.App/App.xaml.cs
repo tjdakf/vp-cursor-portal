@@ -26,7 +26,7 @@ public partial class App : System.Windows.Application
         _hotkeyService = new Win32HotkeyService();
         _runtime = new CursorRoutingRuntime(cursorService, _monitorTopology, new CursorRoutingEngine());
 
-        var (configuration, configPath) = await LoadConfigurationAsync();
+        var (configuration, configPath, loadWarning) = await LoadConfigurationAsync();
         var executablePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
         var fileLogService = new FileLogService(Path.Combine(GetUserDataDirectory(), "logs"));
         var viewModel = new MainViewModel(
@@ -48,6 +48,16 @@ public partial class App : System.Windows.Application
 
         var startInTray = e.Args.Any(arg => string.Equals(arg, "--tray", StringComparison.OrdinalIgnoreCase));
         var window = new MainWindow(viewModel, _hotkeyService, startInTray);
+        if (!string.IsNullOrWhiteSpace(loadWarning))
+        {
+            viewModel.AddLog(loadWarning);
+            MessageBox.Show(
+                loadWarning,
+                "Configuration recovery",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
         window.Show();
     }
 
@@ -59,7 +69,7 @@ public partial class App : System.Windows.Application
         base.OnExit(e);
     }
 
-    private static async Task<(AppConfiguration Configuration, string ConfigPath)> LoadConfigurationAsync()
+    private static async Task<(AppConfiguration Configuration, string ConfigPath, string? Warning)> LoadConfigurationAsync()
     {
         var configService = new ConfigFileService();
         var baseDirectory = AppContext.BaseDirectory;
@@ -70,20 +80,93 @@ public partial class App : System.Windows.Application
 
         if (File.Exists(configPath))
         {
-            return (await configService.LoadAsync(configPath), configPath);
+            try
+            {
+                return (await configService.LoadAsync(configPath), configPath, null);
+            }
+            catch (Exception exception)
+            {
+                var backupPath = MoveInvalidConfigAside(configPath);
+                var warning =
+                    $"Failed to load user config.json. Invalid config backup: {backupPath}. Error: {exception.Message}";
+                var fallback = await LoadFallbackConfigurationAsync(configService, legacyConfigPath, sampleConfigPath, configPath, warning);
+                return fallback;
+            }
         }
+
+        return await LoadFallbackConfigurationAsync(configService, legacyConfigPath, sampleConfigPath, configPath, null);
+    }
+
+    private static async Task<(AppConfiguration Configuration, string ConfigPath, string? Warning)> LoadFallbackConfigurationAsync(
+        ConfigFileService configService,
+        string legacyConfigPath,
+        string sampleConfigPath,
+        string configPath,
+        string? priorWarning)
+    {
+        static string JoinWarning(string? priorWarning, string next) =>
+            string.IsNullOrWhiteSpace(priorWarning) ? next : $"{priorWarning} {next}";
+        static string? AddFallbackMessage(string? priorWarning, string next) =>
+            string.IsNullOrWhiteSpace(priorWarning) ? null : $"{priorWarning} {next}";
 
         if (File.Exists(legacyConfigPath))
         {
-            return (await configService.LoadAsync(legacyConfigPath), configPath);
+            try
+            {
+                return (
+                    await configService.LoadAsync(legacyConfigPath),
+                    configPath,
+                    AddFallbackMessage(priorWarning, "Loaded legacy config.json instead."));
+            }
+            catch (Exception exception)
+            {
+                var backupPath = MoveInvalidConfigAside(legacyConfigPath);
+                priorWarning = JoinWarning(
+                    priorWarning,
+                    $"Failed to load legacy config.json. Invalid config backup: {backupPath}. Error: {exception.Message}");
+            }
         }
 
         if (File.Exists(sampleConfigPath))
         {
-            return (await configService.LoadAsync(sampleConfigPath), configPath);
+            try
+            {
+                return (
+                    await configService.LoadAsync(sampleConfigPath),
+                    configPath,
+                    AddFallbackMessage(priorWarning, "Loaded bundled empty configuration instead."));
+            }
+            catch (Exception exception)
+            {
+                return (
+                    SampleConfiguration.Create(),
+                    configPath,
+                    JoinWarning(
+                        priorWarning,
+                        $"Failed to load bundled config.sample.json. Loaded built-in empty configuration instead. Error: {exception.Message}"));
+            }
         }
 
-        return (SampleConfiguration.Create(), configPath);
+        return (
+            SampleConfiguration.Create(),
+            configPath,
+            string.IsNullOrWhiteSpace(priorWarning)
+                ? null
+                : JoinWarning(priorWarning, "Loaded built-in empty configuration instead."));
+    }
+
+    private static string MoveInvalidConfigAside(string path)
+    {
+        var backupPath = $"{path}.invalid-{DateTime.Now:yyyyMMddHHmmssfff}";
+        try
+        {
+            File.Move(path, backupPath);
+            return backupPath;
+        }
+        catch
+        {
+            return "backup failed";
+        }
     }
 
     private static string GetUserDataDirectory()
