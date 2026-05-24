@@ -24,8 +24,6 @@ dotnet publish src\H2CursorRouter.App\H2CursorRouter.App.csproj `
     --self-contained $SelfContained `
     --output $Output
 
-Copy-Item config.sample.json $Output -Force
-
 if ($BuildInstaller) {
     $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
     if (-not (Test-Path $iscc)) {

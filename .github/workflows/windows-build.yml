@@ -75,9 +75,6 @@ jobs:
             -p:InformationalVersion=$env:APP_INFORMATIONAL_VERSION `
             --output artifacts\vp-cursor-portal-win-x64
 
-      - name: Include sample config
-        run: copy config.sample.json artifacts\vp-cursor-portal-win-x64\config.sample.json
-
       - name: Install Inno Setup
         run: choco install innosetup --yes
 
