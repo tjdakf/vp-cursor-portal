@@ -1,0 +1,276 @@
+using H2CursorRouter.Core.Validation;
+
+namespace H2CursorRouter.Core.Geometry;
+
+public sealed class CursorRoutingEngine
+{
+    private readonly CursorLayoutValidator _validator = new();
+
+    public RoutingDecision Evaluate(
+        CursorLayout layout,
+        CursorPoint previousPosition,
+        CursorPoint currentPosition,
+        CursorPoint lastValidPosition)
+    {
+        var validation = _validator.Validate(layout);
+        if (!validation.IsValid)
+        {
+            return RoutingDecision.RejectUnsafeLayout(string.Join("; ", validation.Errors));
+        }
+
+        var previousZone = FindZone(layout, previousPosition);
+        if (previousZone is not null)
+        {
+            var portalDecision = TryMapPortal(layout, previousZone, previousPosition, currentPosition);
+            if (portalDecision is not null)
+            {
+                return portalDecision;
+            }
+        }
+
+        var currentZone = FindZone(layout, currentPosition);
+        if (currentZone is null)
+        {
+            return RoutingDecision.RevertToLastValid(lastValidPosition, "Cursor is outside every known zone.");
+        }
+
+        if (!currentZone.IsVisible)
+        {
+            return RoutingDecision.RevertToLastValid(lastValidPosition, $"Cursor entered hidden zone '{currentZone.Id}'.");
+        }
+
+        return RoutingDecision.KeepCurrent();
+    }
+
+    public CursorPoint ResolveStartPosition(CursorLayout layout, CursorPoint? profileStartPosition)
+    {
+        if (profileStartPosition is not null && IsInsideVisibleZone(layout, profileStartPosition.Value))
+        {
+            return profileStartPosition.Value;
+        }
+
+        if (layout.DefaultStartPosition is not null && IsInsideVisibleZone(layout, layout.DefaultStartPosition.Value))
+        {
+            return layout.DefaultStartPosition.Value;
+        }
+
+        var firstVisibleZone = layout.Zones.FirstOrDefault(zone => zone.IsVisible)
+            ?? throw new InvalidOperationException("Cannot resolve start position for a layout with no visible zones.");
+        return firstVisibleZone.WindowsRect.Center();
+    }
+
+    public CursorZone? FindZone(CursorLayout layout, CursorPoint point) =>
+        layout.Zones.FirstOrDefault(zone => zone.WindowsRect.Contains(point));
+
+    private static bool IsInsideVisibleZone(CursorLayout layout, CursorPoint point) =>
+        layout.Zones.Any(zone => zone.IsVisible && zone.WindowsRect.Contains(point));
+
+    private RoutingDecision? TryMapPortal(
+        CursorLayout layout,
+        CursorZone previousZone,
+        CursorPoint previousPosition,
+        CursorPoint currentPosition)
+    {
+        var candidatePortals = new List<(CursorPortal Portal, double SourceRatio)>();
+        foreach (var portal in layout.Portals.Where(portal =>
+            string.Equals(portal.FromZoneId, previousZone.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!TryGetCrossingRatio(previousZone, portal.FromEdge, previousPosition, currentPosition, out var sourceRatio))
+            {
+                continue;
+            }
+
+            if (!portal.FromRange.Contains(sourceRatio))
+            {
+                continue;
+            }
+
+            candidatePortals.Add((portal, sourceRatio));
+        }
+
+        if (candidatePortals.Count == 0)
+        {
+            return null;
+        }
+
+        var selected = candidatePortals
+            .OrderBy(candidate => candidate.Portal.FromRange.EndRatio - candidate.Portal.FromRange.StartRatio)
+            .ThenBy(candidate => candidate.Portal.FromRange.StartRatio)
+            .First();
+
+        var targetZone = layout.Zones.First(zone =>
+            string.Equals(zone.Id, selected.Portal.ToZoneId, StringComparison.OrdinalIgnoreCase));
+        var targetRatio = MapRange(selected.SourceRatio, selected.Portal.FromRange, selected.Portal.ToRange);
+        var target = MapTargetPoint(targetZone.WindowsRect, selected.Portal.ToEdge, targetRatio);
+        return RoutingDecision.MoveToTarget(
+            target,
+            $"Portal mapped '{selected.Portal.FromZoneId}' {selected.Portal.FromEdge} {selected.Portal.FromRange.StartRatio:0.###}-{selected.Portal.FromRange.EndRatio:0.###} to '{selected.Portal.ToZoneId}' {selected.Portal.ToEdge}.");
+    }
+
+    private static bool TryGetCrossingRatio(
+        CursorZone zone,
+        Edge edge,
+        CursorPoint previousPosition,
+        CursorPoint currentPosition,
+        out double ratio)
+    {
+        ratio = 0;
+
+        var crossed = edge switch
+        {
+            Edge.Right when previousPosition.X < zone.WindowsRect.Right && currentPosition.X >= zone.WindowsRect.Right =>
+                TryInterpolateRatio(
+                    previousPosition.X,
+                    previousPosition.Y,
+                    currentPosition.X,
+                    currentPosition.Y,
+                    zone.WindowsRect.Right,
+                    zone.WindowsRect.Top,
+                    zone.WindowsRect.Height,
+                    out ratio),
+            Edge.Left when previousPosition.X >= zone.WindowsRect.Left && currentPosition.X < zone.WindowsRect.Left =>
+                TryInterpolateRatio(
+                    previousPosition.X,
+                    previousPosition.Y,
+                    currentPosition.X,
+                    currentPosition.Y,
+                    zone.WindowsRect.Left,
+                    zone.WindowsRect.Top,
+                    zone.WindowsRect.Height,
+                    out ratio),
+            Edge.Bottom when previousPosition.Y < zone.WindowsRect.Bottom && currentPosition.Y >= zone.WindowsRect.Bottom =>
+                TryInterpolateRatio(
+                    previousPosition.Y,
+                    previousPosition.X,
+                    currentPosition.Y,
+                    currentPosition.X,
+                    zone.WindowsRect.Bottom,
+                    zone.WindowsRect.Left,
+                    zone.WindowsRect.Width,
+                    out ratio),
+            Edge.Top when previousPosition.Y >= zone.WindowsRect.Top && currentPosition.Y < zone.WindowsRect.Top =>
+                TryInterpolateRatio(
+                    previousPosition.Y,
+                    previousPosition.X,
+                    currentPosition.Y,
+                    currentPosition.X,
+                    zone.WindowsRect.Top,
+                    zone.WindowsRect.Left,
+                    zone.WindowsRect.Width,
+                    out ratio),
+            _ => false
+        };
+
+        return crossed || TryGetEdgeContactRatio(zone, edge, previousPosition, currentPosition, out ratio);
+    }
+
+    private static bool TryGetEdgeContactRatio(
+        CursorZone zone,
+        Edge edge,
+        CursorPoint previousPosition,
+        CursorPoint currentPosition,
+        out double ratio)
+    {
+        ratio = 0;
+        return edge switch
+        {
+            Edge.Right when previousPosition.X < currentPosition.X &&
+                            currentPosition.X >= zone.WindowsRect.Right - 1 &&
+                            currentPosition.Y >= zone.WindowsRect.Top &&
+                            currentPosition.Y < zone.WindowsRect.Bottom =>
+                TryUseCurrentSecondaryRatio(currentPosition.Y, zone.WindowsRect.Top, zone.WindowsRect.Height, out ratio),
+            Edge.Left when previousPosition.X > currentPosition.X &&
+                           currentPosition.X <= zone.WindowsRect.Left &&
+                           currentPosition.Y >= zone.WindowsRect.Top &&
+                           currentPosition.Y < zone.WindowsRect.Bottom =>
+                TryUseCurrentSecondaryRatio(currentPosition.Y, zone.WindowsRect.Top, zone.WindowsRect.Height, out ratio),
+            Edge.Bottom when previousPosition.Y < currentPosition.Y &&
+                             currentPosition.Y >= zone.WindowsRect.Bottom - 1 &&
+                             currentPosition.X >= zone.WindowsRect.Left &&
+                             currentPosition.X < zone.WindowsRect.Right =>
+                TryUseCurrentSecondaryRatio(currentPosition.X, zone.WindowsRect.Left, zone.WindowsRect.Width, out ratio),
+            Edge.Top when previousPosition.Y > currentPosition.Y &&
+                          currentPosition.Y <= zone.WindowsRect.Top &&
+                          currentPosition.X >= zone.WindowsRect.Left &&
+                          currentPosition.X < zone.WindowsRect.Right =>
+                TryUseCurrentSecondaryRatio(currentPosition.X, zone.WindowsRect.Left, zone.WindowsRect.Width, out ratio),
+            _ => false
+        };
+    }
+
+    private static bool TryUseCurrentSecondaryRatio(
+        int currentSecondary,
+        int secondaryStart,
+        int secondaryLength,
+        out double ratio)
+    {
+        ratio = 0;
+        if (secondaryLength <= 0)
+        {
+            return false;
+        }
+
+        ratio = Clamp01((currentSecondary - secondaryStart) / (double)secondaryLength);
+        return true;
+    }
+
+    private static bool TryInterpolateRatio(
+        int previousPrimary,
+        int previousSecondary,
+        int currentPrimary,
+        int currentSecondary,
+        int boundary,
+        int secondaryStart,
+        int secondaryLength,
+        out double ratio)
+    {
+        ratio = 0;
+        var primaryDelta = currentPrimary - previousPrimary;
+        if (primaryDelta == 0 || secondaryLength <= 0)
+        {
+            return false;
+        }
+
+        var t = (boundary - previousPrimary) / (double)primaryDelta;
+        if (t < 0.0 || t > 1.0)
+        {
+            return false;
+        }
+
+        var secondaryAtBoundary = previousSecondary + (currentSecondary - previousSecondary) * t;
+        ratio = Clamp01((secondaryAtBoundary - secondaryStart) / secondaryLength);
+        return true;
+    }
+
+    private static double MapRange(double sourceRatio, EdgeRange fromRange, EdgeRange toRange)
+    {
+        var normalized = (sourceRatio - fromRange.StartRatio) / (fromRange.EndRatio - fromRange.StartRatio);
+        return toRange.StartRatio + normalized * (toRange.EndRatio - toRange.StartRatio);
+    }
+
+    private static CursorPoint MapTargetPoint(IntRect targetRect, Edge targetEdge, double targetRatio)
+    {
+        targetRatio = Clamp01(targetRatio);
+        return targetEdge switch
+        {
+            Edge.Left => new CursorPoint(targetRect.Left, RatioToCoordinate(targetRect.Top, targetRect.Height, targetRatio)),
+            Edge.Right => new CursorPoint(targetRect.Right - 1, RatioToCoordinate(targetRect.Top, targetRect.Height, targetRatio)),
+            Edge.Top => new CursorPoint(RatioToCoordinate(targetRect.Left, targetRect.Width, targetRatio), targetRect.Top),
+            Edge.Bottom => new CursorPoint(RatioToCoordinate(targetRect.Left, targetRect.Width, targetRatio), targetRect.Bottom - 1),
+            _ => throw new ArgumentOutOfRangeException(nameof(targetEdge), targetEdge, null)
+        };
+    }
+
+    private static int RatioToCoordinate(int start, int length, double ratio)
+    {
+        if (ratio >= 1.0)
+        {
+            return start + length - 1;
+        }
+
+        return start + (int)Math.Round(length * ratio, MidpointRounding.AwayFromZero);
+    }
+
+    private static double Clamp01(double value) =>
+        value < 0.0 ? 0.0 : value > 1.0 ? 1.0 : value;
+}

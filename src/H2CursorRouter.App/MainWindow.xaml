@@ -1,0 +1,631 @@
+<Window x:Class="H2CursorRouter.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="vp-cursor-portal"
+        Width="1500"
+        Height="810"
+        Icon="Assets/app.ico"
+        MinWidth="1360"
+        MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Loaded="OnLoaded"
+        Closing="OnClosing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40"
+                            ResizeBorderThickness="8"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid Background="{StaticResource AppBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource ShellBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+                    <Border Width="10" Height="10" CornerRadius="3" Background="{StaticResource AccentBrush}" Margin="0,0,10,0" />
+                    <TextBlock Text="vp-cursor-portal" Foreground="#E5E7EB" FontSize="13" FontWeight="SemiBold" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Content="-" Click="MinimizeButton_OnClick" Style="{StaticResource WindowCaptionButtonStyle}" />
+                    <Button Content="□" Click="MaximizeButton_OnClick" Style="{StaticResource WindowCaptionButtonStyle}" />
+                    <Button Content="×" Click="CloseButton_OnClick" Style="{StaticResource WindowCloseButtonStyle}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="{StaticResource ShellBrush}" Padding="22,4,22,16">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="Cursor routing console" Foreground="White" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding RuntimeStatus}" Foreground="{StaticResource ShellMutedBrush}" Margin="0,3,0,0" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl x:Name="MainTabs" Grid.Row="2" Margin="0" TabStripPlacement="Left" SelectionChanged="MainTabs_OnSelectionChanged">
+            <TabItem Header="Dashboard">
+                <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="760" />
+                            <ColumnDefinition Width="380" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.RowSpan="3" Style="{StaticResource CardStyle}">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                                    <TextBlock Text="Profiles" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                </StackPanel>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding DashboardProfiles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource ProfileCardStyle}" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="112" />
+                                                            <ColumnDefinition Width="250" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="68" />
+                                                            <ColumnDefinition Width="68" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Hotkey}" Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Description}" Style="{StaticResource MutedTextStyle}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Margin="10,0" />
+                                                        <Button Grid.Column="3"
+                                                                Content="Run"
+                                                                Command="{Binding DataContext.ExecuteProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                VerticalAlignment="Center"
+                                                                MinHeight="30"
+                                                                Padding="10,4"
+                                                                Margin="8,0,0,0" />
+                                                        <Button Grid.Column="4"
+                                                                Content="Edit"
+                                                                Tag="{Binding}"
+                                                                Click="EditProfileButton_OnClick"
+                                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                                VerticalAlignment="Center"
+                                                                MinHeight="30"
+                                                                Padding="10,4"
+                                                                Margin="8,0,0,0" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Grid.RowSpan="3">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Runtime" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                    <UniformGrid Columns="1" Margin="0,16,0,0">
+                                        <StackPanel Margin="0,0,12,14">
+                                            <TextBlock Text="Routing" Style="{StaticResource MutedTextStyle}" />
+                                            <TextBlock Text="{Binding RoutingStateText}" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                                        </StackPanel>
+                                        <StackPanel Margin="0,0,12,14">
+                                            <TextBlock Text="Layout" Style="{StaticResource MutedTextStyle}" />
+                                            <TextBlock Text="{Binding ActiveLayoutName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="H2 Connection" Style="{StaticResource MutedTextStyle}" />
+                                            <Grid Margin="0,3,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Style="{StaticResource ConnectionIndicatorStyle}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding H2ConnectionStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Safety" Style="{StaticResource SectionTitleStyle}" />
+                                    <Button Content="Emergency Unlock" Command="{Binding EmergencyUnlockCommand}" Style="{StaticResource DangerButtonStyle}" Margin="0,0,0,8" />
+                                    <Button Content="Stop Routing" Command="{Binding StopRoutingCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                    <TextBlock Text="{Binding LastRoutingEvent}" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="Startup" Style="{StaticResource SectionTitleStyle}" />
+                                    <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                    </Grid>
+            </TabItem>
+
+            <TabItem Header="Layouts">
+                <ScrollViewer x:Name="LayoutTabScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                    <TextBlock Text="Layout Canvas" Style="{StaticResource SectionTitleStyle}" />
+                                    <TextBlock Text="Arrange displays to match the H2 output." Style="{StaticResource MutedTextStyle}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                        <TextBlock Text="Scale" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <Slider Width="150" Minimum="0.08" Maximum="0.5" TickFrequency="0.02" IsSnapToTickEnabled="True" Value="{Binding LayoutPreviewScale}" />
+                                        <TextBlock Text="{Binding LayoutPreviewScale, StringFormat={}{0:P0}}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="280" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="{StaticResource PanelAltBrush}" CornerRadius="10" Padding="10" MinHeight="410">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="CanvasScrollViewer_OnPreviewMouseWheel">
+                                            <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Canvas Width="{Binding DataContext.LayoutPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                Height="{Binding DataContext.LayoutPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                Background="{StaticResource PanelElevatedBrush}">
+                                                            <Canvas.LayoutTransform>
+                                                                <ScaleTransform ScaleX="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                ScaleY="{Binding DataContext.LayoutPreviewScale, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                                            </Canvas.LayoutTransform>
+                                                        </Canvas>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle>
+                                                    <Style TargetType="ContentPresenter">
+                                                        <Setter Property="Canvas.Left" Value="{Binding VisualLeft}" />
+                                                        <Setter Property="Canvas.Top" Value="{Binding VisualTop}" />
+                                                    </Style>
+                                                </ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Width="{Binding VisualWidth}" Height="{Binding VisualHeight}" PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                            <primitives:Thumb DragDelta="ZoneMoveThumb_OnDragDelta"
+                                                                              DragCompleted="ZoneMoveThumb_OnDragCompleted"
+                                                                              PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                                <primitives:Thumb.Template>
+                                                                    <ControlTemplate TargetType="primitives:Thumb">
+                                                                        <Border CornerRadius="10">
+                                                                            <Border.Style>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                                                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                                                    <Setter Property="BorderThickness" Value="6" />
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                            <Setter Property="Background" Value="#D9F3EE" />
+                                                                                            <Setter Property="BorderBrush" Value="#0F766E" />
+                                                                                            <Setter Property="BorderThickness" Value="12" />
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </Border.Style>
+                                                                            <StackPanel Margin="24">
+                                                                                <TextBlock Text="{Binding DisplayLabel}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="64" TextWrapping="Wrap" />
+                                                                                <TextBlock Text="{Binding DisplayIdHint}" Foreground="{StaticResource MutedTextBrush}" FontSize="40" />
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </primitives:Thumb.Template>
+                                                            </primitives:Thumb>
+                                                            <primitives:Thumb Width="96" Height="96" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
+                                                                              DragDelta="ZoneResizeThumb_OnDragDelta"
+                                                                              DragCompleted="ZoneMoveThumb_OnDragCompleted"
+                                                                              PreviewMouseLeftButtonDown="ZoneVisual_OnPreviewMouseLeftButtonDown">
+                                                                <primitives:Thumb.Template>
+                                                                    <ControlTemplate TargetType="primitives:Thumb">
+                                                                        <Border Background="{StaticResource AccentBrush}" />
+                                                                    </ControlTemplate>
+                                                                </primitives:Thumb.Template>
+                                                            </primitives:Thumb>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
+
+                                    <Border Grid.Column="1" Style="{StaticResource InsetCardStyle}" Margin="16,0,0,0" VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <TextBlock Text="Selected Display" Style="{StaticResource SectionTitleStyle}" />
+                                            <TextBlock Text="{Binding SelectedZone.DisplayLabel, TargetNullValue=No display selected}" FontWeight="SemiBold" FontSize="17" Margin="0,12,0,2" />
+                                            <TextBlock Text="{Binding SelectedZone.DisplayIdHint}" Style="{StaticResource MutedTextStyle}" Margin="0,0,0,18" />
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                                                    <TextBlock Text="X" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
+                                                    <TextBlock Text="Y" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="0">
+                                                    <TextBlock Text="Width" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Row="1" Grid.Column="2">
+                                                    <TextBlock Text="Height" Style="{StaticResource MutedTextStyle}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,18,0,14" />
+                                            <TextBlock Text="Canvas Displays" FontWeight="SemiBold" />
+                                            <ComboBox ItemsSource="{Binding AvailableLayoutDisplays}"
+                                                      SelectedItem="{Binding SelectedAvailableMonitor}"
+                                                      DisplayMemberPath="DeviceName"
+                                                      Height="34"
+                                                      MaxDropDownHeight="180"
+                                                      Padding="8,3"
+                                                      Margin="0,8,0,8" />
+                                            <Button Content="Add Display" Command="{Binding AddDisplayToCanvasCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
+                                            <Button Content="Remove Selected" Command="{Binding RemoveZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
+
+                                            <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,18,0,14" />
+                                            <TextBlock Text="Layout Actions" FontWeight="SemiBold" />
+                                            <Button Content="Load Displays To Canvas" Command="{Binding CreateLayoutFromMonitorsCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,8,0,8" />
+                                            <Button Content="Save As New Layout" Command="{Binding SaveLayoutAsNewCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0,0,0,8" />
+                                            <Button Content="Overwrite Selected" Command="{Binding OverwriteSelectedLayoutCommand}" Style="{StaticResource SecondaryButtonStyle}" Height="42" Margin="0" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220" RowHeight="42">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
+                                    <DataGridTemplateColumn Header="Description" Width="2.4*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,5" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding Description, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="56" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Displays" Width="2.6*" MinWidth="340">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Displays}" TextWrapping="Wrap" Margin="0,5" Style="{StaticResource MutedTextStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="" Width="56">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Command="{Binding DataContext.DeleteLayoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Width="34"
+                                                        Height="30"
+                                                        Padding="0"
+                                                        ToolTip="Delete layout">
+                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="{StaticResource DangerBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Profiles">
+                <Grid Margin="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                        <DockPanel>
+                            <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Text="{Binding ProfileFilter, UpdateSourceTrigger=PropertyChanged}" MinWidth="260" />
+                        </DockPanel>
+                    </Border>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredProfiles}" SelectedItem="{Binding SelectedProfile}" AutoGenerateColumns="False" IsReadOnly="True" MouseDoubleClick="ProfilesGrid_OnMouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
+                            <DataGridTextColumn Header="Hotkey" Binding="{Binding Hotkey}" Width="120" />
+                            <DataGridTextColumn Header="Layout" Binding="{Binding LayoutSummary}" Width="2*" />
+                            <DataGridTextColumn Header="Preset" Binding="{Binding PresetSummary}" Width="2*" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button Content="Add Profile" Command="{Binding AddProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Content="Remove Profile" Command="{Binding RemoveProfileCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Content="Execute Profile" Command="{Binding ExecuteSelectedProfileCommand}" Margin="0" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Device">
+                <Grid Margin="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource CardStyle}">
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="Add Device" Command="{Binding AddDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                    <Button Content="Remove Device" Command="{Binding RemoveDeviceCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                    <Button Content="Get All Presets" Command="{Binding GetAllPresetsCommand}" Margin="0" />
+                                </StackPanel>
+                                <TextBlock Text="Device" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <DataGrid ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" AutoGenerateColumns="False" IsReadOnly="False">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="" Width="42" IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Ellipse Style="{StaticResource ConnectionIndicatorStyle}" HorizontalAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Device" Binding="{Binding Name}" Width="180" />
+                                    <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="160" />
+                                    <DataGridTextColumn Header="Port" Binding="{Binding Port}" Width="80" />
+                                    <DataGridTextColumn Header="Timeout ms" Binding="{Binding TimeoutMs}" Width="100" />
+                                    <DataGridTextColumn Header="Device ID" Binding="{Binding DeviceId}" Width="100" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                                <Button DockPanel.Dock="Right" Content="Get Presets" Command="{Binding GetPresetsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                <TextBlock Text="Presets" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <DataGrid ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedPreset}" AutoGenerateColumns="False" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="180" />
+                                    <DataGridTextColumn Header="Screen ID" Binding="{Binding ScreenId}" Width="100" />
+                                    <DataGridTextColumn Header="Preset" Binding="{Binding FriendlyPresetNumber}" Width="100" />
+                                    <DataGridTextColumn Header="Display Name" Binding="{Binding DisplayName}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Displays">
+                <Grid Margin="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,16,12">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Identify" Command="{Binding IdentifyDisplaysCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,10,0" />
+                                <Button Content="Refresh" Command="{Binding RefreshDiagnosticsCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                            </StackPanel>
+                            <TextBlock Text="Displays" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Monitors}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Width="{Binding DataContext.DisplayPreviewCanvasWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                Height="{Binding DataContext.DisplayPreviewCanvasHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                Background="{StaticResource PanelElevatedBrush}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding PreviewLeft}" />
+                                        <Setter Property="Canvas.Top" Value="{Binding PreviewTop}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="{Binding PreviewWidth}"
+                                                Height="{Binding PreviewHeight}"
+                                                Background="{StaticResource AccentSoftBrush}"
+                                                BorderBrush="{StaticResource AccentBrush}"
+                                                BorderThickness="2"
+                                                CornerRadius="8"
+                                                Padding="12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding PrimaryText}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding DeviceName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                                </DockPanel>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{Binding BoundsText}"
+                                                           Foreground="{StaticResource MutedTextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding Width, StringFormat={}{0}px wide}"
+                                                           Foreground="{StaticResource MutedTextBrush}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Advanced">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="2">
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+                                    <Button Content="Validate" Command="{Binding ValidateConfigurationCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                    <Button Content="Save Config" Command="{Binding SaveConfigurationCommand}" Margin="0" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Validation" Style="{StaticResource SectionTitleStyle}" />
+                                    <TextBlock Text="Use this area for raw configuration checks and low-level debugging. Normal layout/profile setup should happen in the main tabs." Style="{StaticResource MutedTextStyle}" Margin="0,0,0,10" />
+                                    <ListBox ItemsSource="{Binding ValidationErrors}" Height="130" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Runtime Log" Style="{StaticResource SectionTitleStyle}" />
+                                <ListBox ItemsSource="{Binding Logs}" Height="220" />
+                            </StackPanel>
+                        </Border>
+
+                        <Expander Header="Raw zones - internal display rectangles and visual rectangles" IsExpanded="False" Margin="0,0,0,12">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,8,0,0">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                        <Button Content="Add Zone" Command="{Binding AddZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                        <Button Content="Remove Zone" Command="{Binding RemoveZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                    </StackPanel>
+                                    <DataGrid ItemsSource="{Binding SelectedLayoutZones}" SelectedItem="{Binding SelectedZone}" AutoGenerateColumns="True" IsReadOnly="False" MinHeight="240" />
+                                </DockPanel>
+                            </Border>
+                        </Expander>
+
+                        <Expander Header="Raw portals - generated edge mappings between zone IDs" IsExpanded="False">
+                            <Border Style="{StaticResource CardStyle}" Margin="0,8,0,0">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                        <Button Content="Auto Portals" Command="{Binding GeneratePortalsCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                        <Button Content="Add Portal" Command="{Binding AddPortalCommand}" Style="{StaticResource SecondaryButtonStyle}" />
+                                        <Button Content="Remove Portal" Command="{Binding RemovePortalCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
+                                    </StackPanel>
+                                    <DataGrid ItemsSource="{Binding SelectedLayoutPortals}" SelectedItem="{Binding SelectedPortal}" AutoGenerateColumns="True" IsReadOnly="False" MinHeight="240" />
+                                </DockPanel>
+                            </Border>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="About">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="420" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.ColumnSpan="2" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="Assets/app-icon-512.png"
+                                       Width="96"
+                                       Height="96"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       VerticalAlignment="Top" />
+                                <StackPanel Grid.Column="1" Margin="22,0,0,0">
+                                    <TextBlock Text="vp-cursor-portal" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="{Binding AppVersion, StringFormat=Version {0}}" FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding AppDescription}" FontSize="15" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" Margin="0,18,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="Runtime Paths" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Text="Config" Style="{StaticResource MutedTextStyle}" Margin="0,12,0,3" />
+                                <TextBlock Text="{Binding ConfigPath}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                <TextBlock Text="Logs" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,3" />
+                                <TextBlock Text="{Binding LogDirectory}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="License" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Text="{Binding AppLicenseSummary}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+                                <TextBlock Text="Copyright (c) 2026 vp-cursor-portal contributors" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
