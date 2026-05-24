@@ -89,7 +89,7 @@ public sealed class LayoutRow : ViewModelBase
     {
         var labels = zones
             .Where(zone => zone.IsVisible)
-            .Select(zone => string.IsNullOrWhiteSpace(zone.DisplayName) ? zone.Id : $"{zone.DisplayName} ({zone.Id})")
+            .Select(zone => DisplayLabelFormatter.Format(zone.DisplayName, zone.Id))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -99,6 +99,8 @@ public sealed class LayoutRow : ViewModelBase
 
 public sealed class ZoneRow : ViewModelBase
 {
+    private string _id = "";
+    private string _displayName = "";
     private double _visualLeft;
     private double _visualTop;
     private double _visualRight;
@@ -106,8 +108,34 @@ public sealed class ZoneRow : ViewModelBase
     private bool _isSelected;
 
     public string LayoutId { get; set; } = "";
-    public string Id { get; set; } = "";
-    public string DisplayName { get; set; } = "";
+    public string Id
+    {
+        get => _id;
+        set
+        {
+            if (SetProperty(ref _id, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+                OnPropertyChanged(nameof(DisplayIdHint));
+            }
+        }
+    }
+
+    public string DisplayName
+    {
+        get => _displayName;
+        set
+        {
+            if (SetProperty(ref _displayName, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+                OnPropertyChanged(nameof(DisplayIdHint));
+            }
+        }
+    }
+
+    public string DisplayLabel => DisplayLabelFormatter.Format(DisplayName, Id);
+    public string DisplayIdHint => DisplayLabelFormatter.ShouldShowId(DisplayName, Id) ? Id : "";
     public int WindowsLeft { get; set; }
     public int WindowsTop { get; set; }
     public int WindowsRight { get; set; }
@@ -477,4 +505,25 @@ public sealed class MonitorRow : ViewModelBase
         Bottom = monitor.Bounds.Bottom,
         IsPrimary = monitor.IsPrimary
     };
+}
+
+internal static class DisplayLabelFormatter
+{
+    public static string Format(string? displayName, string id)
+    {
+        var name = displayName?.Trim();
+        var normalizedId = id.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return normalizedId;
+        }
+
+        return ShouldShowId(name, normalizedId)
+            ? $"{name} ({normalizedId})"
+            : name;
+    }
+
+    public static bool ShouldShowId(string? displayName, string id) =>
+        !string.IsNullOrWhiteSpace(id) &&
+        !string.Equals(displayName?.Trim(), id.Trim(), StringComparison.OrdinalIgnoreCase);
 }
