@@ -478,7 +478,7 @@ artifacts\vp-cursor-portal-win-x64\
 Run:
 
 ```text
-artifacts\vp-cursor-portal-win-x64\H2CursorRouter.App.exe
+artifacts\vp-cursor-portal-win-x64\vp-cursor-portal.exe
 ```
 
 Local installer build:

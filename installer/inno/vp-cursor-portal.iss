@@ -2,8 +2,8 @@
 #ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
 #endif
-#define MyAppPublisher "H2 Cursor Router"
-#define MyAppExeName "H2CursorRouter.App.exe"
+#define MyAppPublisher "vp-cursor-portal contributors"
+#define MyAppExeName "vp-cursor-portal.exe"
 #ifndef PublishDir
 #define PublishDir "..\..\artifacts\vp-cursor-portal-win-x64"
 #endif

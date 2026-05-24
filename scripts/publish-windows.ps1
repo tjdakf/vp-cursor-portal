@@ -41,4 +41,4 @@ Write-Host "Published to: $Output"
 if ($BuildInstaller) {
     Write-Host "Installer: artifacts\installer\vp-cursor-portal-setup.exe"
 }
-Write-Host "Run H2CursorRouter.App.exe on Windows."
+Write-Host "Run vp-cursor-portal.exe on Windows."
