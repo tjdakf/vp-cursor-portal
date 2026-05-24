@@ -10,13 +10,13 @@ namespace H2CursorRouter.App.Services;
 public sealed class ProfileExecutionService
 {
     private readonly IH2DeviceClient _h2DeviceClient;
-    private readonly CursorRoutingRuntime _routingRuntime;
+    private readonly ICursorRoutingRuntime _routingRuntime;
     private readonly CursorRoutingEngine _routingEngine;
     private readonly AppConfigurationValidator _configurationValidator;
 
     public ProfileExecutionService(
         IH2DeviceClient h2DeviceClient,
-        CursorRoutingRuntime routingRuntime,
+        ICursorRoutingRuntime routingRuntime,
         CursorRoutingEngine routingEngine,
         AppConfigurationValidator configurationValidator)
     {

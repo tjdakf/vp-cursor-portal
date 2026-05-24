@@ -1,4 +1,3 @@
-using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Core.Geometry;
 
 namespace H2CursorRouter.App.Services;
@@ -19,7 +18,7 @@ internal sealed class LayoutEditingService
         Bottom
     }
 
-    public void MoveZoneVisual(ZoneRow zone, IReadOnlyCollection<ZoneRow> zones, double deltaX, double deltaY)
+    public void MoveZoneVisual(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double deltaX, double deltaY)
     {
         var width = zone.VisualWidth;
         var height = zone.VisualHeight;
@@ -31,7 +30,7 @@ internal sealed class LayoutEditingService
         zone.VisualBottom = top + height;
     }
 
-    public void ResizeZoneVisual(ZoneRow zone, IReadOnlyCollection<ZoneRow> zones, double deltaWidth, double deltaHeight)
+    public void ResizeZoneVisual(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double deltaWidth, double deltaHeight)
     {
         var right = SnapHorizontalEdge(zone, zones, zone.VisualRight + deltaWidth);
         var bottom = SnapVerticalEdge(zone, zones, zone.VisualBottom + deltaHeight);
@@ -39,17 +38,19 @@ internal sealed class LayoutEditingService
         zone.VisualHeight = Math.Max(MinimumVisualSize, bottom - zone.VisualTop);
     }
 
-    public void AttachAllDraftZonesToNearest(IReadOnlyCollection<ZoneRow> zones)
+    public void AttachAllDraftZonesToNearest(IEnumerable<IVisualLayoutZone> sourceZones)
     {
-        foreach (var zone in zones.ToArray())
+        var zones = sourceZones.ToArray();
+        foreach (var zone in zones)
         {
             AttachZoneToNearest(zone, zones);
         }
     }
 
-    public void AttachZoneToNearest(ZoneRow zone, IReadOnlyCollection<ZoneRow> zones)
+    public void AttachZoneToNearest(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> sourceZones)
     {
-        if (zones.Count < 2)
+        var zones = sourceZones.ToArray();
+        if (zones.Length < 2)
         {
             return;
         }
@@ -96,7 +97,7 @@ internal sealed class LayoutEditingService
         zone.VisualBottom = zone.VisualTop + height;
     }
 
-    public void NormalizeVisualOrigin(IEnumerable<ZoneRow> sourceZones)
+    public void NormalizeVisualOrigin(IEnumerable<IVisualLayoutZone> sourceZones)
     {
         var zones = sourceZones.Where(zone => zone.IsVisible).ToArray();
         if (zones.Length == 0)
@@ -119,12 +120,12 @@ internal sealed class LayoutEditingService
         }
     }
 
-    public IReadOnlyList<PortalRow> GeneratePortalsFromVisualAdjacency(IEnumerable<ZoneRow> sourceZones)
+    public IReadOnlyList<GeneratedPortal> GeneratePortalsFromVisualAdjacency(IEnumerable<IVisualLayoutZone> sourceZones)
     {
         var zones = sourceZones
             .Where(zone => zone.IsVisible)
             .ToArray();
-        var generated = new List<PortalRow>();
+        var generated = new List<GeneratedPortal>();
         const double tolerance = 2.0;
 
         for (var i = 0; i < zones.Length; i++)
@@ -143,7 +144,7 @@ internal sealed class LayoutEditingService
         return generated;
     }
 
-    private double SnapHorizontal(ZoneRow zone, IEnumerable<ZoneRow> zones, double proposedLeft, double width)
+    private double SnapHorizontal(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double proposedLeft, double width)
     {
         var candidates = zones
             .Where(other => !ReferenceEquals(other, zone))
@@ -151,7 +152,7 @@ internal sealed class LayoutEditingService
         return SnapToNearest(proposedLeft, candidates);
     }
 
-    private double SnapVertical(ZoneRow zone, IEnumerable<ZoneRow> zones, double proposedTop, double height)
+    private double SnapVertical(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double proposedTop, double height)
     {
         var candidates = zones
             .Where(other => !ReferenceEquals(other, zone))
@@ -159,7 +160,7 @@ internal sealed class LayoutEditingService
         return SnapToNearest(proposedTop, candidates);
     }
 
-    private double SnapHorizontalEdge(ZoneRow zone, IEnumerable<ZoneRow> zones, double proposedRight)
+    private double SnapHorizontalEdge(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double proposedRight)
     {
         var candidates = zones
             .Where(other => !ReferenceEquals(other, zone))
@@ -167,7 +168,7 @@ internal sealed class LayoutEditingService
         return Math.Max(zone.VisualLeft + MinimumVisualSize, SnapToNearest(proposedRight, candidates));
     }
 
-    private double SnapVerticalEdge(ZoneRow zone, IEnumerable<ZoneRow> zones, double proposedBottom)
+    private double SnapVerticalEdge(IVisualLayoutZone zone, IEnumerable<IVisualLayoutZone> zones, double proposedBottom)
     {
         var candidates = zones
             .Where(other => !ReferenceEquals(other, zone))
@@ -207,21 +208,21 @@ internal sealed class LayoutEditingService
             : firstStart - secondEnd;
     }
 
-    private static double RectGapScore(ZoneRow first, ZoneRow second)
+    private static double RectGapScore(IVisualLayoutZone first, IVisualLayoutZone second)
     {
         var horizontalGap = AxisGap(first.VisualLeft, first.VisualRight, second.VisualLeft, second.VisualRight);
         var verticalGap = AxisGap(first.VisualTop, first.VisualBottom, second.VisualTop, second.VisualBottom);
         return horizontalGap * horizontalGap + verticalGap * verticalGap;
     }
 
-    private static double CenterDistanceScore(ZoneRow first, ZoneRow second)
+    private static double CenterDistanceScore(IVisualLayoutZone first, IVisualLayoutZone second)
     {
         var dx = CenterX(first) - CenterX(second);
         var dy = CenterY(first) - CenterY(second);
         return dx * dx + dy * dy;
     }
 
-    private static SnapDirection DetermineSnapDirection(ZoneRow zone, ZoneRow target)
+    private static SnapDirection DetermineSnapDirection(IVisualLayoutZone zone, IVisualLayoutZone target)
     {
         var dx = CenterX(zone) - CenterX(target);
         var dy = CenterY(zone) - CenterY(target);
@@ -233,10 +234,10 @@ internal sealed class LayoutEditingService
         return dy >= 0 ? SnapDirection.Bottom : SnapDirection.Top;
     }
 
-    private static double CenterX(ZoneRow zone) =>
+    private static double CenterX(IVisualLayoutZone zone) =>
         zone.VisualLeft + zone.VisualWidth / 2;
 
-    private static double CenterY(ZoneRow zone) =>
+    private static double CenterY(IVisualLayoutZone zone) =>
         zone.VisualTop + zone.VisualHeight / 2;
 
     private static double AlignStartForOverlap(double currentStart, double size, double targetStart, double targetEnd)
@@ -265,7 +266,7 @@ internal sealed class LayoutEditingService
         return currentStart;
     }
 
-    private static void AddVerticalAdjacency(ZoneRow left, ZoneRow right, double tolerance, ICollection<PortalRow> portals)
+    private static void AddVerticalAdjacency(IVisualLayoutZone left, IVisualLayoutZone right, double tolerance, ICollection<GeneratedPortal> portals)
     {
         if (Math.Abs(left.VisualRight - right.VisualLeft) > tolerance)
         {
@@ -279,33 +280,27 @@ internal sealed class LayoutEditingService
             return;
         }
 
-        portals.Add(new PortalRow
-        {
-            LayoutId = left.LayoutId,
-            FromZoneId = left.Id,
-            FromEdge = Edge.Right,
-            FromStartRatio = Ratio(overlapTop, left.VisualTop, left.VisualBottom),
-            FromEndRatio = Ratio(overlapBottom, left.VisualTop, left.VisualBottom),
-            ToZoneId = right.Id,
-            ToEdge = Edge.Left,
-            ToStartRatio = Ratio(overlapTop, right.VisualTop, right.VisualBottom),
-            ToEndRatio = Ratio(overlapBottom, right.VisualTop, right.VisualBottom)
-        });
-        portals.Add(new PortalRow
-        {
-            LayoutId = left.LayoutId,
-            FromZoneId = right.Id,
-            FromEdge = Edge.Left,
-            FromStartRatio = Ratio(overlapTop, right.VisualTop, right.VisualBottom),
-            FromEndRatio = Ratio(overlapBottom, right.VisualTop, right.VisualBottom),
-            ToZoneId = left.Id,
-            ToEdge = Edge.Right,
-            ToStartRatio = Ratio(overlapTop, left.VisualTop, left.VisualBottom),
-            ToEndRatio = Ratio(overlapBottom, left.VisualTop, left.VisualBottom)
-        });
+        portals.Add(new GeneratedPortal(
+            left.Id,
+            Edge.Right,
+            Ratio(overlapTop, left.VisualTop, left.VisualBottom),
+            Ratio(overlapBottom, left.VisualTop, left.VisualBottom),
+            right.Id,
+            Edge.Left,
+            Ratio(overlapTop, right.VisualTop, right.VisualBottom),
+            Ratio(overlapBottom, right.VisualTop, right.VisualBottom)));
+        portals.Add(new GeneratedPortal(
+            right.Id,
+            Edge.Left,
+            Ratio(overlapTop, right.VisualTop, right.VisualBottom),
+            Ratio(overlapBottom, right.VisualTop, right.VisualBottom),
+            left.Id,
+            Edge.Right,
+            Ratio(overlapTop, left.VisualTop, left.VisualBottom),
+            Ratio(overlapBottom, left.VisualTop, left.VisualBottom)));
     }
 
-    private static void AddHorizontalAdjacency(ZoneRow top, ZoneRow bottom, double tolerance, ICollection<PortalRow> portals)
+    private static void AddHorizontalAdjacency(IVisualLayoutZone top, IVisualLayoutZone bottom, double tolerance, ICollection<GeneratedPortal> portals)
     {
         if (Math.Abs(top.VisualBottom - bottom.VisualTop) > tolerance)
         {
@@ -319,30 +314,24 @@ internal sealed class LayoutEditingService
             return;
         }
 
-        portals.Add(new PortalRow
-        {
-            LayoutId = top.LayoutId,
-            FromZoneId = top.Id,
-            FromEdge = Edge.Bottom,
-            FromStartRatio = Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
-            FromEndRatio = Ratio(overlapRight, top.VisualLeft, top.VisualRight),
-            ToZoneId = bottom.Id,
-            ToEdge = Edge.Top,
-            ToStartRatio = Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
-            ToEndRatio = Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight)
-        });
-        portals.Add(new PortalRow
-        {
-            LayoutId = top.LayoutId,
-            FromZoneId = bottom.Id,
-            FromEdge = Edge.Top,
-            FromStartRatio = Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
-            FromEndRatio = Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight),
-            ToZoneId = top.Id,
-            ToEdge = Edge.Bottom,
-            ToStartRatio = Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
-            ToEndRatio = Ratio(overlapRight, top.VisualLeft, top.VisualRight)
-        });
+        portals.Add(new GeneratedPortal(
+            top.Id,
+            Edge.Bottom,
+            Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
+            Ratio(overlapRight, top.VisualLeft, top.VisualRight),
+            bottom.Id,
+            Edge.Top,
+            Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
+            Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight)));
+        portals.Add(new GeneratedPortal(
+            bottom.Id,
+            Edge.Top,
+            Ratio(overlapLeft, bottom.VisualLeft, bottom.VisualRight),
+            Ratio(overlapRight, bottom.VisualLeft, bottom.VisualRight),
+            top.Id,
+            Edge.Bottom,
+            Ratio(overlapLeft, top.VisualLeft, top.VisualRight),
+            Ratio(overlapRight, top.VisualLeft, top.VisualRight)));
     }
 
     private static double Ratio(double value, double start, double end)
@@ -357,3 +346,25 @@ internal sealed class LayoutEditingService
         return Math.Clamp(ratio, 0, 1);
     }
 }
+
+public interface IVisualLayoutZone
+{
+    string Id { get; }
+    bool IsVisible { get; }
+    double VisualLeft { get; set; }
+    double VisualTop { get; set; }
+    double VisualRight { get; set; }
+    double VisualBottom { get; set; }
+    double VisualWidth { get; set; }
+    double VisualHeight { get; set; }
+}
+
+public sealed record GeneratedPortal(
+    string FromZoneId,
+    Edge FromEdge,
+    double FromStartRatio,
+    double FromEndRatio,
+    string ToZoneId,
+    Edge ToEdge,
+    double ToStartRatio,
+    double ToEndRatio);

@@ -28,7 +28,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IProfileDialogService _profileDialogService;
     private readonly IDeviceDialogService _deviceDialogService;
     private readonly IMonitorTopologyService _monitorTopologyService;
-    private readonly CursorRoutingRuntime _routingRuntime;
+    private readonly ICursorRoutingRuntime _routingRuntime;
     private readonly AppConfigurationValidator _configurationValidator;
     private readonly ProfileExecutionService _profileExecutionService;
     private readonly H2PresetEnumParser _presetEnumParser = new();
@@ -65,7 +65,7 @@ public sealed class MainViewModel : ViewModelBase
         IProfileDialogService profileDialogService,
         IDeviceDialogService deviceDialogService,
         IMonitorTopologyService monitorTopologyService,
-        CursorRoutingRuntime routingRuntime,
+        ICursorRoutingRuntime routingRuntime,
         CursorRoutingEngine routingEngine,
         AppConfigurationValidator configurationValidator)
     {
@@ -1130,11 +1130,24 @@ public sealed class MainViewModel : ViewModelBase
 
         foreach (var portal in generated)
         {
-            SelectedLayoutPortals.Add(portal);
+            SelectedLayoutPortals.Add(ToPortalRow(SelectedLayout.Id, portal));
         }
 
         AddLog($"Generated {generated.Count} draft portals for layout '{SelectedLayout.Name}' from visual adjacency.");
     }
+
+    private static PortalRow ToPortalRow(string layoutId, GeneratedPortal portal) => new()
+    {
+        LayoutId = layoutId,
+        FromZoneId = portal.FromZoneId,
+        FromEdge = portal.FromEdge,
+        FromStartRatio = portal.FromStartRatio,
+        FromEndRatio = portal.FromEndRatio,
+        ToZoneId = portal.ToZoneId,
+        ToEdge = portal.ToEdge,
+        ToStartRatio = portal.ToStartRatio,
+        ToEndRatio = portal.ToEndRatio
+    };
 
     private void ValidateConfiguration()
     {

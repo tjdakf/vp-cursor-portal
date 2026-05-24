@@ -2,6 +2,7 @@ using H2CursorRouter.Core.Domain;
 using H2CursorRouter.Core.Geometry;
 using H2CursorRouter.Core.Profiles;
 using H2CursorRouter.Core.Configuration;
+using H2CursorRouter.App.Services;
 using H2CursorRouter.Windows;
 
 namespace H2CursorRouter.App.ViewModels;
@@ -121,7 +122,7 @@ public sealed class LayoutRow : ViewModelBase
     }
 }
 
-public sealed class ZoneRow : ViewModelBase
+public sealed class ZoneRow : ViewModelBase, IVisualLayoutZone
 {
     private string _id = "";
     private string _displayName = "";

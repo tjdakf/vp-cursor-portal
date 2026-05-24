@@ -3,7 +3,7 @@ using H2CursorRouter.Core.Validation;
 
 namespace H2CursorRouter.Windows;
 
-public sealed class CursorRoutingRuntime : IDisposable
+public sealed class CursorRoutingRuntime : ICursorRoutingRuntime
 {
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
