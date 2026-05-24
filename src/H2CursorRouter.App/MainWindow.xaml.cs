@@ -22,7 +22,7 @@ public partial class MainWindow : Window
     private readonly List<int> _registeredProfileHotkeys = new();
     private HwndSource? _source;
     private Forms.NotifyIcon? _notifyIcon;
-    private Icon? _trayIcon;
+    private System.Drawing.Icon? _trayIcon;
     private bool _allowExit;
     private bool _isInitialDashboardSelection = true;
 
@@ -152,19 +152,19 @@ public partial class MainWindow : Window
         _notifyIcon.DoubleClick += (_, _) => ShowFromTray();
     }
 
-    private static Icon LoadTrayIcon()
+    private static System.Drawing.Icon LoadTrayIcon()
     {
         var resource = System.Windows.Application.GetResourceStream(
             new Uri("pack://application:,,,/Assets/tray.ico", UriKind.Absolute));
         if (resource is not null)
         {
-            return new Icon(resource.Stream);
+            return new System.Drawing.Icon(resource.Stream);
         }
 
         var executableIcon = !string.IsNullOrWhiteSpace(Environment.ProcessPath)
-            ? Icon.ExtractAssociatedIcon(Environment.ProcessPath)
+            ? System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath)
             : null;
-        return executableIcon ?? (Icon)SystemIcons.Application.Clone();
+        return executableIcon ?? (System.Drawing.Icon)SystemIcons.Application.Clone();
     }
 
     private void HideToTray()
@@ -226,7 +226,7 @@ public partial class MainWindow : Window
             Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.ico", UriKind.Absolute)),
             Width = 72,
             Height = 72,
-            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
             Margin = new Thickness(0, 0, 0, 14)
         });
         panel.Children.Add(CreateAboutText("vp-cursor-portal", 24, FontWeights.SemiBold, "TextBrush"));
