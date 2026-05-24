@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "H2CursorRouter.Core.Tests",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "H2CursorRouter.H2.Tests", "tests\H2CursorRouter.H2.Tests\H2CursorRouter.H2.Tests.csproj", "{02B196A6-2A5A-4B17-A868-2B370B1DC5D0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "H2CursorRouter.App.Tests", "tests\H2CursorRouter.App.Tests\H2CursorRouter.App.Tests.csproj", "{CA09CE17-EE74-4D2B-BB9A-4FF58C2696F8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
 		{02B196A6-2A5A-4B17-A868-2B370B1DC5D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{02B196A6-2A5A-4B17-A868-2B370B1DC5D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{02B196A6-2A5A-4B17-A868-2B370B1DC5D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA09CE17-EE74-4D2B-BB9A-4FF58C2696F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA09CE17-EE74-4D2B-BB9A-4FF58C2696F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA09CE17-EE74-4D2B-BB9A-4FF58C2696F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA09CE17-EE74-4D2B-BB9A-4FF58C2696F8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
