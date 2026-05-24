@@ -4,10 +4,10 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using H2CursorRouter.App;
+using H2CursorRouter.App.Services;
 using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Core.Domain;
 using H2CursorRouter.Core.Geometry;
-using H2CursorRouter.Core.Profiles;
 using H2CursorRouter.Core.Validation;
 using H2CursorRouter.H2;
 using H2CursorRouter.Windows;
@@ -44,6 +44,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly CursorRoutingRuntime _routingRuntime;
     private readonly CursorRoutingEngine _routingEngine;
     private readonly AppConfigurationValidator _configurationValidator;
+    private readonly ProfileExecutionService _profileExecutionService;
     private readonly H2PresetEnumParser _presetEnumParser = new();
     private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
     private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
@@ -102,6 +103,11 @@ public sealed class MainViewModel : ViewModelBase
         _routingRuntime = routingRuntime;
         _routingEngine = routingEngine;
         _configurationValidator = configurationValidator;
+        _profileExecutionService = new ProfileExecutionService(
+            _h2DeviceClient,
+            _routingRuntime,
+            _routingEngine,
+            _configurationValidator);
 
         Devices = new ObservableCollection<DeviceRow>(configuration.Devices.Select(DeviceRow.FromModel));
         Layouts = new ObservableCollection<LayoutRow>(configuration.CursorLayouts.Select(LayoutRow.FromModel));
@@ -514,94 +520,21 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var configuration = BuildConfiguration();
-            var validation = _configurationValidator.Validate(configuration);
-            ShowValidation(validation);
-            if (!validation.IsValid)
-            {
-                AddLog("Configuration validation failed. Fix validation messages before executing.");
-                return;
-            }
-
             var profile = profileRow.ToModel();
-            ActiveProfileName = profile.Name;
-            AddLog($"Executing profile '{profile.Name}'.");
-            StopRouting(clearLayout: profile.CursorLayoutId is not null);
-
-            bool? h2AckOk = null;
-            if (profile.H2Preset is not null)
-            {
-                var device = configuration.Devices.FirstOrDefault(device =>
-                    string.Equals(device.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
-                if (device is null)
+            await _profileExecutionService.ExecuteAsync(
+                new ProfileExecutionRequest(configuration, profile),
+                new ProfileExecutionCallbacks
                 {
-                    LastH2AckStatus = $"Missing device: {profile.H2Preset.DeviceId}";
-                    AddLog($"Profile references missing device '{profile.H2Preset.DeviceId}'.");
-                    return;
-                }
-
-                AddLog($"Sending W0605 to {device.Host}:{device.Port} screenId={profile.H2Preset.ScreenId} presetId={profile.H2Preset.PresetId}.");
-                var result = await _h2DeviceClient.LoadPresetAsync(device, profile.H2Preset.ScreenId, profile.H2Preset.PresetId);
-                var deviceRow = Devices.FirstOrDefault(row => string.Equals(row.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
-                if (deviceRow is not null)
-                {
-                    deviceRow.IsOnline = result.IsSuccess;
-                }
-
-                h2AckOk = result.IsSuccess;
-                LastH2AckStatus = result.IsSuccess
-                    ? $"OK: {profile.H2Preset.DisplayName ?? $"presetId {profile.H2Preset.PresetId}"}"
-                    : $"Failed: {result.Message}";
-                H2ConnectionStatus = result.IsSuccess
-                    ? $"Online: {device.Host}:{device.Port}"
-                    : $"No response: {result.Message}";
-                AddLog(result.IsSuccess ? "H2 preset load acknowledged." : $"H2 preset load failed: {result.Message}");
-                if (!string.IsNullOrWhiteSpace(result.ResponseJson))
-                {
-                    AddLog($"H2 response: {result.ResponseJson}");
-                }
-            }
-            else
-            {
-                LastH2AckStatus = "No H2 preset in this profile.";
-            }
-
-            if (!ProfileExecutionPlanner.ShouldApplyCursorLayout(profile, h2AckOk))
-            {
-                if (profile.CursorLayoutId is not null)
-                {
-                    AddLog("Cursor layout was not applied because H2 ACK is required and did not succeed.");
-                }
-
-                RefreshRuntimeState();
-                return;
-            }
-
-            if (profile.H2Preset is not null && h2AckOk == true && profile.PostAckDelayMs > 0)
-            {
-                AddLog($"Waiting {profile.PostAckDelayMs} ms after H2 ACK before applying cursor layout.");
-                await Task.Delay(profile.PostAckDelayMs);
-            }
-
-            if (profile.CursorLayoutId is not null)
-            {
-                var layout = configuration.CursorLayouts.FirstOrDefault(layout =>
-                    string.Equals(layout.Id, profile.CursorLayoutId, StringComparison.OrdinalIgnoreCase));
-                if (layout is null)
-                {
-                    AddLog($"Profile references missing cursor layout '{profile.CursorLayoutId}'.");
-                    return;
-                }
-
-                var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
-                AddLog($"Activating cursor layout '{layout.Name}' at start position {startPosition.X}, {startPosition.Y}.");
-                _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
-                SelectedLayout = Layouts.FirstOrDefault(row => string.Equals(row.Id, layout.Id, StringComparison.OrdinalIgnoreCase));
-                AddLog(_routingRuntime.IsRoutingEnabled
-                    ? $"Routing started for layout '{layout.Name}'."
-                    : $"Routing did not start for layout '{layout.Name}'. See runtime log for details.");
-            }
-
-            RefreshRuntimeState();
+                    ShowValidation = ShowValidation,
+                    SetActiveProfileName = value => ActiveProfileName = value,
+                    SetLastH2AckStatus = value => LastH2AckStatus = value,
+                    SetH2ConnectionStatus = value => H2ConnectionStatus = value,
+                    SetDeviceOnline = SetDeviceOnline,
+                    SelectLayout = SelectLayout,
+                    StopRouting = StopRouting,
+                    AddLog = AddLog,
+                    RefreshRuntimeState = RefreshRuntimeState
+                });
         }
         finally
         {
@@ -1489,6 +1422,20 @@ public sealed class MainViewModel : ViewModelBase
         _routingRuntime.StopRouting(clearLayout);
         AddLog("Routing stopped and cursor clipping released.");
         RefreshRuntimeState();
+    }
+
+    private void SetDeviceOnline(string deviceId, bool isOnline)
+    {
+        var deviceRow = Devices.FirstOrDefault(row => string.Equals(row.Id, deviceId, StringComparison.OrdinalIgnoreCase));
+        if (deviceRow is not null)
+        {
+            deviceRow.IsOnline = isOnline;
+        }
+    }
+
+    private void SelectLayout(string layoutId)
+    {
+        SelectedLayout = Layouts.FirstOrDefault(row => string.Equals(row.Id, layoutId, StringComparison.OrdinalIgnoreCase));
     }
 
     private void RefreshDiagnostics(bool log)
