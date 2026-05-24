@@ -38,6 +38,7 @@ public partial class App : System.Windows.Application
             new TextInputDialogService(),
             new ConfirmationDialogService(),
             new ProfileDialogService(),
+            new DeviceDialogService(),
             cursorService,
             _monitorTopology,
             _runtime,

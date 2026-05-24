@@ -18,13 +18,38 @@ public sealed class ProfileDialogService : IProfileDialogService
     public ProfileDialogResult? Prompt(
         string title,
         string defaultName,
+        string? selectedHotkey,
         IReadOnlyList<LayoutRow> layouts,
         string? selectedLayoutId,
+        bool isCursorLayoutOnly,
         IReadOnlyList<DeviceRow> devices,
-        IReadOnlyList<PresetRow> presets)
+        IReadOnlyList<PresetRow> presets,
+        string? selectedDeviceId,
+        int? selectedScreenId,
+        int? selectedPresetId,
+        string? selectedPresetDisplayName)
     {
         var nameInput = new WpfTextBox { Text = defaultName, MinWidth = 320 };
-        var hotkeyInput = new WpfTextBox { Text = "", MinWidth = 320 };
+        var hotkeyInput = new WpfTextBox
+        {
+            Text = selectedHotkey ?? "",
+            MinWidth = 212,
+            IsReadOnly = true
+        };
+        var recordHotkeyButton = new WpfButton
+        {
+            Content = "Record",
+            MinWidth = 76,
+            Style = WpfApplication.Current.TryFindResource("SecondaryButtonStyle") as Style,
+            Margin = new Thickness(8, 0, 8, 0)
+        };
+        var clearHotkeyButton = new WpfButton
+        {
+            Content = "Clear",
+            MinWidth = 64,
+            Style = WpfApplication.Current.TryFindResource("SecondaryButtonStyle") as Style,
+            Margin = new Thickness(0)
+        };
         var layoutInput = new WpfComboBox
         {
             ItemsSource = layouts,
@@ -36,19 +61,28 @@ public sealed class ProfileDialogService : IProfileDialogService
         var cursorOnlyInput = new WpfCheckBox
         {
             Content = "Cursor layout only",
-            IsChecked = true,
+            IsChecked = isCursorLayoutOnly,
             Margin = new Thickness(0, 14, 0, 0)
         };
-        var onlineDevices = devices.Where(device => device.IsOnline).DefaultIfEmpty(devices.FirstOrDefault()).Where(device => device is not null).ToArray();
+        var onlineDevices = devices
+            .Where(device => device.IsOnline || string.Equals(device.Id, selectedDeviceId, StringComparison.OrdinalIgnoreCase))
+            .DefaultIfEmpty(devices.FirstOrDefault())
+            .Where(device => device is not null)
+            .ToArray();
         var deviceInput = new WpfComboBox
         {
             ItemsSource = onlineDevices,
             DisplayMemberPath = nameof(DeviceRow.Name),
             SelectedValuePath = nameof(DeviceRow.Id),
-            SelectedIndex = onlineDevices.Length > 0 ? 0 : -1,
+            SelectedValue = selectedDeviceId,
             MinWidth = 320,
             IsEnabled = false
         };
+        if (deviceInput.SelectedIndex < 0 && onlineDevices.Length > 0)
+        {
+            deviceInput.SelectedIndex = 0;
+        }
+
         var presetInput = new WpfComboBox
         {
             DisplayMemberPath = nameof(PresetRow.DisplayName),
@@ -58,13 +92,40 @@ public sealed class ProfileDialogService : IProfileDialogService
 
         void RefreshPresetChoices()
         {
-            var selectedDeviceId = deviceInput.SelectedValue as string;
-            presetInput.ItemsSource = presets
-                .Where(preset => string.Equals(preset.DeviceConfigId, selectedDeviceId, StringComparison.OrdinalIgnoreCase))
+            var currentDeviceId = deviceInput.SelectedValue as string;
+            var presetChoices = presets
+                .Where(preset => string.Equals(preset.DeviceConfigId, currentDeviceId, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(preset => preset.ScreenId)
                 .ThenBy(preset => preset.FriendlyPresetNumber)
-                .ToArray();
-            presetInput.SelectedIndex = presetInput.Items.Count > 0 ? 0 : -1;
+                .ToList();
+            if (presetChoices.All(preset => preset.ScreenId != selectedScreenId || preset.PresetId != selectedPresetId) &&
+                !string.IsNullOrWhiteSpace(currentDeviceId) &&
+                string.Equals(currentDeviceId, selectedDeviceId, StringComparison.OrdinalIgnoreCase) &&
+                selectedScreenId is not null &&
+                selectedPresetId is not null)
+            {
+                var deviceName = devices.FirstOrDefault(device => string.Equals(device.Id, currentDeviceId, StringComparison.OrdinalIgnoreCase))?.Name ?? currentDeviceId;
+                presetChoices.Add(new PresetRow
+                {
+                    DeviceConfigId = currentDeviceId,
+                    DeviceName = deviceName,
+                    ScreenId = selectedScreenId.Value,
+                    FriendlyPresetNumber = selectedPresetId.Value + 1,
+                    PresetId = selectedPresetId.Value,
+                    DisplayName = string.IsNullOrWhiteSpace(selectedPresetDisplayName)
+                        ? $"Preset {selectedPresetId.Value + 1}"
+                        : selectedPresetDisplayName
+                });
+            }
+
+            presetInput.ItemsSource = presetChoices.ToArray();
+            presetInput.SelectedItem = presetInput.Items
+                .OfType<PresetRow>()
+                .FirstOrDefault(preset => preset.ScreenId == selectedScreenId && preset.PresetId == selectedPresetId);
+            if (presetInput.SelectedIndex < 0)
+            {
+                presetInput.SelectedIndex = presetInput.Items.Count > 0 ? 0 : -1;
+            }
         }
 
         void RefreshH2Enabled()
@@ -75,14 +136,48 @@ public sealed class ProfileDialogService : IProfileDialogService
             RefreshPresetChoices();
         }
 
-        var dialog = new AppDialogWindow(title, CreateContent(nameInput, hotkeyInput, layoutInput, cursorOnlyInput, deviceInput, presetInput, out var okButton, out var cancelButton))
+        var dialog = new AppDialogWindow(title, CreateContent(nameInput, hotkeyInput, recordHotkeyButton, clearHotkeyButton, layoutInput, cursorOnlyInput, deviceInput, presetInput, out var okButton, out var cancelButton))
         {
             Width = 460,
+        };
+        var isRecordingHotkey = false;
+        recordHotkeyButton.Click += (_, _) =>
+        {
+            isRecordingHotkey = true;
+            recordHotkeyButton.Content = "Press keys";
+            hotkeyInput.Text = "";
+            hotkeyInput.Focus();
+        };
+        clearHotkeyButton.Click += (_, _) =>
+        {
+            isRecordingHotkey = false;
+            recordHotkeyButton.Content = "Record";
+            hotkeyInput.Text = "";
+        };
+        dialog.PreviewKeyDown += (_, args) =>
+        {
+            if (!isRecordingHotkey)
+            {
+                return;
+            }
+
+            var formatted = FormatHotkey(args);
+            if (formatted is null)
+            {
+                recordHotkeyButton.Content = "Press keys";
+                args.Handled = true;
+                return;
+            }
+
+            hotkeyInput.Text = formatted;
+            isRecordingHotkey = false;
+            recordHotkeyButton.Content = "Record";
+            args.Handled = true;
         };
         cursorOnlyInput.Checked += (_, _) => RefreshH2Enabled();
         cursorOnlyInput.Unchecked += (_, _) => RefreshH2Enabled();
         deviceInput.SelectionChanged += (_, _) => RefreshPresetChoices();
-        RefreshPresetChoices();
+        RefreshH2Enabled();
 
         dialog.Loaded += (_, _) =>
         {
@@ -124,6 +219,8 @@ public sealed class ProfileDialogService : IProfileDialogService
     private static UIElement CreateContent(
         WpfTextBox nameInput,
         WpfTextBox hotkeyInput,
+        WpfButton recordHotkeyButton,
+        WpfButton clearHotkeyButton,
         WpfComboBox layoutInput,
         WpfCheckBox cursorOnlyInput,
         WpfComboBox deviceInput,
@@ -133,7 +230,7 @@ public sealed class ProfileDialogService : IProfileDialogService
     {
         var panel = new StackPanel();
         AddField(panel, "Profile name", nameInput);
-        AddField(panel, "Hotkey", hotkeyInput);
+        AddField(panel, "Hotkey", CreateHotkeyInput(hotkeyInput, recordHotkeyButton, clearHotkeyButton));
         AddField(panel, "Cursor layout", layoutInput);
         panel.Children.Add(cursorOnlyInput);
         AddField(panel, "Video processor", deviceInput);
@@ -166,6 +263,18 @@ public sealed class ProfileDialogService : IProfileDialogService
         return panel;
     }
 
+    private static UIElement CreateHotkeyInput(WpfTextBox hotkeyInput, WpfButton recordHotkeyButton, WpfButton clearHotkeyButton)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = WpfOrientation.Horizontal
+        };
+        panel.Children.Add(hotkeyInput);
+        panel.Children.Add(recordHotkeyButton);
+        panel.Children.Add(clearHotkeyButton);
+        return panel;
+    }
+
     private static void AddField(WpfPanel panel, string label, FrameworkElement input)
     {
         panel.Children.Add(new TextBlock
@@ -176,5 +285,97 @@ public sealed class ProfileDialogService : IProfileDialogService
             Margin = new Thickness(0, 12, 0, 4)
         });
         panel.Children.Add(input);
+    }
+
+    private static string? FormatHotkey(KeyEventArgs args)
+    {
+        var key = args.Key == Key.System ? args.SystemKey : args.Key;
+        key = key == Key.ImeProcessed ? args.ImeProcessedKey : key;
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin)
+        {
+            return null;
+        }
+
+        var modifiers = Keyboard.Modifiers;
+        if (key == Key.Escape && modifiers == ModifierKeys.None)
+        {
+            return null;
+        }
+
+        if (key == Key.Escape &&
+            modifiers.HasFlag(ModifierKeys.Control) &&
+            modifiers.HasFlag(ModifierKeys.Alt) &&
+            modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+        if (modifiers.HasFlag(ModifierKeys.Control))
+        {
+            parts.Add("Ctrl");
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            parts.Add("Alt");
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            parts.Add("Shift");
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Windows))
+        {
+            parts.Add("Win");
+        }
+
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        var keyText = FormatKey(key);
+        if (string.IsNullOrWhiteSpace(keyText))
+        {
+            return null;
+        }
+
+        parts.Add(keyText);
+        var hotkey = string.Join("+", parts);
+        return hotkey.Equals("Ctrl+Alt+Shift+Esc", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : hotkey;
+    }
+
+    private static string FormatKey(Key key)
+    {
+        if (key == Key.Escape)
+        {
+            return "Esc";
+        }
+
+        if (key is >= Key.D0 and <= Key.D9)
+        {
+            return ((int)key - (int)Key.D0).ToString();
+        }
+
+        if (key is >= Key.NumPad0 and <= Key.NumPad9)
+        {
+            return ((int)key - (int)Key.NumPad0).ToString();
+        }
+
+        if (key is >= Key.A and <= Key.Z)
+        {
+            return key.ToString();
+        }
+
+        if (key is >= Key.F1 and <= Key.F24)
+        {
+            return key.ToString();
+        }
+
+        return "";
     }
 }

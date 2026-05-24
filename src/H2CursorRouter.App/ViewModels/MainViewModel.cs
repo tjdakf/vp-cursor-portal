@@ -38,6 +38,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly ITextInputDialogService _textInputDialogService;
     private readonly IConfirmationDialogService _confirmationDialogService;
     private readonly IProfileDialogService _profileDialogService;
+    private readonly IDeviceDialogService _deviceDialogService;
     private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly CursorRoutingRuntime _routingRuntime;
@@ -78,6 +79,7 @@ public sealed class MainViewModel : ViewModelBase
         ITextInputDialogService textInputDialogService,
         IConfirmationDialogService confirmationDialogService,
         IProfileDialogService profileDialogService,
+        IDeviceDialogService deviceDialogService,
         ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
         CursorRoutingRuntime routingRuntime,
@@ -93,6 +95,7 @@ public sealed class MainViewModel : ViewModelBase
         _textInputDialogService = textInputDialogService;
         _confirmationDialogService = confirmationDialogService;
         _profileDialogService = profileDialogService;
+        _deviceDialogService = deviceDialogService;
         _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
@@ -612,7 +615,10 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Presets.Clear();
-        await GetPresetsForDeviceAsync(SelectedDevice);
+        if (await GetPresetsForDeviceAsync(SelectedDevice))
+        {
+            AutoSaveConfiguration("Auto-saved configuration after refreshing presets.");
+        }
     }
 
     public async Task GetAllPresetsAsync()
@@ -624,13 +630,19 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         Presets.Clear();
+        var loadedAny = false;
         foreach (var deviceRow in Devices.ToArray())
         {
-            await GetPresetsForDeviceAsync(deviceRow);
+            loadedAny |= await GetPresetsForDeviceAsync(deviceRow);
+        }
+
+        if (loadedAny)
+        {
+            AutoSaveConfiguration("Auto-saved configuration after refreshing all presets.");
         }
     }
 
-    private async Task GetPresetsForDeviceAsync(DeviceRow deviceRow)
+    private async Task<bool> GetPresetsForDeviceAsync(DeviceRow deviceRow)
     {
         var device = deviceRow.ToModel();
         AddLog($"Sending R0600 to {device.Host}:{device.Port}.");
@@ -645,7 +657,7 @@ public sealed class MainViewModel : ViewModelBase
             deviceRow.IsOnline = false;
             H2ConnectionStatus = $"No response: {result.Message}";
             AddLog($"Preset enum request failed for H2 device '{deviceRow.Name}': {result.Message}");
-            return;
+            return false;
         }
 
         try
@@ -668,6 +680,7 @@ public sealed class MainViewModel : ViewModelBase
             deviceRow.IsOnline = true;
             H2ConnectionStatus = $"Online: {device.Host}:{device.Port}";
             AddLog($"Loaded {parsed.Count} presets from H2 device '{deviceRow.Name}'.");
+            return true;
         }
         catch (Exception exception)
         {
@@ -675,6 +688,7 @@ public sealed class MainViewModel : ViewModelBase
             H2ConnectionStatus = $"Unexpected response: {exception.Message}";
             AddLog($"Preset enum response from H2 device '{deviceRow.Name}' could not be parsed: {exception.Message}");
             AddLog($"Raw preset enum response: {result.ResponseJson}");
+            return false;
         }
     }
 
@@ -706,16 +720,28 @@ public sealed class MainViewModel : ViewModelBase
     private void AddDevice()
     {
         var index = Devices.Count + 1;
+        var result = _deviceDialogService.Prompt(
+            index == 1 ? "Main H2" : $"H2 {index}",
+            "192.168.0.11",
+            H2DeviceConfig.DefaultPort);
+        if (result is null)
+        {
+            return;
+        }
+
         var row = new DeviceRow
         {
-            Id = index == 1 ? "h2-main" : $"h2-{index}",
-            Name = index == 1 ? "Main H2" : $"H2 {index}",
-            Host = "192.168.0.11",
-            Port = H2DeviceConfig.DefaultPort,
+            Id = CreateUniqueDeviceId(result.Name),
+            Name = result.Name,
+            Host = result.Host,
+            Port = result.Port,
+            DeviceId = 0,
             TimeoutMs = 1000
         };
         Devices.Add(row);
         SelectedDevice = row;
+        AddLog($"Added H2 device '{row.Name}' at {row.Host}:{row.Port}.");
+        AutoSaveConfiguration("Auto-saved configuration after adding device.");
     }
 
     private async Task RefreshH2ConnectionStatusAsync()
@@ -769,6 +795,8 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedDevice = Devices.FirstOrDefault();
+        AddLog("Removed H2 device.");
+        AutoSaveConfiguration("Auto-saved configuration after removing device.");
     }
 
     private void AddLayout()
@@ -853,7 +881,8 @@ public sealed class MainViewModel : ViewModelBase
         FilteredProfiles.Refresh();
         RefreshDashboardProfiles();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog($"Deleted layout '{layout.Name}'. Use Save Config to persist the deletion.");
+        AddLog($"Deleted layout '{layout.Name}'.");
+        AutoSaveConfiguration("Auto-saved configuration after deleting layout.");
     }
 
     private void AddZone()
@@ -1089,7 +1118,8 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedLayout = newLayout;
-        AddLog($"Saved new layout '{newLayout.Name}' with generated portals. Use Save Config to persist it to config.json.");
+        AddLog($"Saved new layout '{newLayout.Name}' with generated portals.");
+        AutoSaveConfiguration("Auto-saved configuration after saving layout.");
     }
 
     private void OverwriteSelectedLayout()
@@ -1138,7 +1168,8 @@ public sealed class MainViewModel : ViewModelBase
         SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
         SelectedLayout.Displays = FormatLayoutDisplays(SelectedLayoutZones);
         OnPropertyChanged(nameof(SelectedLayout));
-        AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals. Use Save Config to persist it to config.json.");
+        AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals.");
+        AutoSaveConfiguration("Auto-saved configuration after overwriting layout.");
     }
 
     private void AddProfile()
@@ -1147,10 +1178,16 @@ public sealed class MainViewModel : ViewModelBase
         var result = _profileDialogService.Prompt(
             "Add profile",
             profileName,
+            null,
             Layouts.ToArray(),
             SelectedLayout?.Id,
+            false,
             Devices.ToArray(),
-            Presets.ToArray());
+            Presets.ToArray(),
+            null,
+            null,
+            null,
+            null);
         if (result is null)
         {
             return;
@@ -1176,7 +1213,49 @@ public sealed class MainViewModel : ViewModelBase
         FilteredProfiles.Refresh();
         RefreshDashboardProfiles();
         SelectedProfile = row;
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
         AddLog($"Added profile '{row.Name}'.");
+        AutoSaveConfiguration("Auto-saved configuration after adding profile.");
+    }
+
+    public void EditProfile(ProfileRow profile)
+    {
+        var result = _profileDialogService.Prompt(
+            "Edit profile",
+            profile.Name,
+            profile.Hotkey,
+            Layouts.ToArray(),
+            profile.CursorLayoutId,
+            !ProfileHasH2Preset(profile),
+            Devices.ToArray(),
+            Presets.ToArray(),
+            profile.DeviceId,
+            profile.ScreenId,
+            profile.PresetId,
+            profile.PresetDisplayName);
+        if (result is null)
+        {
+            return;
+        }
+
+        var start = CalculateLayoutStart(result.CursorLayoutId);
+        profile.Name = result.Name;
+        profile.Hotkey = result.Hotkey;
+        profile.DeviceId = result.DeviceId;
+        profile.ScreenId = result.ScreenId;
+        profile.PresetId = result.PresetId;
+        profile.PresetDisplayName = result.PresetDisplayName;
+        profile.CursorLayoutId = result.CursorLayoutId;
+        profile.StartX = start?.X;
+        profile.StartY = start?.Y;
+        profile.PostAckDelayMs = 500;
+        profile.RequireH2AckBeforeCursorLayout = true;
+        SelectedProfile = profile;
+        FilteredProfiles.Refresh();
+        RefreshDashboardProfiles();
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
+        AddLog($"Updated profile '{profile.Name}'.");
+        AutoSaveConfiguration("Auto-saved configuration after updating profile.");
     }
 
     private void RemoveSelectedProfile()
@@ -1190,6 +1269,9 @@ public sealed class MainViewModel : ViewModelBase
         FilteredProfiles.Refresh();
         RefreshDashboardProfiles();
         SelectedProfile = Profiles.FirstOrDefault();
+        HotkeysChanged?.Invoke(this, EventArgs.Empty);
+        AddLog("Removed profile.");
+        AutoSaveConfiguration("Auto-saved configuration after removing profile.");
     }
 
     private void DuplicateSelectedProfile()
@@ -1320,18 +1402,35 @@ public sealed class MainViewModel : ViewModelBase
 
     private async Task SaveConfigurationAsync()
     {
-        var configuration = BuildConfiguration();
-        var validation = _configurationValidator.Validate(configuration);
-        ShowValidation(validation);
-        if (!validation.IsValid)
-        {
-            AddLog("Configuration was not saved because validation failed.");
-            return;
-        }
+        await SaveConfigurationCoreAsync($"Saved configuration to {_configPath}. Hotkeys were refreshed.");
+    }
 
-        await _configFileService.SaveAsync(configuration, _configPath);
-        HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog($"Saved configuration to {_configPath}. Hotkeys were refreshed.");
+    private void AutoSaveConfiguration(string successMessage)
+    {
+        _ = SaveConfigurationCoreAsync(successMessage);
+    }
+
+    private async Task SaveConfigurationCoreAsync(string successMessage)
+    {
+        try
+        {
+            var configuration = BuildConfiguration();
+            var validation = _configurationValidator.Validate(configuration);
+            ShowValidation(validation);
+            if (!validation.IsValid)
+            {
+                AddLog("Configuration save was skipped because validation failed.");
+                return;
+            }
+
+            await _configFileService.SaveAsync(configuration, _configPath);
+            HotkeysChanged?.Invoke(this, EventArgs.Empty);
+            AddLog(successMessage);
+        }
+        catch (Exception exception)
+        {
+            AddLog($"Configuration save failed: {exception.Message}");
+        }
     }
 
     private void StopRouting(bool clearLayout)
@@ -1854,6 +1953,33 @@ public sealed class MainViewModel : ViewModelBase
             ? baseId
             : $"profile-{baseId}";
         var existing = Profiles.Select(profile => profile.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!existing.Contains(id))
+        {
+            return id;
+        }
+
+        for (var i = 2; ; i++)
+        {
+            var candidate = $"{id}-{i}";
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    private string CreateUniqueDeviceId(string name)
+    {
+        var baseId = NormalizeZoneId(name).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(baseId))
+        {
+            baseId = "device";
+        }
+
+        var id = baseId.StartsWith("h2-", StringComparison.OrdinalIgnoreCase)
+            ? baseId
+            : $"h2-{baseId}";
+        var existing = Devices.Select(device => device.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (!existing.Contains(id))
         {
             return id;

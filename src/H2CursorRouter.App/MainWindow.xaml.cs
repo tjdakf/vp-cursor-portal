@@ -200,7 +200,15 @@ public partial class MainWindow : Window
         if ((sender as System.Windows.Controls.Button)?.Tag is ProfileRow profile)
         {
             _viewModel.SelectedProfile = profile;
-            MainTabs.SelectedIndex = 2;
+            _viewModel.EditProfile(profile);
+        }
+    }
+
+    private void ProfilesGrid_OnMouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if ((sender as System.Windows.Controls.DataGrid)?.SelectedItem is ProfileRow profile)
+        {
+            _viewModel.EditProfile(profile);
         }
     }
 
