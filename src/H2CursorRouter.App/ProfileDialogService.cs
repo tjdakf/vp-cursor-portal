@@ -287,7 +287,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         panel.Children.Add(input);
     }
 
-    private static string? FormatHotkey(KeyEventArgs args)
+    private static string? FormatHotkey(System.Windows.Input.KeyEventArgs args)
     {
         var key = args.Key == Key.System ? args.SystemKey : args.Key;
         key = key == Key.ImeProcessed ? args.ImeProcessedKey : key;
