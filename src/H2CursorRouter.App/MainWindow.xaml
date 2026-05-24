@@ -191,7 +191,7 @@
             </TabItem>
 
             <TabItem Header="Layouts">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="LayoutTabScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid Margin="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -221,7 +221,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <Border Grid.Column="0" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" Background="{StaticResource PanelAltBrush}" CornerRadius="10" Padding="10" MinHeight="410">
-                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="CanvasScrollViewer_OnPreviewMouseWheel">
                                             <ItemsControl ItemsSource="{Binding SelectedLayoutZones}">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
@@ -307,19 +307,19 @@
                                                 </Grid.RowDefinitions>
                                                 <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
                                                     <TextBlock Text="X" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualLeft, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
                                                     <TextBlock Text="Y" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualTop, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="1" Grid.Column="0">
                                                     <TextBlock Text="Width" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualWidth, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Row="1" Grid.Column="2">
                                                     <TextBlock Text="Height" Style="{StaticResource MutedTextStyle}" />
-                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" />
+                                                    <TextBox Text="{Binding SelectedZone.VisualHeight, UpdateSourceTrigger=LostFocus, StringFormat=F0}" IsEnabled="{Binding HasSelectedZone}" KeyDown="LayoutNumberTextBox_OnKeyDown" />
                                                 </StackPanel>
                                             </Grid>
 

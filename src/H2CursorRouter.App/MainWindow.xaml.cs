@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
+using System.Windows.Input;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Windows;
 using Forms = System.Windows.Forms;
@@ -235,5 +236,27 @@ public partial class MainWindow : Window
             _viewModel.SelectedZone = zone;
             e.Handled = false;
         }
+    }
+
+    private void LayoutNumberTextBox_OnKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        if (textBox.DataContext is MainViewModel { SelectedZone: not null } viewModel)
+        {
+            viewModel.CompleteZoneVisualEdit(viewModel.SelectedZone);
+        }
+
+        e.Handled = true;
+    }
+
+    private void CanvasScrollViewer_OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        LayoutTabScrollViewer.ScrollToVerticalOffset(LayoutTabScrollViewer.VerticalOffset - e.Delta);
+        e.Handled = true;
     }
 }

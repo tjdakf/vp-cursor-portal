@@ -18,8 +18,15 @@ public sealed class MainViewModel : ViewModelBase
 {
     private const double MinimumVisualSize = 120;
     private const double EdgeSnapTolerance = 24;
-    private const double EdgeGapScoreWeight = 10;
     private const double SameLineSnapTolerance = 40;
+
+    private enum SnapDirection
+    {
+        Left,
+        Right,
+        Top,
+        Bottom
+    }
 
     private readonly string _configPath;
     private readonly string _executablePath;
@@ -1482,52 +1489,44 @@ public sealed class MainViewModel : ViewModelBase
 
         var width = zone.VisualWidth;
         var height = zone.VisualHeight;
-        var bestScore = double.MaxValue;
-        double snappedLeft = zone.VisualLeft;
-        double snappedTop = zone.VisualTop;
-
-        foreach (var other in SelectedLayoutZones.Where(other => !ReferenceEquals(other, zone)))
+        var target = SelectedLayoutZones
+            .Where(other => !ReferenceEquals(other, zone))
+            .OrderBy(other => RectGapScore(zone, other))
+            .ThenBy(other => CenterDistanceScore(zone, other))
+            .FirstOrDefault();
+        if (target is null)
         {
-            var verticallyAlignedTop = AlignStartForOverlap(zone.VisualTop, height, other.VisualTop, other.VisualBottom);
-            Consider(
-                other.VisualRight,
-                verticallyAlignedTop,
-                Math.Abs(zone.VisualLeft - other.VisualRight),
-                AxisGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom));
-            Consider(
-                other.VisualLeft - width,
-                verticallyAlignedTop,
-                Math.Abs(zone.VisualRight - other.VisualLeft),
-                AxisGap(zone.VisualTop, zone.VisualBottom, other.VisualTop, other.VisualBottom));
+            return;
+        }
 
-            var horizontallyAlignedLeft = AlignStartForOverlap(zone.VisualLeft, width, other.VisualLeft, other.VisualRight);
-            Consider(
-                horizontallyAlignedLeft,
-                other.VisualBottom,
-                Math.Abs(zone.VisualTop - other.VisualBottom),
-                AxisGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight));
-            Consider(
-                horizontallyAlignedLeft,
-                other.VisualTop - height,
-                Math.Abs(zone.VisualBottom - other.VisualTop),
-                AxisGap(zone.VisualLeft, zone.VisualRight, other.VisualLeft, other.VisualRight));
+        var direction = DetermineSnapDirection(zone, target);
+        var snappedLeft = zone.VisualLeft;
+        var snappedTop = zone.VisualTop;
+
+        switch (direction)
+        {
+            case SnapDirection.Right:
+                snappedLeft = target.VisualRight;
+                snappedTop = AlignStartForOverlap(zone.VisualTop, height, target.VisualTop, target.VisualBottom);
+                break;
+            case SnapDirection.Left:
+                snappedLeft = target.VisualLeft - width;
+                snappedTop = AlignStartForOverlap(zone.VisualTop, height, target.VisualTop, target.VisualBottom);
+                break;
+            case SnapDirection.Bottom:
+                snappedLeft = AlignStartForOverlap(zone.VisualLeft, width, target.VisualLeft, target.VisualRight);
+                snappedTop = target.VisualBottom;
+                break;
+            case SnapDirection.Top:
+                snappedLeft = AlignStartForOverlap(zone.VisualLeft, width, target.VisualLeft, target.VisualRight);
+                snappedTop = target.VisualTop - height;
+                break;
         }
 
         zone.VisualLeft = SnapToGrid(snappedLeft);
         zone.VisualRight = zone.VisualLeft + width;
         zone.VisualTop = SnapToGrid(snappedTop);
         zone.VisualBottom = zone.VisualTop + height;
-
-        void Consider(double left, double top, double edgeGap, double crossAxisGap)
-        {
-            var score = edgeGap * EdgeGapScoreWeight + crossAxisGap + (Math.Abs(zone.VisualLeft - left) + Math.Abs(zone.VisualTop - top)) * 0.01;
-            if (score < bestScore)
-            {
-                bestScore = score;
-                snappedLeft = left;
-                snappedTop = top;
-            }
-        }
     }
 
     private void NormalizeSelectedLayoutVisualOrigin()
@@ -1884,6 +1883,38 @@ public sealed class MainViewModel : ViewModelBase
             ? secondStart - firstEnd
             : firstStart - secondEnd;
     }
+
+    private static double RectGapScore(ZoneRow first, ZoneRow second)
+    {
+        var horizontalGap = AxisGap(first.VisualLeft, first.VisualRight, second.VisualLeft, second.VisualRight);
+        var verticalGap = AxisGap(first.VisualTop, first.VisualBottom, second.VisualTop, second.VisualBottom);
+        return horizontalGap * horizontalGap + verticalGap * verticalGap;
+    }
+
+    private static double CenterDistanceScore(ZoneRow first, ZoneRow second)
+    {
+        var dx = CenterX(first) - CenterX(second);
+        var dy = CenterY(first) - CenterY(second);
+        return dx * dx + dy * dy;
+    }
+
+    private static SnapDirection DetermineSnapDirection(ZoneRow zone, ZoneRow target)
+    {
+        var dx = CenterX(zone) - CenterX(target);
+        var dy = CenterY(zone) - CenterY(target);
+        if (Math.Abs(dx) >= Math.Abs(dy))
+        {
+            return dx >= 0 ? SnapDirection.Right : SnapDirection.Left;
+        }
+
+        return dy >= 0 ? SnapDirection.Bottom : SnapDirection.Top;
+    }
+
+    private static double CenterX(ZoneRow zone) =>
+        zone.VisualLeft + zone.VisualWidth / 2;
+
+    private static double CenterY(ZoneRow zone) =>
+        zone.VisualTop + zone.VisualHeight / 2;
 
     private static double AlignStartForOverlap(double currentStart, double size, double targetStart, double targetEnd)
     {
