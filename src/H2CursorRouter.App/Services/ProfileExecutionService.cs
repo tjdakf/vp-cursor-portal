@@ -60,7 +60,7 @@ public sealed class ProfileExecutionService
                 ? $"Online: {device.Host}:{device.Port}"
                 : $"No response: {result.Message}");
             callbacks.AddLog(result.IsSuccess ? "H2 preset load acknowledged." : $"H2 preset load failed: {result.Message}");
-            if (!string.IsNullOrWhiteSpace(result.ResponseJson))
+            if (!result.IsSuccess && !string.IsNullOrWhiteSpace(result.ResponseJson))
             {
                 callbacks.AddLog($"H2 response: {result.ResponseJson}");
             }
@@ -79,7 +79,6 @@ public sealed class ProfileExecutionService
 
         if (profile.H2Preset is not null && h2AckOk == true && profile.PostAckDelayMs > 0)
         {
-            callbacks.AddLog($"Waiting {profile.PostAckDelayMs} ms after H2 ACK before applying cursor layout.");
             await Task.Delay(profile.PostAckDelayMs);
         }
 
@@ -94,7 +93,6 @@ public sealed class ProfileExecutionService
             }
 
             var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
-            callbacks.AddLog($"Activating cursor layout '{layout.Name}' at start position {startPosition.X}, {startPosition.Y}.");
             _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
             callbacks.SelectLayout(layout.Id);
             callbacks.AddLog(_routingRuntime.IsRoutingEnabled

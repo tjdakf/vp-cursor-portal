@@ -51,6 +51,7 @@ public sealed class ProfileExecutionServiceTests
         Assert.Equal("layout", callbacks.SelectedLayoutId);
         Assert.True(callbacks.DeviceOnline);
         Assert.Equal("Online: 192.168.0.11:6000", callbacks.H2ConnectionStatus);
+        Assert.DoesNotContain(callbacks.Logs, log => log.StartsWith("H2 response:", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

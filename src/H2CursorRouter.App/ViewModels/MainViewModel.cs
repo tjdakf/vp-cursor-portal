@@ -15,6 +15,7 @@ namespace H2CursorRouter.App.ViewModels;
 
 public sealed class MainViewModel : ViewModelBase
 {
+    private const int MaxVisibleLogEntries = 300;
     private readonly string _configPath;
     private readonly string _executablePath;
     private readonly LayoutEditingService _layoutEditingService = new();
@@ -33,6 +34,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
     private bool _startWithWindows;
     private CursorPoint? _selectedLayoutDraftStartPosition;
+    private string _lastLoggedMonitorSignature = "";
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -613,7 +615,19 @@ public sealed class MainViewModel : ViewModelBase
 
     public void AddLog(string message)
     {
+        if (IsHighFrequencyRoutingDiagnostic(message))
+        {
+            LastRoutingEvent = message;
+            RefreshRuntimeState();
+            return;
+        }
+
         Logs.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {message}");
+        while (Logs.Count > MaxVisibleLogEntries)
+        {
+            Logs.RemoveAt(Logs.Count - 1);
+        }
+
         _fileLogService.Append(message);
         RuntimeStatus = message;
         if (IsRoutingEvent(message))
@@ -1020,9 +1034,13 @@ public sealed class MainViewModel : ViewModelBase
     {
         var validation = _configurationCoordinator.Validate(BuildConfiguration());
         ShowValidation(validation);
-        AddLog(validation.IsValid
-            ? "Configuration validation passed."
-            : $"Configuration validation failed with {validation.Errors.Count} issue(s).");
+        if (validation.IsValid)
+        {
+            RuntimeStatus = "Configuration validation passed.";
+            return;
+        }
+
+        AddLog($"Configuration validation failed with {validation.Errors.Count} issue(s).");
     }
 
     private async Task SaveConfigurationAsync()
@@ -1032,10 +1050,10 @@ public sealed class MainViewModel : ViewModelBase
 
     private void AutoSaveConfiguration(string successMessage)
     {
-        _ = SaveConfigurationCoreAsync(successMessage);
+        _ = SaveConfigurationCoreAsync(null);
     }
 
-    private async Task SaveConfigurationCoreAsync(string successMessage)
+    private async Task SaveConfigurationCoreAsync(string? successMessage)
     {
         try
         {
@@ -1059,7 +1077,10 @@ public sealed class MainViewModel : ViewModelBase
             }
 
             HotkeysChanged?.Invoke(this, EventArgs.Empty);
-            AddLog(successMessage);
+            if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                AddLog(successMessage);
+            }
         }
         catch (Exception exception)
         {
@@ -1069,8 +1090,13 @@ public sealed class MainViewModel : ViewModelBase
 
     private void StopRouting(bool clearLayout)
     {
+        var wasRoutingEnabled = _routingRuntime.IsRoutingEnabled;
         _routingRuntime.StopRouting(clearLayout);
-        AddLog("Routing stopped and cursor clipping released.");
+        if (wasRoutingEnabled)
+        {
+            AddLog("Routing stopped and cursor clipping released.");
+        }
+
         RefreshRuntimeState();
     }
 
@@ -1094,10 +1120,16 @@ public sealed class MainViewModel : ViewModelBase
         RefreshDisplayPreview();
         if (log)
         {
-            var monitorSummary = Monitors.Count == 0
-                ? "none"
-                : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
-            AddLog($"Detected {Monitors.Count} active display(s): {monitorSummary}");
+            var monitorSignature = BuildMonitorSignature();
+            if (!string.Equals(monitorSignature, _lastLoggedMonitorSignature, StringComparison.Ordinal))
+            {
+                _lastLoggedMonitorSignature = monitorSignature;
+                AddLog($"Detected {Monitors.Count} active display(s): {monitorSignature}");
+            }
+            else
+            {
+                RuntimeStatus = $"Display list refreshed ({Monitors.Count} active display(s)).";
+            }
         }
         RefreshAvailableLayoutDisplays();
         RaiseCommandStates();
@@ -1545,6 +1577,15 @@ public sealed class MainViewModel : ViewModelBase
         message.Contains("Emergency unlock", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("Monitor topology changed", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("Cursor clipped", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsHighFrequencyRoutingDiagnostic(string message) =>
+        message.StartsWith("Portal move:", StringComparison.OrdinalIgnoreCase) ||
+        message.StartsWith("Cursor revert:", StringComparison.OrdinalIgnoreCase);
+
+    private string BuildMonitorSignature() =>
+        Monitors.Count == 0
+            ? "none"
+            : string.Join("; ", Monitors.Select(monitor => $"{monitor.DeviceName} {monitor.BoundsText}"));
 
     private static void Dispatch(Action action)
     {

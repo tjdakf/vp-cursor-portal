@@ -116,6 +116,19 @@ public sealed class MainViewModelCommandTests
     }
 
     [Fact]
+    public void HighFrequencyRoutingDiagnosticsUpdateLastEventWithoutVisibleLogEntry()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+        var initialLogCount = viewModel.Logs.Count;
+
+        viewModel.AddLog("Portal move: Portal mapped 'DISPLAY1' Right 0-1 to 'DISPLAY3' Left. Target: 3840, 540.");
+
+        Assert.Equal(initialLogCount, viewModel.Logs.Count);
+        Assert.Equal("Portal move: Portal mapped 'DISPLAY1' Right 0-1 to 'DISPLAY3' Left. Target: 3840, 540.", viewModel.LastRoutingEvent);
+    }
+
+    [Fact]
     public void AddPortalUsesSelectedDraftLayoutZones()
     {
         using var fixture = new MainViewModelFixture();
