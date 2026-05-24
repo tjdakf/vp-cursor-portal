@@ -1,54 +1,80 @@
-# H2 Cursor Router
+# vp-cursor-portal
 
-H2 Cursor Router is a Windows desktop MVP for one control PC connected to a NovaStar H Series / H2 video processor.
+`vp-cursor-portal` is a Windows desktop MVP for one control PC connected to a NovaStar H Series / H2 video processor.
 
-The app links two operations that normally happen separately:
+It links two operations that normally happen separately:
 
 1. Load an H2 preset over UDP JSON.
 2. Apply a Windows cursor-routing layout that matches the visual output layout currently shown by the processor.
 
-The practical problem is that Windows monitor topology can differ from the H2 visual layout. Windows may expose monitors as:
+## At A Glance
+
+| Area | Current decision |
+|---|---|
+| Product name | `vp-cursor-portal` |
+| Target OS | Windows x64 |
+| UI | WPF desktop app |
+| Runtime | C# / .NET 10 |
+| Target device | NovaStar H Series / H2 |
+| Device protocol | UDP JSON |
+| Cursor model | Polling-based Win32 cursor routing |
+| Packaging | Portable ZIP and Inno Setup installer from GitHub Actions |
+| Config path | `%AppData%\vp-cursor-portal\config.json` |
+| Safety baseline | Routing starts disabled, emergency unlock is always available |
+
+## What Problem It Solves
+
+Windows monitor topology can differ from the H2 visual layout.
+
+| Windows sees | H2 preset may show |
+|---|---|
+| `[Monitor 1] [Monitor 2] [Monitor 3]` | `[Monitor 1] [Monitor 3]` |
+
+In that case, the cursor should not disappear into Monitor 2. `vp-cursor-portal` keeps the cursor inside visible zones, reverts from hidden zones, and moves across configured portal edges using ratio-based coordinate mapping.
+
+```mermaid
+flowchart LR
+    A["Execute profile"] --> B["Load H2 preset"]
+    B --> C{"ACK Ok?"}
+    C -- yes --> D["Apply cursor layout"]
+    C -- no --> E["Keep routing disabled if ACK is required"]
+    D --> F["Route cursor through visible portals"]
+    F --> G["Emergency unlock can stop routing at any time"]
+```
+
+Example topology:
 
 ```text
 [Monitor 1] [Monitor 2] [Monitor 3]
 ```
 
-while the active H2 preset may visually show only:
-
-```text
-[Monitor 1] [Monitor 3]
-```
-
-In that case, the cursor should not disappear into Monitor 2. H2 Cursor Router keeps the cursor inside visible zones, reverts from hidden zones, and moves across configured portal edges using ratio-based coordinate mapping.
-
 ## Current MVP Status
 
-Implemented:
-
-- WPF desktop app targeting `.NET 10` / `net10.0-windows`.
-- Separated projects for core domain logic, H2 UDP communication, Win32 integration, WPF app, and tests.
-- H2 `W0605` preset load command and `R0600` preset enum command.
-- UDP client with timeout handling and one in-flight H2 command at a time.
-- ACK parsing for success, failure, malformed JSON, and unexpected responses.
-- Pure cursor routing engine with visible-zone keep, hidden-zone revert, outside-zone revert, full-edge portals, segmented portals, and different-size visual rectangle mapping.
-- Polling-based Win32 cursor routing runtime.
-- Emergency unlock hotkey and UI action.
-- Monitor topology detection and topology-change safety shutdown.
-- Dashboard-first WPF workflow for profiles, H2 status, routing status, emergency unlock, layout editing, diagnostics, and logs.
-- Layout editor with detected monitor coordinates, scaled canvas, drag/resize, snapping, and auto portal generation.
-- Profile execution that can bind H2 preset only, cursor layout only, or both.
-- Installer and portable Windows artifact generation through GitHub Actions.
-
-Deferred:
-
-- X100 Pro support.
-- Generic TCP/UDP HEX console.
-- HTTP API / Stream Deck integration.
-- Low-level mouse hook mode.
-- Auto-discovery of the H2 visual layout from the processor.
-- Signed installer.
+| Status | Capability |
+|---|---|
+| Done | WPF desktop app targeting `.NET 10` / `net10.0-windows` |
+| Done | Separated Core, H2, Windows, App, and test projects |
+| Done | H2 `W0605` preset load and `R0600` preset enum commands |
+| Done | UDP timeout handling and one in-flight H2 command at a time |
+| Done | ACK parsing for success, failure, malformed JSON, and unexpected responses |
+| Done | Pure cursor routing engine for visible, hidden, outside, full-edge, segmented, and different-size visual mapping cases |
+| Done | Polling-based Win32 cursor routing runtime |
+| Done | Emergency unlock hotkey and UI action |
+| Done | Monitor topology detection and topology-change safety shutdown |
+| Done | Dashboard-first WPF workflow for profiles, H2 status, routing status, emergency unlock, layout editing, diagnostics, and logs |
+| Done | Layout editor with detected coordinates, scaled canvas, drag/resize, snapping, and auto portal generation |
+| Done | Profile execution for H2-only, cursor-layout-only, or combined actions |
+| Done | Portable ZIP and installer artifact generation through GitHub Actions |
+| Deferred | X100 Pro support |
+| Deferred | Generic TCP/UDP HEX console |
+| Deferred | HTTP API / Stream Deck integration |
+| Deferred | Low-level mouse hook mode |
+| Deferred | Auto-discovery of the H2 visual layout from the processor |
+| Deferred | Signed installer |
 
 ## Repository Layout
+
+The repository name and product name are `vp-cursor-portal`. The solution and C# project names still use `H2CursorRouter.*` because they were created before the final product name was settled.
 
 ```text
 H2CursorRouter.sln
@@ -85,6 +111,32 @@ Files intentionally not tracked:
 The app no longer requires a tracked `config.sample.json`. On a clean install it uses the built-in empty configuration from `SampleConfiguration.Create()`.
 
 ## Project Responsibilities
+
+```mermaid
+flowchart TB
+    App["H2CursorRouter.App<br/>WPF UI, dialogs, ViewModels, orchestration"]
+    Windows["H2CursorRouter.Windows<br/>Win32 cursor, monitors, hotkeys, startup"]
+    H2["H2CursorRouter.H2<br/>UDP commands, ACK parsing, preset enum"]
+    Core["H2CursorRouter.Core<br/>Pure domain, geometry, validation, profile planning"]
+    Tests["tests/*<br/>Core, H2, App behavior coverage"]
+
+    App --> Core
+    App --> H2
+    App --> Windows
+    Windows --> Core
+    H2 --> Core
+    Tests --> Core
+    Tests --> H2
+    Tests --> App
+```
+
+| Project | Owns | Must avoid |
+|---|---|---|
+| `H2CursorRouter.Core` | Domain models, geometry, routing decisions, validation, profile planning | WPF, Win32, sockets, real hardware |
+| `H2CursorRouter.H2` | NovaStar H2 UDP JSON commands and responses | UI state and cursor movement |
+| `H2CursorRouter.Windows` | Win32 cursor, monitor topology, hotkeys, startup registration | Business rules that belong in Core |
+| `H2CursorRouter.App` | WPF shell, composition, ViewModels, dialogs, user workflows | Geometry decisions that cannot be tested outside the UI |
+| `tests/*` | Behavior coverage around routing, H2, mapping, XAML bindings, log policy | Real H2 devices or real cursor movement |
 
 ### `H2CursorRouter.Core`
 
@@ -208,7 +260,20 @@ Runtime data is per-user:
 %AppData%\vp-cursor-portal\logs\
 ```
 
-Load order:
+Configuration load order:
+
+```mermaid
+flowchart TD
+    A["%AppData% config.json"] --> B{"Valid?"}
+    B -- yes --> Z["Use user config"]
+    B -- no / missing --> C["Legacy config beside exe"]
+    C --> D{"Valid?"}
+    D -- yes --> Z
+    D -- no / missing --> E["Optional config.sample.json beside exe"]
+    E --> F{"Valid?"}
+    F -- yes --> Z
+    F -- no / missing --> G["Built-in empty SampleConfiguration"]
+```
 
 1. `%AppData%\vp-cursor-portal\config.json`
 2. legacy `config.json` beside the executable, if present
@@ -230,23 +295,35 @@ The app writes `config.json` only when save or auto-save succeeds. ZIP replaceme
 
 A profile can reference:
 
-- only an H2 preset,
-- only a cursor layout,
-- both an H2 preset and cursor layout.
+| Profile binding | Behavior |
+|---|---|
+| H2 preset only | Send preset command, update H2 status, do not change cursor routing |
+| Cursor layout only | Activate cursor layout and routing without H2 communication |
+| H2 preset + cursor layout | Load preset first, then apply cursor layout if ACK policy allows it |
 
 For a profile with both H2 preset and cursor layout:
 
-```text
-1. Stop current routing if needed.
-2. Validate configuration.
-3. Send H2 W0605 preset load command.
-4. Wait for ACK or timeout.
-5. If ACK is required and not successful, do not apply the cursor layout.
-6. If ACK succeeded, wait profile PostAckDelayMs.
-7. Resolve start position.
-8. Activate cursor layout.
-9. Move cursor to start position.
-10. Start polling-based routing.
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant H2
+    participant Routing
+
+    User->>App: Execute profile
+    App->>Routing: Stop current routing if needed
+    App->>App: Validate configuration
+    App->>H2: Send W0605 preset load
+    H2-->>App: ACK / timeout / error
+    alt ACK required and not Ok
+        App->>Routing: Keep layout inactive
+    else ACK Ok or cursor-only allowed
+        App->>App: Wait PostAckDelayMs
+        App->>Routing: Resolve start position
+        App->>Routing: Activate layout
+        App->>Routing: Move cursor to start position
+        App->>Routing: Start polling runtime
+    end
 ```
 
 The UI shows the active profile/layout, H2 status, routing state, last routing event, and logs.
@@ -255,12 +332,26 @@ The UI shows the active profile/layout, H2 status, routing state, last routing e
 
 A cursor layout contains:
 
-- visible zones,
-- hidden zones,
-- Windows rectangles,
-- H2 visual rectangles,
-- portal edge mappings,
-- optional default start position.
+| Concept | Meaning |
+|---|---|
+| Visible zone | Monitor/source area that is visible in the active H2 layout |
+| Hidden zone | Windows monitor area that should not accept cursor travel for the active layout |
+| Windows rectangle | Real virtual-screen coordinates from Windows |
+| Visual rectangle | Where that source appears in the H2 output layout |
+| Portal edge | Ratio-based mapping from one zone edge segment to another |
+| Default start position | Safe fallback cursor position when a profile does not specify one |
+
+```mermaid
+flowchart LR
+    P["Previous point"] --> Engine["CursorRoutingEngine"]
+    C["Current point"] --> Engine
+    L["Active cursor layout"] --> Engine
+    V["Last valid point"] --> Engine
+    Engine --> K["Keep"]
+    Engine --> M["Move to portal target"]
+    Engine --> R["Revert to last valid point"]
+    Engine --> X["Reject unsafe layout"]
+```
 
 The routing engine is pure. It receives the active layout, previous cursor position, current cursor position, and last valid cursor position. It returns a `RoutingDecision`:
 
@@ -324,22 +415,26 @@ Do not remove or hide emergency controls from normal operation paths.
 
 ## Requirements
 
-Runtime:
-
-- Windows x64 for the WPF app and Win32 cursor routing.
-- NovaStar H Series / H2 reachable over UDP, normally port `6000`.
-
-Development:
-
-- .NET 10 SDK.
-- Windows is required to build and run the WPF app normally.
-- Inno Setup 6 is required only for local installer builds.
+| Use case | Requirement |
+|---|---|
+| Runtime OS | Windows x64 |
+| Target device | NovaStar H Series / H2 reachable over UDP, normally port `6000` |
+| Local development | .NET 10 SDK |
+| Full app build/run | Windows, because the WPF app targets `net10.0-windows` |
+| Local installer build | Inno Setup 6 |
 
 The GitHub Actions artifacts are self-contained Windows x64 builds, so the target PC does not need a separate .NET Desktop Runtime.
 
 ## Build, Test, Run
 
-On Windows:
+| Task | Command |
+|---|---|
+| Restore | `dotnet restore H2CursorRouter.sln` |
+| Build | `dotnet build H2CursorRouter.sln` |
+| Test | `dotnet test H2CursorRouter.sln` |
+| Run WPF app | `dotnet run --project src\H2CursorRouter.App\H2CursorRouter.App.csproj` |
+
+Windows command block:
 
 ```powershell
 dotnet restore H2CursorRouter.sln
@@ -358,6 +453,11 @@ dotnet test tests/H2CursorRouter.H2.Tests/H2CursorRouter.H2.Tests.csproj
 Do not downgrade the target framework from .NET 10 to make a local machine pass.
 
 ## Publishing
+
+| Output | Command | Path |
+|---|---|---|
+| Portable app folder | `.\scripts\publish-windows.ps1` | `artifacts\vp-cursor-portal-win-x64\` |
+| Installer | `.\scripts\publish-windows.ps1 -BuildInstaller` | `artifacts\installer\vp-cursor-portal-setup.exe` |
 
 Local Windows publish:
 
@@ -400,12 +500,12 @@ The installer:
 
 Workflow: `.github/workflows/windows-build.yml`
 
-Triggers:
-
-- pushes to `main`, `master`, or `codex-initial-mvp`,
-- pull requests,
-- manual dispatch,
-- version tags matching `v*`.
+| Trigger | Result |
+|---|---|
+| Push to `main`, `master`, or `codex-initial-mvp` | Build, test, publish ZIP and installer artifacts |
+| Pull request | Build, test, publish artifacts for review |
+| Manual dispatch | On-demand build |
+| Version tag matching `v*` | Build, test, publish artifacts, and upload GitHub Release assets |
 
 The workflow:
 
@@ -417,10 +517,10 @@ The workflow:
 6. builds the Inno Setup installer,
 7. uploads artifacts.
 
-Artifacts:
-
-- `vp-cursor-portal-win-x64` - portable self-contained app folder
-- `vp-cursor-portal-setup` - Program Files installer
+| Artifact | Contains |
+|---|---|
+| `vp-cursor-portal-win-x64` | Portable self-contained app folder |
+| `vp-cursor-portal-setup` | Program Files installer |
 
 GitHub Release assets are uploaded only for tags like `v0.1.0`.
 
@@ -464,31 +564,20 @@ Avoid:
 
 ## Test Coverage Map
 
-Core tests:
+| Test project | Primary coverage |
+|---|---|
+| `H2CursorRouter.Core.Tests` | Cursor routing decisions, hidden/outside-zone rejection, portal selection, full-edge and segmented mapping, validation, profile planning |
+| `H2CursorRouter.H2.Tests` | Command serialization, ACK parsing, malformed responses, fake UDP integration cases |
+| `H2CursorRouter.App.Tests` | Row/config mapping, profile execution service, layout editing helpers, monitor-zone matching, XAML binding surface, log retention/noise policy, MainViewModel facade behavior |
 
-- cursor routing decisions,
-- hidden/outside-zone rejection,
-- portal selection,
-- full-edge and segmented mapping,
-- validation,
-- profile planning.
-
-H2 tests:
-
-- command serialization,
-- ACK parsing,
-- malformed responses,
-- fake UDP integration cases.
-
-App tests:
-
-- row/config mapping,
-- profile execution service,
-- layout editing helpers,
-- monitor-zone matching,
-- XAML binding surface,
-- log retention/noise policy,
-- MainViewModel facade behavior.
+```mermaid
+flowchart LR
+    CoreTests["Core tests"] --> Routing["Routing math"]
+    CoreTests --> Validation["Validation"]
+    H2Tests["H2 tests"] --> Protocol["UDP JSON protocol"]
+    AppTests["App tests"] --> Workflow["UI-facing workflow services"]
+    AppTests --> Bindings["XAML binding surface"]
+```
 
 ## License, Notices, And About Dialog
 
