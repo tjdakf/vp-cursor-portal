@@ -770,6 +770,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         var index = Layouts.Count + 1;
         var row = new LayoutRow { Id = $"layout-{index}", Name = $"Layout {index}" };
+        row.Displays = "No displays";
         Layouts.Add(row);
         SelectedLayout = row;
     }
@@ -1008,7 +1009,8 @@ public sealed class MainViewModel : ViewModelBase
             Name = name.Trim(),
             Description = SelectedLayout.Description,
             DefaultStartX = _selectedLayoutDraftStartPosition?.X,
-            DefaultStartY = _selectedLayoutDraftStartPosition?.Y
+            DefaultStartY = _selectedLayoutDraftStartPosition?.Y,
+            Displays = FormatLayoutDisplays(SelectedLayoutZones)
         };
         Layouts.Add(newLayout);
 
@@ -1068,6 +1070,7 @@ public sealed class MainViewModel : ViewModelBase
 
         SelectedLayout.DefaultStartX = _selectedLayoutDraftStartPosition?.X;
         SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
+        SelectedLayout.Displays = FormatLayoutDisplays(SelectedLayoutZones);
         OnPropertyChanged(nameof(SelectedLayout));
         AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals. Use Save Config to persist it to config.json.");
     }
@@ -1157,12 +1160,12 @@ public sealed class MainViewModel : ViewModelBase
         StopRouting(clearLayout: true);
         LoadConfigurationIntoRows(SampleConfiguration.Create());
         ActiveProfileName = "";
-        LastH2AckStatus = "No H2 command sent since sample reset.";
-        LastRoutingEvent = "Sample configuration loaded in memory; Save Config has not been run.";
+        LastH2AckStatus = "No H2 command sent since configuration reset.";
+        LastRoutingEvent = "Empty bundled configuration loaded in memory; Save Config has not been run.";
         RefreshDiagnostics();
         ValidateConfiguration();
         HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog("Loaded bundled sample configuration in memory. Use Save Config to write it to config.json.");
+        AddLog("Loaded empty bundled configuration in memory. Use Save Config to write it to config.json.");
     }
 
     private void SetCurrentCursorAsProfileStart()
@@ -1368,6 +1371,9 @@ public sealed class MainViewModel : ViewModelBase
             start,
             string.IsNullOrWhiteSpace(layout.Description) ? null : layout.Description);
     }
+
+    private static string FormatLayoutDisplays(IEnumerable<ZoneRow> zones) =>
+        LayoutRow.FormatDisplays(zones.Select(zone => zone.ToModel()));
 
     private void ShowValidation(ValidationResult validation)
     {

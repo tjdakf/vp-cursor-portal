@@ -56,7 +56,7 @@ These decisions are fixed unless the user explicitly changes them.
 | Safety | Mandatory from the first version |
 | Current H2 test host | `192.168.0.11` |
 | Current test topology | `DISPLAY2 -> DISPLAY1 -> DISPLAY3` in Windows coordinates |
-| Current default profiles | `Ctrl+Alt+1` through `Ctrl+Alt+5`, all calling H2 preset 1 / `presetId 0` |
+| Current default profiles | None in the bundled clean configuration; users create profiles explicitly |
 
 ---
 
@@ -619,17 +619,12 @@ Implement:
 
 ## 11. Configuration sample shape
 
-`config.sample.json` is the source of truth for the current test-ready MVP sample.
+`config.sample.json` is the source of truth for the bundled clean MVP configuration.
 
-Current default H2 settings:
+Current bundled H2 settings:
 
 ```text
-host: 192.168.0.11
-port: 6000
-deviceId: 0
-screenId: 0
-presetId: 0
-display: Preset 1 / presetId 0
+none
 ```
 
 Current Windows test topology:
@@ -642,14 +637,10 @@ DISPLAY1: 1920,0 to 3840,1080 = user-facing Monitor 2
 DISPLAY3: 3840,0 to 5760,1080 = user-facing Monitor 3
 ```
 
-Current default profiles:
+Current bundled default profiles:
 
 ```text
-Ctrl+Alt+1: Preset 1 + Monitor 1/3 Tunnel
-Ctrl+Alt+2: Preset 1 + Monitor 3/1 Tunnel Reversed
-Ctrl+Alt+3: Preset 1 + Monitor 2 Only
-Ctrl+Alt+4: Preset 1 + Monitor 1/2 Tunnel
-Ctrl+Alt+5: Preset 1 + Monitor 1 Large 2/3 Stack
+none
 ```
 
 Important config rules:
@@ -770,8 +761,8 @@ Implemented:
 - WPF shell with a dashboard-first workflow, profile execution cards, simplified layout workflow, H2/preset controls, diagnostics, advanced raw zone/portal editing, validation, runtime status, and logs.
 - Scaled layout preview with drag/resize, snapping, detected-coordinate application, and auto portal generation.
 - Throttled routing decision diagnostics and dashboard display for last H2 ACK / last routing event.
-- In-memory reset to bundled sample configuration; `config.json` is only written by explicit save.
-- Default test profiles for the current H2 test setup.
+- In-memory reset to bundled empty configuration; `config.json` is only written by explicit save.
+- Clean bundled configuration with no default test profiles; field-test profiles are created by the user.
 - GitHub Actions Windows build/test/publish artifact flow.
 
 Known MVP limitations:
@@ -857,7 +848,7 @@ Tasks:
 
 Goal: make field testing easier when routing or H2 behavior is wrong.
 
-Status: partially completed. Profile steps, H2 ACK, active layout/routing state, current cursor zone, sample reset, and throttled routing decision logs are visible. Diagnostic bundle export is still open.
+Status: partially completed. Profile steps, H2 ACK, active layout/routing state, current cursor zone, configuration reset, and throttled routing decision logs are visible. Diagnostic bundle export is still open.
 
 Tasks:
 
@@ -870,7 +861,7 @@ Tasks:
 - Log portal decisions at a throttled rate.
 - Show last portal decision in the runtime screen.
 - Add a visible "current cursor zone" under the active layout.
-- Add config migration or "reset to bundled sample config" action.
+- Add config migration or "reset to bundled empty config" action.
 - Add a "copy diagnostic bundle" action with config, logs, monitor topology, and app version.
 
 ### Phase 5: Distribution and release hygiene

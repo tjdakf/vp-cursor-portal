@@ -354,8 +354,25 @@
                             <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
-                                    <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*" />
-                                    <DataGridTextColumn Header="Internal Id" Binding="{Binding Id}" Width="170" />
+                                    <DataGridTemplateColumn Header="Description" Width="2*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,5" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding Description, UpdateSourceTrigger=LostFocus}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="56" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Displays" Width="3*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Displays}" TextWrapping="Wrap" Margin="0,5" Style="{StaticResource MutedTextStyle}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>

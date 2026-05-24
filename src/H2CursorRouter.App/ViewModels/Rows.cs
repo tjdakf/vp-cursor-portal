@@ -60,13 +60,20 @@ public sealed class PresetRow
     public string DisplayName { get; set; } = "";
 }
 
-public sealed class LayoutRow
+public sealed class LayoutRow : ViewModelBase
 {
+    private string _displays = "";
+
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
     public int? DefaultStartX { get; set; }
     public int? DefaultStartY { get; set; }
+    public string Displays
+    {
+        get => _displays;
+        set => SetProperty(ref _displays, value);
+    }
 
     public static LayoutRow FromModel(CursorLayout layout) => new()
     {
@@ -74,8 +81,20 @@ public sealed class LayoutRow
         Name = layout.Name,
         Description = layout.Description ?? "",
         DefaultStartX = layout.DefaultStartPosition?.X,
-        DefaultStartY = layout.DefaultStartPosition?.Y
+        DefaultStartY = layout.DefaultStartPosition?.Y,
+        Displays = FormatDisplays(layout.Zones)
     };
+
+    public static string FormatDisplays(IEnumerable<CursorZone> zones)
+    {
+        var labels = zones
+            .Where(zone => zone.IsVisible)
+            .Select(zone => string.IsNullOrWhiteSpace(zone.DisplayName) ? zone.Id : $"{zone.DisplayName} ({zone.Id})")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return labels.Length == 0 ? "No displays" : string.Join(", ", labels);
+    }
 }
 
 public sealed class ZoneRow : ViewModelBase
