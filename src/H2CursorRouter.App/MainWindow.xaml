@@ -168,7 +168,6 @@
                                 <StackPanel>
                                     <TextBlock Text="Startup" Style="{StaticResource SectionTitleStyle}" />
                                     <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" Margin="0,2,0,0" />
-                                    <Button Content="About" Click="AboutButton_OnClick" Style="{StaticResource SecondaryButtonStyle}" Margin="0,12,0,0" />
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -581,6 +580,58 @@
                             </Border>
                         </Expander>
                     </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="About">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="420" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.ColumnSpan="2" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="112" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="Assets/app-icon-512.png"
+                                       Width="96"
+                                       Height="96"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       VerticalAlignment="Top" />
+                                <StackPanel Grid.Column="1" Margin="22,0,0,0">
+                                    <TextBlock Text="vp-cursor-portal" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                    <TextBlock Text="{Binding AppVersion, StringFormat=Version {0}}" FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding AppDescription}" FontSize="15" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" Margin="0,18,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="Runtime Paths" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Text="Config" Style="{StaticResource MutedTextStyle}" Margin="0,12,0,3" />
+                                <TextBlock Text="{Binding ConfigPath}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                <TextBlock Text="Logs" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,3" />
+                                <TextBlock Text="{Binding LogDirectory}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="License" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock Text="{Binding AppLicenseSummary}" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+                                <TextBlock Text="Copyright (c) 2026 vp-cursor-portal contributors" Style="{StaticResource MutedTextStyle}" Margin="0,14,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </ScrollViewer>
             </TabItem>
         </TabControl>

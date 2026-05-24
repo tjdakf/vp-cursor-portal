@@ -1,11 +1,9 @@
 using System.ComponentModel;
 using System.Drawing;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
-using System.Windows.Media.Imaging;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Windows;
 using Forms = System.Windows.Forms;
@@ -198,75 +196,6 @@ public partial class MainWindow : Window
     {
         Close();
     }
-
-    private void AboutButton_OnClick(object sender, RoutedEventArgs e)
-    {
-        var dialog = new AppDialogWindow("About vp-cursor-portal", CreateAboutContent())
-        {
-            Owner = this
-        };
-        dialog.ShowDialog();
-    }
-
-    private UIElement CreateAboutContent()
-    {
-        var version = Assembly.GetExecutingAssembly()
-                          .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                          ?.InformationalVersion
-                      ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-                      ?? "unknown";
-
-        var panel = new StackPanel
-        {
-            Width = 560
-        };
-
-        panel.Children.Add(new System.Windows.Controls.Image
-        {
-            Source = new BitmapImage(new Uri("pack://application:,,,/Assets/app.ico", UriKind.Absolute)),
-            Width = 72,
-            Height = 72,
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-            Margin = new Thickness(0, 0, 0, 14)
-        });
-        panel.Children.Add(CreateAboutText("vp-cursor-portal", 24, FontWeights.SemiBold, "TextBrush"));
-        panel.Children.Add(CreateAboutText($"Version {version}", 13, FontWeights.Normal, "MutedTextBrush"));
-        panel.Children.Add(CreateAboutText(
-            "Windows cursor routing and H2 preset control for a single NovaStar H Series / H2 processor setup.",
-            14,
-            FontWeights.Normal,
-            "TextBrush",
-            new Thickness(0, 16, 0, 14)));
-
-        panel.Children.Add(CreateAboutText("Paths", 15, FontWeights.SemiBold, "TextBrush"));
-        panel.Children.Add(CreateAboutText($"Config: {_viewModel.ConfigPath}", 12, FontWeights.Normal, "MutedTextBrush"));
-        panel.Children.Add(CreateAboutText($"Logs: {_viewModel.LogDirectory}", 12, FontWeights.Normal, "MutedTextBrush", new Thickness(0, 2, 0, 14)));
-
-        panel.Children.Add(CreateAboutText("License", 15, FontWeights.SemiBold, "TextBrush"));
-        panel.Children.Add(CreateAboutText(
-            "No public open-source license is declared yet. Treat this build as proprietary/internal unless a separate license is provided.",
-            12,
-            FontWeights.Normal,
-            "MutedTextBrush"));
-
-        return panel;
-    }
-
-    private TextBlock CreateAboutText(
-        string text,
-        double fontSize,
-        FontWeight fontWeight,
-        string brushResource,
-        Thickness? margin = null) =>
-        new()
-        {
-            Text = text,
-            FontSize = fontSize,
-            FontWeight = fontWeight,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = TryFindResource(brushResource) as System.Windows.Media.Brush,
-            Margin = margin ?? new Thickness(0, 0, 0, 4)
-        };
 
     private void MainTabs_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {

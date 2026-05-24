@@ -79,9 +79,13 @@ The repository name and product name are `vp-cursor-portal`. The solution and C#
 ```text
 H2CursorRouter.sln
 README.md
+LICENSE
 
 .github/workflows/
   windows-build.yml
+
+docs/releases/
+  v0.1.0.md
 
 installer/inno/
   vp-cursor-portal.iss
@@ -543,6 +547,25 @@ git push origin v0.1.0
 
 The tag workflow creates release assets.
 
+For `v0.1.0`, the release body is read from `docs/releases/v0.1.0.md`.
+
+## Code Signing And SmartScreen
+
+The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning when users run the installer or executable.
+
+Code signing requires a certificate from a trusted certificate authority. The project can support signing in the build pipeline after a certificate is available, but the certificate purchase, identity verification, and secret storage must be handled by the project owner.
+
+Recommended path:
+
+| Stage | Action |
+|---|---|
+| MVP / field test | Keep unsigned artifacts and mention the SmartScreen warning in release notes |
+| Public release | Buy an OV or EV code signing certificate |
+| CI integration | Store signing certificate/password as GitHub Actions secrets |
+| Installer build | Sign the app executable and installer during the Windows workflow |
+
+EV certificates usually reduce SmartScreen friction faster, but they cost more and require stricter verification. OV certificates are more common for small projects, but reputation may take time to build.
+
 ## Development Guidelines
 
 Use this order when changing behavior:
@@ -579,25 +602,18 @@ flowchart LR
     AppTests --> Bindings["XAML binding surface"]
 ```
 
-## License, Notices, And About Dialog
+## License, Notices, And About Tab
 
-No open-source license is currently declared in this repository. Without a license, copyright is retained by the owner by default and third parties should not assume redistribution or modification rights.
+`vp-cursor-portal` is released as open-source software under the MIT License. See `LICENSE`.
 
-Before a public or customer-facing release, choose one of these policies:
-
-- Open source: add a `LICENSE` file such as MIT or Apache-2.0.
-- Proprietary/internal: add a clear proprietary license, EULA, or private repository notice.
-- Customer handoff: include a short license/EULA in the installer and release notes.
-
-The app includes an About dialog from the dashboard Startup section. It currently shows:
+The app includes an About tab below Advanced. It currently shows:
 
 - product name: `vp-cursor-portal`,
 - app version,
-- informational version/build metadata when present,
-- license summary,
+- MIT license summary,
 - config/log path,
 - app icon.
 
-Before a broader release, consider adding publisher/company name, copyright, support/contact details, and a third-party notices link or bundled notice file.
+Before a broader public release, consider adding publisher/company name, support/contact details, and a third-party notices link or bundled notice file.
 
 The project currently uses the .NET runtime, WPF/WinForms platform libraries, GitHub Actions, and Inno Setup for installer generation. Review their license requirements before a formal public release.

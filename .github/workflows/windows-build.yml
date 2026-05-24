@@ -110,9 +110,4 @@ jobs:
           files: |
             artifacts/vp-cursor-portal-win-x64.zip
             artifacts/installer/vp-cursor-portal-setup.exe
-          body: |
-            MVP Windows release for H2 Cursor Router.
-
-            Assets:
-            - vp-cursor-portal-setup.exe: Program Files installer
-            - vp-cursor-portal-win-x64.zip: self-contained portable folder
+          body_path: docs/releases/v0.1.0.md

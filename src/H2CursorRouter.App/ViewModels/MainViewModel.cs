@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reflection;
 using System.Windows.Data;
 using System.Windows.Input;
 using H2CursorRouter.App;
@@ -262,8 +263,22 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
     public ICommand IdentifyDisplaysCommand { get; }
+    public string AppVersion { get; } = CreateDisplayVersion();
+    public string AppDescription { get; } = "Windows cursor routing and video processor preset control for multi-display workstations.";
+    public string AppLicenseSummary { get; } = "Released as open-source software under the MIT License.";
     public string ConfigPath => _configPath;
     public string LogDirectory => _fileLogService.LogDirectory;
+
+    private static string CreateDisplayVersion()
+    {
+        var informationalVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+        var version = string.IsNullOrWhiteSpace(informationalVersion)
+            ? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+            : informationalVersion;
+        return (version ?? "unknown").Split('+', 2)[0];
+    }
 
     public DeviceRow? SelectedDevice
     {

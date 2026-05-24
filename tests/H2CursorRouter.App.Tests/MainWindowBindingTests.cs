@@ -118,6 +118,11 @@ public sealed class MainWindowBindingTests
     [InlineData("DisplayPreviewCanvasHeight")]
     [InlineData("ValidationErrors")]
     [InlineData("Logs")]
+    [InlineData("AppVersion")]
+    [InlineData("AppDescription")]
+    [InlineData("AppLicenseSummary")]
+    [InlineData("ConfigPath")]
+    [InlineData("LogDirectory")]
     public void MainViewModelKeepsCriticalBindingProperties(string propertyName)
     {
         Assert.NotNull(typeof(MainViewModel).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public));
