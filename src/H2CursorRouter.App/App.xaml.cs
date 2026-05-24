@@ -12,6 +12,8 @@ namespace H2CursorRouter.App;
 
 public partial class App : System.Windows.Application
 {
+    private const string AppDataFolderName = "vp-cursor-portal";
+
     private CursorRoutingRuntime? _runtime;
     private IMonitorTopologyService? _monitorTopology;
     private IHotkeyService? _hotkeyService;
@@ -26,7 +28,7 @@ public partial class App : System.Windows.Application
 
         var (configuration, configPath) = await LoadConfigurationAsync();
         var executablePath = Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location;
-        var fileLogService = new FileLogService(Path.Combine(AppContext.BaseDirectory, "logs"));
+        var fileLogService = new FileLogService(Path.Combine(GetUserDataDirectory(), "logs"));
         var viewModel = new MainViewModel(
             configuration,
             configPath,
@@ -62,12 +64,19 @@ public partial class App : System.Windows.Application
     {
         var configService = new ConfigFileService();
         var baseDirectory = AppContext.BaseDirectory;
-        var configPath = Path.Combine(baseDirectory, "config.json");
+        var userDataDirectory = GetUserDataDirectory();
+        var configPath = Path.Combine(userDataDirectory, "config.json");
+        var legacyConfigPath = Path.Combine(baseDirectory, "config.json");
         var sampleConfigPath = Path.Combine(baseDirectory, "config.sample.json");
 
         if (File.Exists(configPath))
         {
             return (await configService.LoadAsync(configPath), configPath);
+        }
+
+        if (File.Exists(legacyConfigPath))
+        {
+            return (await configService.LoadAsync(legacyConfigPath), configPath);
         }
 
         if (File.Exists(sampleConfigPath))
@@ -76,5 +85,13 @@ public partial class App : System.Windows.Application
         }
 
         return (SampleConfiguration.Create(), configPath);
+    }
+
+    private static string GetUserDataDirectory()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var directory = Path.Combine(appData, AppDataFolderName);
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 }

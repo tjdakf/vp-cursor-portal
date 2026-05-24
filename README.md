@@ -37,7 +37,7 @@ dotnet test tests/H2CursorRouter.Core.Tests/H2CursorRouter.Core.Tests.csproj
 dotnet test tests/H2CursorRouter.H2.Tests/H2CursorRouter.H2.Tests.csproj
 ```
 
-## Windows Publish Artifact
+## Windows Publish And Installer Artifacts
 
 On a Windows machine with the .NET 10 SDK:
 
@@ -57,19 +57,41 @@ Run:
 artifacts\vp-cursor-portal-win-x64\H2CursorRouter.App.exe
 ```
 
-If this repository is pushed to GitHub, the `Windows Build` workflow also builds, tests, publishes, and uploads a self-contained `vp-cursor-portal-win-x64` artifact from a Windows runner.
+To also build the installer locally, install Inno Setup 6 and run:
+
+```powershell
+.\scripts\publish-windows.ps1 -BuildInstaller
+```
+
+This additionally writes:
+
+```text
+artifacts\installer\vp-cursor-portal-setup.exe
+```
+
+If this repository is pushed to GitHub, the `Windows Build` workflow builds, tests, publishes, and uploads both artifacts from a Windows runner:
+
+- `vp-cursor-portal-win-x64` - self-contained zip-style app folder
+- `vp-cursor-portal-setup` - Program Files installer built with Inno Setup
 
 Field-test handoff flow:
 
 1. Open the GitHub Actions run named `Windows Build`.
-2. Download the `vp-cursor-portal-win-x64` artifact.
-3. Unzip it on the Windows x64 test PC.
-4. Run `H2CursorRouter.App.exe`.
-5. If the test PC already has `config.json`, decide whether to keep it or reset to the bundled empty configuration, then save.
+2. Download either the `vp-cursor-portal-win-x64` artifact or the `vp-cursor-portal-setup` artifact.
+3. For the zip-style artifact, unzip it and run `H2CursorRouter.App.exe`.
+4. For the installer artifact, run `vp-cursor-portal-setup.exe`; it installs to `Program Files` and creates a Start Menu shortcut.
+5. During uninstall, choose whether to also remove user configuration and logs.
 
 ## Configuration
 
-The bundled `config.sample.json` starts empty by default: no H2 devices, no cursor layouts, and no profiles. Create a local `config.json` beside the executable or run directory by adding devices, layouts, and profiles in the app. Presets use zero-based H2 IDs internally while display names can use friendly numbers, for example:
+The bundled `config.sample.json` starts empty by default: no H2 devices, no cursor layouts, and no profiles. Runtime configuration and logs are stored per user:
+
+```text
+%AppData%\vp-cursor-portal\config.json
+%AppData%\vp-cursor-portal\logs\
+```
+
+The app falls back to a legacy `config.json` beside the executable only when no AppData config exists, then saves future changes to AppData. Presets use zero-based H2 IDs internally while display names can use friendly numbers, for example:
 
 ```text
 Preset 1 / presetId 0
@@ -77,7 +99,7 @@ Preset 1 / presetId 0
 
 For profile execution with both an H2 preset and cursor layout, the app sends `W0605`, waits for `ack:"Ok"`, waits `postAckDelayMs`, applies the cursor layout, moves to the profile start position or fallback start point, then starts polling-based routing.
 
-The dashboard reset action reloads an empty `SampleConfiguration.Create()` into memory only. It does not overwrite `config.json` until `Save Config` succeeds.
+The dashboard reset action, when exposed in the UI, reloads an empty `SampleConfiguration.Create()` into memory only. It does not overwrite `config.json` until `Save Config` succeeds.
 
 ## Safety
 
@@ -92,6 +114,5 @@ Use a test profile and keep the emergency hotkey available while validating real
 - Stream Deck integration
 - Drag-and-drop layout editor
 - Low-level mouse hook mode
-- Installer packaging
 - Generic TCP/UDP HEX console
 - Auto-discovery of H2 visual layouts

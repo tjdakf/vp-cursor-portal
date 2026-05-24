@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - master
+      - codex-initial-mvp
   pull_request:
 
 jobs:
@@ -41,8 +42,24 @@ jobs:
       - name: Include sample config
         run: copy config.sample.json artifacts\vp-cursor-portal-win-x64\config.sample.json
 
-      - name: Upload Windows artifact
+      - name: Install Inno Setup
+        run: choco install innosetup --yes
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts\installer | Out-Null
+          $publishDir = (Resolve-Path artifacts\vp-cursor-portal-win-x64).Path
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DPublishDir=$publishDir" installer\inno\vp-cursor-portal.iss
+
+      - name: Upload Windows zip artifact
         uses: actions/upload-artifact@v4
         with:
           name: vp-cursor-portal-win-x64
           path: artifacts\vp-cursor-portal-win-x64
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vp-cursor-portal-setup
+          path: artifacts\installer\vp-cursor-portal-setup.exe
