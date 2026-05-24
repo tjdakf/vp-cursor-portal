@@ -993,7 +993,7 @@ public sealed class MainViewModel : ViewModelBase
             zone.WindowsTop = monitor.Top;
             zone.WindowsRight = monitor.Right;
             zone.WindowsBottom = monitor.Bottom;
-            zone.DisplayName = NormalizeDeviceName(monitor.DeviceName);
+            zone.DisplayName = monitor.DeviceName;
             changed++;
         }
 
@@ -1017,6 +1017,7 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
+        RefreshSelectedLayoutWindowsCoordinatesFromDetectedDisplays();
         AttachAllDraftZonesToNearest();
         var visibleZones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
         if (visibleZones.Length == 0)
@@ -1428,13 +1429,26 @@ public sealed class MainViewModel : ViewModelBase
             layout.Id,
             layout.Name,
             Zones.Where(zone => string.Equals(zone.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
-                .Select(zone => zone.ToModel())
+                .Select(BuildZone)
                 .ToArray(),
             Portals.Where(portal => string.Equals(portal.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase))
                 .Select(portal => portal.ToModel())
                 .ToArray(),
             start,
             string.IsNullOrWhiteSpace(layout.Description) ? null : layout.Description);
+    }
+
+    private CursorZone BuildZone(ZoneRow zone)
+    {
+        var model = zone.ToModel();
+        var monitor = FindMonitorForZone(zone, Monitors);
+        return monitor is null
+            ? model
+            : model with
+            {
+                WindowsRect = new IntRect(monitor.Left, monitor.Top, monitor.Right, monitor.Bottom),
+                DisplayName = zone.DisplayName
+            };
     }
 
     private static string FormatLayoutDisplays(IEnumerable<ZoneRow> zones) =>
@@ -1890,18 +1904,45 @@ public sealed class MainViewModel : ViewModelBase
             return direct;
         }
 
-        var ordinal = TryParseMonitorOrdinal(zone.Id)
-            ?? TryParseMonitorOrdinal(zone.DisplayName);
-        if (ordinal is not null && ordinal.Value >= 1 && ordinal.Value <= orderedMonitors.Count)
-        {
-            return orderedMonitors[ordinal.Value - 1];
-        }
-
         return orderedMonitors.FirstOrDefault(monitor =>
             zone.WindowsLeft == monitor.Left &&
             zone.WindowsTop == monitor.Top &&
             zone.WindowsRight == monitor.Right &&
             zone.WindowsBottom == monitor.Bottom);
+    }
+
+    private int RefreshSelectedLayoutWindowsCoordinatesFromDetectedDisplays()
+    {
+        if (Monitors.Count == 0)
+        {
+            return 0;
+        }
+
+        var changed = 0;
+        foreach (var zone in SelectedLayoutZones)
+        {
+            var monitor = FindMonitorForZone(zone, Monitors);
+            if (monitor is null)
+            {
+                continue;
+            }
+
+            if (zone.WindowsLeft == monitor.Left &&
+                zone.WindowsTop == monitor.Top &&
+                zone.WindowsRight == monitor.Right &&
+                zone.WindowsBottom == monitor.Bottom)
+            {
+                continue;
+            }
+
+            zone.WindowsLeft = monitor.Left;
+            zone.WindowsTop = monitor.Top;
+            zone.WindowsRight = monitor.Right;
+            zone.WindowsBottom = monitor.Bottom;
+            changed++;
+        }
+
+        return changed;
     }
 
     private double SnapHorizontal(ZoneRow zone, double proposedLeft, double width)
@@ -2025,20 +2066,6 @@ public sealed class MainViewModel : ViewModelBase
 
         return currentStart;
     }
-
-    private static int? TryParseMonitorOrdinal(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        var digits = new string(text.Where(char.IsDigit).ToArray());
-        return int.TryParse(digits, out var ordinal) ? ordinal : null;
-    }
-
-    private static string NormalizeDeviceName(string deviceName) =>
-        deviceName.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase);
 
     private static void AddVerticalAdjacency(ZoneRow left, ZoneRow right, double tolerance, ICollection<PortalRow> portals)
     {

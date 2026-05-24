@@ -38,7 +38,14 @@ public sealed class CursorRoutingRuntime : IDisposable
 
     public void ActivateLayout(CursorLayout layout, CursorPoint startPosition, TimeSpan pollInterval)
     {
-        var runtimeLayout = AddHiddenTopologyZones(layout);
+        var monitors = GetCurrentMonitors();
+        var runtimeLayout = RebindLayoutToCurrentMonitorBounds(layout, monitors, out var reboundCount);
+        if (reboundCount > 0)
+        {
+            LogMessage($"Updated {reboundCount} layout zone(s) from the current Windows monitor coordinates.");
+        }
+
+        runtimeLayout = AddHiddenTopologyZones(runtimeLayout, monitors);
         var validation = _layoutValidator.Validate(runtimeLayout);
         if (!validation.IsValid)
         {
@@ -165,16 +172,76 @@ public sealed class CursorRoutingRuntime : IDisposable
         LogMessage("Monitor topology changed: routing disabled until layouts are revalidated.");
     }
 
-    private CursorLayout AddHiddenTopologyZones(CursorLayout layout)
+    private IReadOnlyList<MonitorInfo> GetCurrentMonitors()
     {
-        IReadOnlyList<MonitorInfo> monitors;
         try
         {
-            monitors = _monitorTopologyService.GetMonitors();
+            return _monitorTopologyService.GetMonitors();
         }
         catch (Exception ex)
         {
-            LogMessage($"Could not augment layout from monitor topology: {ex.Message}");
+            LogMessage($"Could not read monitor topology: {ex.Message}");
+            return [];
+        }
+    }
+
+    private static CursorLayout RebindLayoutToCurrentMonitorBounds(
+        CursorLayout layout,
+        IReadOnlyList<MonitorInfo> monitors,
+        out int reboundCount)
+    {
+        reboundCount = 0;
+        if (monitors.Count == 0)
+        {
+            return layout;
+        }
+
+        var zones = new List<CursorZone>(layout.Zones.Count);
+        foreach (var zone in layout.Zones)
+        {
+            var monitor = FindMatchingMonitor(zone, monitors);
+            if (monitor is not null && zone.WindowsRect != monitor.Bounds)
+            {
+                zones.Add(zone with { WindowsRect = monitor.Bounds });
+                reboundCount++;
+                continue;
+            }
+
+            zones.Add(zone);
+        }
+
+        return reboundCount == 0 ? layout : layout with { Zones = zones };
+    }
+
+    private static MonitorInfo? FindMatchingMonitor(CursorZone zone, IReadOnlyList<MonitorInfo> monitors)
+    {
+        var zoneId = NormalizeDisplayKey(zone.Id);
+        var displayName = NormalizeDisplayKey(zone.DisplayName);
+        return monitors.FirstOrDefault(monitor =>
+        {
+            var monitorName = NormalizeDisplayKey(monitor.DeviceName);
+            return string.Equals(monitorName, zoneId, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(monitorName, displayName, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private static string NormalizeDisplayKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Replace(@"\\.\", "", StringComparison.OrdinalIgnoreCase).Trim();
+        return new string(normalized
+            .Where(character => char.IsLetterOrDigit(character) || character is '_' or '-')
+            .ToArray());
+    }
+
+    private CursorLayout AddHiddenTopologyZones(CursorLayout layout, IReadOnlyList<MonitorInfo> monitors)
+    {
+        if (monitors.Count == 0)
+        {
             return layout;
         }
 

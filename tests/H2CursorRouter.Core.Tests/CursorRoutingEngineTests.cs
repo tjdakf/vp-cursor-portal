@@ -106,6 +106,30 @@ public sealed class CursorRoutingEngineTests
     }
 
     [Fact]
+    public void PortalMappingPreservesNegativeWindowsCoordinates()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("display3", "Left display", new IntRect(-1920, 0, 0, 1080), new VisualRect(0, 0, 1920, 1080), true),
+                new CursorZone("display1", "Right display", new IntRect(1920, 0, 3840, 1080), new VisualRect(1920, 0, 3840, 1080), true)
+            ],
+            [
+                new CursorPortal("display3", Edge.Right, new EdgeRange(0, 1), "display1", Edge.Left, new EdgeRange(0, 1)),
+                new CursorPortal("display1", Edge.Left, new EdgeRange(0, 1), "display3", Edge.Right, new EdgeRange(0, 1))
+            ]);
+
+        var leftToRight = _engine.Evaluate(layout, new CursorPoint(-1, 270), new CursorPoint(0, 270), new CursorPoint(-1, 270));
+        var rightToLeft = _engine.Evaluate(layout, new CursorPoint(1920, 810), new CursorPoint(1919, 810), new CursorPoint(1920, 810));
+
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, leftToRight.Kind);
+        Assert.Equal(new CursorPoint(1920, 270), leftToRight.Target);
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, rightToLeft.Kind);
+        Assert.Equal(new CursorPoint(-1, 810), rightToLeft.Target);
+    }
+
+    [Fact]
     public void SegmentedPortalMapsWithinSelectedRange()
     {
         var layout = new CursorLayout(

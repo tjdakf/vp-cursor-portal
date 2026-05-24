@@ -9,6 +9,7 @@ using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using WpfOrientation = System.Windows.Controls.Orientation;
 using WpfPanel = System.Windows.Controls.Panel;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WpfApplication = System.Windows.Application;
 
 namespace H2CursorRouter.App;
 
@@ -74,14 +75,9 @@ public sealed class ProfileDialogService : IProfileDialogService
             RefreshPresetChoices();
         }
 
-        var dialog = new Window
+        var dialog = new AppDialogWindow(title, CreateContent(nameInput, hotkeyInput, layoutInput, cursorOnlyInput, deviceInput, presetInput, out var okButton, out var cancelButton))
         {
-            Title = title,
             Width = 460,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            Content = CreateContent(nameInput, hotkeyInput, layoutInput, cursorOnlyInput, deviceInput, presetInput, out var okButton, out var cancelButton)
         };
         cursorOnlyInput.Checked += (_, _) => RefreshH2Enabled();
         cursorOnlyInput.Unchecked += (_, _) => RefreshH2Enabled();
@@ -135,7 +131,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         out WpfButton okButton,
         out WpfButton cancelButton)
     {
-        var panel = new StackPanel { Margin = new Thickness(18) };
+        var panel = new StackPanel();
         AddField(panel, "Profile name", nameInput);
         AddField(panel, "Hotkey", hotkeyInput);
         AddField(panel, "Cursor layout", layoutInput);
@@ -160,6 +156,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         {
             Content = "Cancel",
             MinWidth = 82,
+            Style = WpfApplication.Current.TryFindResource("SecondaryButtonStyle") as Style,
             IsCancel = true
         };
         buttons.Children.Add(okButton);
@@ -175,6 +172,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         {
             Text = label,
             FontWeight = FontWeights.SemiBold,
+            Foreground = WpfApplication.Current.TryFindResource("TextBrush") as System.Windows.Media.Brush,
             Margin = new Thickness(0, 12, 0, 4)
         });
         panel.Children.Add(input);

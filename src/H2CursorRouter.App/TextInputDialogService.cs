@@ -5,6 +5,7 @@ using WpfButton = System.Windows.Controls.Button;
 using WpfHorizontalAlignment = System.Windows.HorizontalAlignment;
 using WpfOrientation = System.Windows.Controls.Orientation;
 using WpfTextBox = System.Windows.Controls.TextBox;
+using WpfApplication = System.Windows.Application;
 
 namespace H2CursorRouter.App;
 
@@ -19,14 +20,9 @@ public sealed class TextInputDialogService : ITextInputDialogService
             Margin = new Thickness(0, 10, 0, 0)
         };
 
-        var dialog = new Window
+        var dialog = new AppDialogWindow(title, CreateContent(message, input, out var okButton, out var cancelButton))
         {
-            Title = title,
             Width = 420,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            Content = CreateContent(message, input, out var okButton, out var cancelButton)
         };
 
         dialog.Loaded += (_, _) =>
@@ -49,14 +45,12 @@ public sealed class TextInputDialogService : ITextInputDialogService
 
     private static UIElement CreateContent(string message, WpfTextBox input, out WpfButton okButton, out WpfButton cancelButton)
     {
-        var panel = new StackPanel
-        {
-            Margin = new Thickness(18)
-        };
+        var panel = new StackPanel();
 
         panel.Children.Add(new TextBlock
         {
             Text = message,
+            Foreground = WpfApplication.Current.TryFindResource("MutedTextBrush") as System.Windows.Media.Brush,
             TextWrapping = TextWrapping.Wrap
         });
         panel.Children.Add(input);
@@ -79,6 +73,7 @@ public sealed class TextInputDialogService : ITextInputDialogService
         {
             Content = "Cancel",
             MinWidth = 82,
+            Style = WpfApplication.Current.TryFindResource("SecondaryButtonStyle") as Style,
             IsCancel = true
         };
         buttons.Children.Add(okButton);
