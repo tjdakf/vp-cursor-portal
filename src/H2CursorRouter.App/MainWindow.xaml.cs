@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
-using System.Windows.Input;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Windows;
 using Forms = System.Windows.Forms;
@@ -238,9 +237,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private void LayoutNumberTextBox_OnKeyDown(object sender, KeyEventArgs e)
+    private void LayoutNumberTextBox_OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || sender is not TextBox textBox)
+        if (e.Key != System.Windows.Input.Key.Enter || sender is not TextBox textBox)
         {
             return;
         }
@@ -254,7 +253,7 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void CanvasScrollViewer_OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    private void CanvasScrollViewer_OnPreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
     {
         LayoutTabScrollViewer.ScrollToVerticalOffset(LayoutTabScrollViewer.VerticalOffset - e.Delta);
         e.Handled = true;
