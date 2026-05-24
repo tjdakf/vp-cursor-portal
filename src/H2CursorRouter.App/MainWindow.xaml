@@ -351,10 +351,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220">
+                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220" RowHeight="42">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
-                                    <DataGridTemplateColumn Header="Description" Width="2*">
+                                    <DataGridTemplateColumn Header="Description" Width="2.4*">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,5" />
@@ -366,22 +366,25 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="Displays" Width="3*">
+                                    <DataGridTemplateColumn Header="Displays" Width="2.6*" MinWidth="340">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Displays}" TextWrapping="Wrap" Margin="0,5" Style="{StaticResource MutedTextStyle}" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="" Width="96">
+                                    <DataGridTemplateColumn Header="" Width="56">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Button Content="Delete"
-                                                        Command="{Binding DataContext.DeleteLayoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                <Button Command="{Binding DataContext.DeleteLayoutCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
                                                         Style="{StaticResource SecondaryButtonStyle}"
-                                                        Height="32"
-                                                        Margin="0,4" />
+                                                        Width="34"
+                                                        Height="30"
+                                                        Padding="0"
+                                                        ToolTip="Delete layout">
+                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="{StaticResource DangerBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Button>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
