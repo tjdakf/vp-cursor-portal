@@ -832,7 +832,13 @@ public sealed class MainViewModel : ViewModelBase
             return;
         }
 
-        var zones = Zones.Where(zone => zone.LayoutId == SelectedLayout.Id).ToArray();
+        var zones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
+        if (zones.Length == 0)
+        {
+            AddLog("Cannot add a portal because the selected layout has no visible zones.");
+            return;
+        }
+
         var row = new PortalRow
         {
             LayoutId = SelectedLayout.Id,
