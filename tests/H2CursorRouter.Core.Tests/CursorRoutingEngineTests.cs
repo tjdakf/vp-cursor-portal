@@ -66,6 +66,26 @@ public sealed class CursorRoutingEngineTests
     }
 
     [Fact]
+    public void PortalTargetCoordinateStaysInsideTargetBoundsNearEndRatio()
+    {
+        var layout = new CursorLayout(
+            "layout",
+            "layout",
+            [
+                new CursorZone("source", "Source", new IntRect(0, 0, 100, 1000), new VisualRect(0, 0, 100, 1000), true),
+                new CursorZone("target", "Target", new IntRect(200, 0, 300, 100), new VisualRect(100, 0, 200, 100), true)
+            ],
+            [
+                new CursorPortal("source", Edge.Right, new EdgeRange(0, 1), "target", Edge.Left, new EdgeRange(0, 1))
+            ]);
+
+        var decision = _engine.Evaluate(layout, new CursorPoint(99, 999), new CursorPoint(101, 999), new CursorPoint(99, 999));
+
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, decision.Kind);
+        Assert.Equal(new CursorPoint(200, 99), decision.Target);
+    }
+
+    [Fact]
     public void PortalMapsWhenCursorContactsVirtualDesktopRightBoundary()
     {
         var layout = new CursorLayout(

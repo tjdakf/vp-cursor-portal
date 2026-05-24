@@ -31,6 +31,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly ICursorRoutingRuntime _routingRuntime;
     private readonly ProfileExecutionService _profileExecutionService;
+    private readonly SafetySettings _safetySettings;
     private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
     private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
     private bool _startWithWindows;
@@ -64,6 +65,7 @@ public sealed class MainViewModel : ViewModelBase
         _confirmationDialogService = confirmationDialogService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
+        _safetySettings = configuration.Safety;
         var configurationRowMapper = new ConfigurationRowMapper(_monitorZoneMatcher);
         _configurationCoordinator = new ConfigurationCoordinator(configurationRowMapper, configurationValidator);
         _profileExecutionService = new ProfileExecutionService(
@@ -1192,7 +1194,15 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     private AppConfiguration BuildConfiguration() =>
-        _configurationCoordinator.BuildConfiguration(Devices, Layouts, Zones, Portals, Profiles, Presets, Monitors);
+        _configurationCoordinator.BuildConfiguration(
+            Devices,
+            Layouts,
+            Zones,
+            Portals,
+            Profiles,
+            Presets,
+            Monitors,
+            _safetySettings);
 
     private ProfileEditContext CreateProfileEditContext() => new(
         Layouts.ToArray(),

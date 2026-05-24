@@ -113,7 +113,8 @@ public sealed class ConfigurationRowMapperTests
             [portal],
             [profile],
             [preset],
-            []);
+            [],
+            SafetySettings.Default);
 
         var builtLayout = Assert.Single(configuration.CursorLayouts);
         Assert.Equal("layout", builtLayout.Id);
@@ -122,6 +123,20 @@ public sealed class ConfigurationRowMapperTests
         Assert.Single(builtLayout.Zones);
         Assert.Single(builtLayout.Portals);
         Assert.Single(configuration.PresetCache);
+    }
+
+    [Fact]
+    public void BuildConfigurationPreservesLoadedSafetySettings()
+    {
+        var mapper = new ConfigurationRowMapper(new MonitorZoneMatcher());
+        var safety = new SafetySettings(
+            "Ctrl+Alt+Shift+F12",
+            DisableRoutingOnMonitorTopologyChange: false,
+            StartWithRoutingDisabled: false);
+
+        var configuration = mapper.BuildConfiguration([], [], [], [], [], [], [], safety);
+
+        Assert.Equal(safety, configuration.Safety);
     }
 
     [Fact]
@@ -153,7 +168,7 @@ public sealed class ConfigurationRowMapperTests
             Bottom = 100
         };
 
-        var configuration = mapper.BuildConfiguration([], [layout], [zone], [], [], [], [monitor]);
+        var configuration = mapper.BuildConfiguration([], [layout], [zone], [], [], [], [monitor], SafetySettings.Default);
 
         var builtZone = Assert.Single(Assert.Single(configuration.CursorLayouts).Zones);
         Assert.Equal(new IntRect(100, 0, 200, 100), builtZone.WindowsRect);
