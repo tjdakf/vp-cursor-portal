@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private HwndSource? _source;
     private Forms.NotifyIcon? _notifyIcon;
     private bool _allowExit;
+    private bool _isInitialDashboardSelection = true;
 
     public MainWindow(MainViewModel viewModel, IHotkeyService hotkeyService, bool startInTray)
     {
@@ -187,6 +188,12 @@ public partial class MainWindow : Window
 
         if (MainTabs.SelectedIndex == 0)
         {
+            if (_isInitialDashboardSelection)
+            {
+                _isInitialDashboardSelection = false;
+                return;
+            }
+
             _ = _viewModel.RefreshDashboardStatusAsync();
         }
         else if (MainTabs.SelectedIndex == 4)
