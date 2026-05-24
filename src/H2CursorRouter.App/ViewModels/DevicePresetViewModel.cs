@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using H2CursorRouter.App.Services;
 using H2CursorRouter.Core.Configuration;
+using H2CursorRouter.Core.Domain;
 using H2CursorRouter.H2;
 
 namespace H2CursorRouter.App.ViewModels;
