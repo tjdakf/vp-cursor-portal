@@ -7,6 +7,17 @@ It links two operations that normally happen separately:
 1. Load an H2 preset over UDP JSON.
 2. Apply a Windows cursor-routing layout that matches the visual output layout currently shown by the processor.
 
+## Download
+
+Latest release: [v0.1.0](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.0)
+
+| Asset | Use when |
+|---|---|
+| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.0/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
+| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.0/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
+
+The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning.
+
 ## At A Glance
 
 | Area | Current decision |
@@ -21,6 +32,7 @@ It links two operations that normally happen separately:
 | Packaging | Portable ZIP and Inno Setup installer from GitHub Actions |
 | Config path | `%AppData%\vp-cursor-portal\config.json` |
 | Safety baseline | Routing starts disabled, emergency unlock is always available |
+| Latest release | [`v0.1.0`](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.0) |
 
 ## What Problem It Solves
 
@@ -49,6 +61,8 @@ Example topology:
 ```
 
 ## Current MVP Status
+
+`v0.1.0` has been released from `main`.
 
 | Status | Capability |
 |---|---|
@@ -506,7 +520,7 @@ Workflow: `.github/workflows/windows-build.yml`
 
 | Trigger | Result |
 |---|---|
-| Push to `main`, `master`, or `codex-initial-mvp` | Build, test, publish ZIP and installer artifacts |
+| Push to `main` or `master` | Build, test, publish ZIP and installer artifacts |
 | Pull request | Build, test, publish artifacts for review |
 | Manual dispatch | On-demand build |
 | Version tag matching `v*` | Build, test, publish artifacts, and upload GitHub Release assets |
@@ -530,7 +544,7 @@ GitHub Release assets are uploaded only for tags like `v0.1.0`.
 
 ## Release Checklist
 
-Before creating a release:
+`v0.1.0` is already released. Use this checklist for the next release:
 
 1. Merge the PR branch.
 2. Confirm the latest `Windows Build` workflow passes.
@@ -541,8 +555,8 @@ Before creating a release:
 7. Create and push a version tag, for example:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 The tag workflow creates release assets.
