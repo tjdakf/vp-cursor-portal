@@ -4,6 +4,7 @@ using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Core.Domain;
 using H2CursorRouter.Core.Geometry;
+using H2CursorRouter.Core.Profiles;
 using H2CursorRouter.Core.Validation;
 using H2CursorRouter.H2;
 using H2CursorRouter.Windows;
@@ -13,6 +14,107 @@ namespace H2CursorRouter.App.Tests;
 
 public sealed class MainViewModelCommandTests
 {
+    [Fact]
+    public void FacadeCollectionsAreBackedByChildViewModels()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+
+        Assert.Same(viewModel.DevicePresets.Devices, viewModel.Devices);
+        Assert.Same(viewModel.DevicePresets.Presets, viewModel.Presets);
+        Assert.Same(viewModel.LayoutEditor.Layouts, viewModel.Layouts);
+        Assert.Same(viewModel.LayoutEditor.SelectedLayoutZones, viewModel.SelectedLayoutZones);
+        Assert.Same(viewModel.ProfileList.Profiles, viewModel.Profiles);
+        Assert.Same(viewModel.RuntimeLog.Logs, viewModel.Logs);
+    }
+
+    [Fact]
+    public void SelectedLayoutRefreshesFacadeLayoutCollections()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+        var layout = new LayoutRow { Id = "layout", Name = "Layout" };
+        viewModel.Layouts.Add(layout);
+        viewModel.Zones.Add(new ZoneRow
+        {
+            LayoutId = "layout",
+            Id = "DISPLAY1",
+            DisplayName = "Monitor 1",
+            WindowsRight = 100,
+            WindowsBottom = 100,
+            VisualRight = 100,
+            VisualBottom = 100,
+            IsVisible = true
+        });
+
+        viewModel.SelectedLayout = layout;
+
+        var selectedZone = Assert.Single(viewModel.SelectedLayoutZones);
+        Assert.Same(selectedZone, viewModel.SelectedZone);
+        Assert.True(selectedZone.IsSelected);
+        Assert.True(viewModel.HasSelectedZone);
+    }
+
+    [Fact]
+    public void SelectedZoneUpdatesSelectionStateThroughFacade()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+        var first = new ZoneRow { Id = "DISPLAY1" };
+        var second = new ZoneRow { Id = "DISPLAY2" };
+
+        viewModel.SelectedZone = first;
+        viewModel.SelectedZone = second;
+
+        Assert.False(first.IsSelected);
+        Assert.True(second.IsSelected);
+        Assert.Same(second, viewModel.LayoutEditor.SelectedZone);
+    }
+
+    [Fact]
+    public void ConstructorHandlesExistingProfilesWhenFilterIsAttached()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create(new AppConfiguration(
+            [],
+            [],
+            [
+                new ExecutionProfile(
+                    "profile",
+                    "Profile",
+                    "Ctrl+Alt+1",
+                    null,
+                    null,
+                    null,
+                    500,
+                    true)
+            ],
+            SafetySettings.Default));
+
+        Assert.Single(viewModel.Profiles);
+        viewModel.ProfileFilter = "profile";
+        Assert.True(viewModel.FilteredProfiles.Cast<object>().Any());
+    }
+
+    [Fact]
+    public void ChildViewModelPropertyChangesRelayToFacadeBindings()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+        var changed = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        viewModel.RuntimeLog.RuntimeStatus = "Changed";
+        viewModel.DevicePresets.H2ConnectionStatus = "Online: 192.168.0.11:6000";
+        viewModel.LayoutEditor.SelectedZone = new ZoneRow { Id = "DISPLAY1" };
+
+        Assert.Contains(nameof(MainViewModel.RuntimeStatus), changed);
+        Assert.Contains(nameof(MainViewModel.H2ConnectionStatus), changed);
+        Assert.Contains(nameof(MainViewModel.IsH2Online), changed);
+        Assert.Contains(nameof(MainViewModel.SelectedZone), changed);
+        Assert.Contains(nameof(MainViewModel.HasSelectedZone), changed);
+    }
+
     [Fact]
     public void AddPortalUsesSelectedDraftLayoutZones()
     {
@@ -63,8 +165,8 @@ public sealed class MainViewModelCommandTests
     {
         private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), $"h2-app-tests-{Guid.NewGuid():N}");
 
-        public MainViewModel Create() => new(
-            new AppConfiguration([], [], [], SafetySettings.Default),
+        public MainViewModel Create(AppConfiguration? configuration = null) => new(
+            configuration ?? new AppConfiguration([], [], [], SafetySettings.Default),
             Path.Combine(_tempDirectory, "config.json"),
             "app.exe",
             new StartupRegistrationStub(),

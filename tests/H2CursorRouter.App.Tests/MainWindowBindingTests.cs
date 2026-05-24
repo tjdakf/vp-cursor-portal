@@ -86,6 +86,43 @@ public sealed class MainWindowBindingTests
         Assert.Empty(missing);
     }
 
+    [Theory]
+    [InlineData("RuntimeStatus")]
+    [InlineData("DashboardProfiles")]
+    [InlineData("RoutingStateText")]
+    [InlineData("ActiveLayoutName")]
+    [InlineData("H2ConnectionStatus")]
+    [InlineData("LastRoutingEvent")]
+    [InlineData("StartWithWindows")]
+    [InlineData("SelectedLayoutZones")]
+    [InlineData("AvailableLayoutDisplays")]
+    [InlineData("SelectedAvailableMonitor")]
+    [InlineData("LayoutPreviewScale")]
+    [InlineData("LayoutPreviewCanvasWidth")]
+    [InlineData("LayoutPreviewCanvasHeight")]
+    [InlineData("Layouts")]
+    [InlineData("SelectedLayout")]
+    [InlineData("SelectedZone")]
+    [InlineData("HasSelectedZone")]
+    [InlineData("SelectedLayoutPortals")]
+    [InlineData("SelectedPortal")]
+    [InlineData("Profiles")]
+    [InlineData("FilteredProfiles")]
+    [InlineData("SelectedProfile")]
+    [InlineData("Devices")]
+    [InlineData("SelectedDevice")]
+    [InlineData("Presets")]
+    [InlineData("SelectedPreset")]
+    [InlineData("Monitors")]
+    [InlineData("DisplayPreviewCanvasWidth")]
+    [InlineData("DisplayPreviewCanvasHeight")]
+    [InlineData("ValidationErrors")]
+    [InlineData("Logs")]
+    public void MainViewModelKeepsCriticalBindingProperties(string propertyName)
+    {
+        Assert.NotNull(typeof(MainViewModel).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public));
+    }
+
     private static string FindRepositoryFile(params string[] relativeParts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

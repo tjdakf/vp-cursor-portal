@@ -36,22 +36,8 @@ public sealed class MainViewModel : ViewModelBase
     private readonly H2PresetEnumParser _presetEnumParser = new();
     private readonly SemaphoreSlim _profileExecutionLock = new(1, 1);
     private readonly SemaphoreSlim _configurationSaveLock = new(1, 1);
-    private DeviceRow? _selectedDevice;
-    private PresetRow? _selectedPreset;
-    private LayoutRow? _selectedLayout;
-    private ZoneRow? _selectedZone;
-    private MonitorRow? _selectedAvailableMonitor;
-    private PortalRow? _selectedPortal;
-    private ProfileRow? _selectedProfile;
-    private string _runtimeStatus = "Routing disabled on startup.";
-    private string _h2ConnectionStatus = "Not checked yet.";
-    private string _lastRoutingEvent = "Routing disabled on startup.";
-    private string _profileFilter = "";
     private bool _startWithWindows;
     private bool _isCheckingH2Connection;
-    private double _layoutPreviewScale = 0.16;
-    private double _displayPreviewCanvasWidth = 640;
-    private double _displayPreviewCanvasHeight = 320;
     private CursorPoint? _selectedLayoutDraftStartPosition;
 
     public MainViewModel(
@@ -92,21 +78,11 @@ public sealed class MainViewModel : ViewModelBase
             _configurationValidator);
 
         var rows = _configurationRowMapper.ToRows(configuration);
-        Devices = new ObservableCollection<DeviceRow>(rows.Devices);
-        Layouts = new ObservableCollection<LayoutRow>(rows.Layouts);
-        Zones = new ObservableCollection<ZoneRow>(rows.Zones);
-        Portals = new ObservableCollection<PortalRow>(rows.Portals);
-        Profiles = new ObservableCollection<ProfileRow>(rows.Profiles);
-        DashboardProfiles = new ObservableCollection<ProfileRow>();
-        FilteredProfiles = CollectionViewSource.GetDefaultView(Profiles);
-        FilteredProfiles.Filter = FilterProfile;
-        Presets = new ObservableCollection<PresetRow>(rows.Presets);
-        Monitors = new ObservableCollection<MonitorRow>();
-        SelectedLayoutZones = new ObservableCollection<ZoneRow>();
-        SelectedLayoutPortals = new ObservableCollection<PortalRow>();
-        AvailableLayoutDisplays = new ObservableCollection<MonitorRow>();
-        Logs = new ObservableCollection<string>();
-        ValidationErrors = new ObservableCollection<string>();
+        DevicePresets = new DevicePresetViewModel(rows.Devices, rows.Presets);
+        LayoutEditor = new LayoutEditorViewModel(rows.Layouts, rows.Zones, rows.Portals);
+        ProfileList = new ProfileListViewModel(rows.Profiles);
+        RuntimeLog = new RuntimeLogViewModel();
+        ProfileList.SetFilter(FilterProfile);
         _startWithWindows = _startupRegistrationService.IsRegistered();
 
         SelectedDevice = Devices.FirstOrDefault();
@@ -138,6 +114,7 @@ public sealed class MainViewModel : ViewModelBase
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
         RefreshDiagnosticsCommand = new RelayCommand(() => RefreshDiagnostics(log: true));
         IdentifyDisplaysCommand = new AsyncRelayCommand(IdentifyDisplaysAsync, () => Monitors.Count > 0);
+        SubscribeChildViewModels();
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
         _monitorTopologyService.TopologyChanged += OnMonitorTopologyChanged;
         RefreshDiagnostics(log: false);
@@ -149,20 +126,112 @@ public sealed class MainViewModel : ViewModelBase
 
     public event EventHandler? HotkeysChanged;
 
-    public ObservableCollection<DeviceRow> Devices { get; }
-    public ObservableCollection<PresetRow> Presets { get; }
-    public ObservableCollection<LayoutRow> Layouts { get; }
-    public ObservableCollection<ZoneRow> Zones { get; }
-    public ObservableCollection<PortalRow> Portals { get; }
-    public ObservableCollection<ProfileRow> Profiles { get; }
-    public ObservableCollection<ProfileRow> DashboardProfiles { get; }
-    public ICollectionView FilteredProfiles { get; }
-    public ObservableCollection<MonitorRow> Monitors { get; }
-    public ObservableCollection<ZoneRow> SelectedLayoutZones { get; }
-    public ObservableCollection<PortalRow> SelectedLayoutPortals { get; }
-    public ObservableCollection<MonitorRow> AvailableLayoutDisplays { get; }
-    public ObservableCollection<string> Logs { get; }
-    public ObservableCollection<string> ValidationErrors { get; }
+    private void SubscribeChildViewModels()
+    {
+        DevicePresets.PropertyChanged += (_, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(DevicePresetViewModel.SelectedDevice):
+                    OnPropertyChanged(nameof(SelectedDevice));
+                    RaiseCommandStates();
+                    break;
+                case nameof(DevicePresetViewModel.SelectedPreset):
+                    OnPropertyChanged(nameof(SelectedPreset));
+                    RaiseCommandStates();
+                    break;
+                case nameof(DevicePresetViewModel.H2ConnectionStatus):
+                    OnPropertyChanged(nameof(H2ConnectionStatus));
+                    break;
+                case nameof(DevicePresetViewModel.IsH2Online):
+                    OnPropertyChanged(nameof(IsH2Online));
+                    break;
+                case nameof(DevicePresetViewModel.IsOnline):
+                    OnPropertyChanged(nameof(IsOnline));
+                    break;
+            }
+        };
+
+        LayoutEditor.PropertyChanged += (_, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(LayoutEditorViewModel.SelectedLayout):
+                    OnPropertyChanged(nameof(SelectedLayout));
+                    RaiseCommandStates();
+                    break;
+                case nameof(LayoutEditorViewModel.SelectedZone):
+                    OnPropertyChanged(nameof(SelectedZone));
+                    OnPropertyChanged(nameof(HasSelectedZone));
+                    RaiseCommandStates();
+                    break;
+                case nameof(LayoutEditorViewModel.SelectedAvailableMonitor):
+                    OnPropertyChanged(nameof(SelectedAvailableMonitor));
+                    RaiseCommandStates();
+                    break;
+                case nameof(LayoutEditorViewModel.SelectedPortal):
+                    OnPropertyChanged(nameof(SelectedPortal));
+                    RaiseCommandStates();
+                    break;
+                case nameof(LayoutEditorViewModel.LayoutPreviewScale):
+                    OnPropertyChanged(nameof(LayoutPreviewScale));
+                    break;
+                case nameof(LayoutEditorViewModel.DisplayPreviewCanvasWidth):
+                    OnPropertyChanged(nameof(DisplayPreviewCanvasWidth));
+                    break;
+                case nameof(LayoutEditorViewModel.DisplayPreviewCanvasHeight):
+                    OnPropertyChanged(nameof(DisplayPreviewCanvasHeight));
+                    break;
+            }
+        };
+
+        ProfileList.PropertyChanged += (_, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(ProfileListViewModel.SelectedProfile):
+                    OnPropertyChanged(nameof(SelectedProfile));
+                    RaiseCommandStates();
+                    break;
+                case nameof(ProfileListViewModel.ProfileFilter):
+                    OnPropertyChanged(nameof(ProfileFilter));
+                    break;
+            }
+        };
+
+        RuntimeLog.PropertyChanged += (_, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(RuntimeLogViewModel.RuntimeStatus):
+                    OnPropertyChanged(nameof(RuntimeStatus));
+                    break;
+                case nameof(RuntimeLogViewModel.LastRoutingEvent):
+                    OnPropertyChanged(nameof(LastRoutingEvent));
+                    break;
+            }
+        };
+    }
+
+    public DevicePresetViewModel DevicePresets { get; }
+    public LayoutEditorViewModel LayoutEditor { get; }
+    public ProfileListViewModel ProfileList { get; }
+    public RuntimeLogViewModel RuntimeLog { get; }
+
+    public ObservableCollection<DeviceRow> Devices => DevicePresets.Devices;
+    public ObservableCollection<PresetRow> Presets => DevicePresets.Presets;
+    public ObservableCollection<LayoutRow> Layouts => LayoutEditor.Layouts;
+    public ObservableCollection<ZoneRow> Zones => LayoutEditor.Zones;
+    public ObservableCollection<PortalRow> Portals => LayoutEditor.Portals;
+    public ObservableCollection<ProfileRow> Profiles => ProfileList.Profiles;
+    public ObservableCollection<ProfileRow> DashboardProfiles => ProfileList.DashboardProfiles;
+    public ICollectionView FilteredProfiles => ProfileList.FilteredProfiles;
+    public ObservableCollection<MonitorRow> Monitors => LayoutEditor.Monitors;
+    public ObservableCollection<ZoneRow> SelectedLayoutZones => LayoutEditor.SelectedLayoutZones;
+    public ObservableCollection<PortalRow> SelectedLayoutPortals => LayoutEditor.SelectedLayoutPortals;
+    public ObservableCollection<MonitorRow> AvailableLayoutDisplays => LayoutEditor.AvailableLayoutDisplays;
+    public ObservableCollection<string> Logs => RuntimeLog.Logs;
+    public ObservableCollection<string> ValidationErrors => RuntimeLog.ValidationErrors;
 
     public ICommand AddDeviceCommand { get; }
     public ICommand RemoveDeviceCommand { get; }
@@ -191,11 +260,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public DeviceRow? SelectedDevice
     {
-        get => _selectedDevice;
+        get => DevicePresets.SelectedDevice;
         set
         {
-            if (SetProperty(ref _selectedDevice, value))
+            if (!ReferenceEquals(DevicePresets.SelectedDevice, value))
             {
+                DevicePresets.SelectedDevice = value;
+                OnPropertyChanged();
                 RaiseCommandStates();
             }
         }
@@ -203,11 +274,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public PresetRow? SelectedPreset
     {
-        get => _selectedPreset;
+        get => DevicePresets.SelectedPreset;
         set
         {
-            if (SetProperty(ref _selectedPreset, value))
+            if (!ReferenceEquals(DevicePresets.SelectedPreset, value))
             {
+                DevicePresets.SelectedPreset = value;
+                OnPropertyChanged();
                 RaiseCommandStates();
             }
         }
@@ -215,11 +288,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public LayoutRow? SelectedLayout
     {
-        get => _selectedLayout;
+        get => LayoutEditor.SelectedLayout;
         set
         {
-            if (SetProperty(ref _selectedLayout, value))
+            if (!ReferenceEquals(LayoutEditor.SelectedLayout, value))
             {
+                LayoutEditor.SelectedLayout = value;
+                OnPropertyChanged();
                 RefreshSelectedLayoutCollections();
                 RaiseCommandStates();
             }
@@ -228,29 +303,28 @@ public sealed class MainViewModel : ViewModelBase
 
     public ZoneRow? SelectedZone
     {
-        get => _selectedZone;
+        get => LayoutEditor.SelectedZone;
         set
         {
-            if (ReferenceEquals(_selectedZone, value))
+            if (ReferenceEquals(LayoutEditor.SelectedZone, value))
             {
                 return;
             }
 
-            if (_selectedZone is not null)
+            if (LayoutEditor.SelectedZone is not null)
             {
-                _selectedZone.IsSelected = false;
+                LayoutEditor.SelectedZone.IsSelected = false;
             }
 
-            if (SetProperty(ref _selectedZone, value))
+            LayoutEditor.SelectedZone = value;
+            OnPropertyChanged();
+            if (LayoutEditor.SelectedZone is not null)
             {
-                if (_selectedZone is not null)
-                {
-                    _selectedZone.IsSelected = true;
-                }
-
-                OnPropertyChanged(nameof(HasSelectedZone));
-                RaiseCommandStates();
+                LayoutEditor.SelectedZone.IsSelected = true;
             }
+
+            OnPropertyChanged(nameof(HasSelectedZone));
+            RaiseCommandStates();
         }
     }
 
@@ -258,11 +332,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public MonitorRow? SelectedAvailableMonitor
     {
-        get => _selectedAvailableMonitor;
+        get => LayoutEditor.SelectedAvailableMonitor;
         set
         {
-            if (SetProperty(ref _selectedAvailableMonitor, value))
+            if (!ReferenceEquals(LayoutEditor.SelectedAvailableMonitor, value))
             {
+                LayoutEditor.SelectedAvailableMonitor = value;
+                OnPropertyChanged();
                 RaiseCommandStates();
             }
         }
@@ -270,11 +346,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public PortalRow? SelectedPortal
     {
-        get => _selectedPortal;
+        get => LayoutEditor.SelectedPortal;
         set
         {
-            if (SetProperty(ref _selectedPortal, value))
+            if (!ReferenceEquals(LayoutEditor.SelectedPortal, value))
             {
+                LayoutEditor.SelectedPortal = value;
+                OnPropertyChanged();
                 RaiseCommandStates();
             }
         }
@@ -282,11 +360,13 @@ public sealed class MainViewModel : ViewModelBase
 
     public ProfileRow? SelectedProfile
     {
-        get => _selectedProfile;
+        get => ProfileList.SelectedProfile;
         set
         {
-            if (SetProperty(ref _selectedProfile, value))
+            if (!ReferenceEquals(ProfileList.SelectedProfile, value))
             {
+                ProfileList.SelectedProfile = value;
+                OnPropertyChanged();
                 RaiseCommandStates();
             }
         }
@@ -294,20 +374,41 @@ public sealed class MainViewModel : ViewModelBase
 
     public string RuntimeStatus
     {
-        get => _runtimeStatus;
-        private set => SetProperty(ref _runtimeStatus, value);
+        get => RuntimeLog.RuntimeStatus;
+        private set
+        {
+            if (!string.Equals(RuntimeLog.RuntimeStatus, value, StringComparison.Ordinal))
+            {
+                RuntimeLog.RuntimeStatus = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public double DisplayPreviewCanvasWidth
     {
-        get => _displayPreviewCanvasWidth;
-        private set => SetProperty(ref _displayPreviewCanvasWidth, value);
+        get => LayoutEditor.DisplayPreviewCanvasWidth;
+        private set
+        {
+            if (!LayoutEditor.DisplayPreviewCanvasWidth.Equals(value))
+            {
+                LayoutEditor.DisplayPreviewCanvasWidth = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public double DisplayPreviewCanvasHeight
     {
-        get => _displayPreviewCanvasHeight;
-        private set => SetProperty(ref _displayPreviewCanvasHeight, value);
+        get => LayoutEditor.DisplayPreviewCanvasHeight;
+        private set
+        {
+            if (!LayoutEditor.DisplayPreviewCanvasHeight.Equals(value))
+            {
+                LayoutEditor.DisplayPreviewCanvasHeight = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public string ActiveLayoutId => _routingRuntime.ActiveLayoutId ?? "";
@@ -330,11 +431,13 @@ public sealed class MainViewModel : ViewModelBase
     public string RoutingStateText => IsRoutingEnabled ? "Enabled" : "Disabled";
     public string H2ConnectionStatus
     {
-        get => _h2ConnectionStatus;
+        get => DevicePresets.H2ConnectionStatus;
         private set
         {
-            if (SetProperty(ref _h2ConnectionStatus, value))
+            if (!string.Equals(DevicePresets.H2ConnectionStatus, value, StringComparison.Ordinal))
             {
+                DevicePresets.H2ConnectionStatus = value;
+                OnPropertyChanged();
                 OnPropertyChanged(nameof(IsH2Online));
                 OnPropertyChanged(nameof(IsOnline));
             }
@@ -346,26 +449,42 @@ public sealed class MainViewModel : ViewModelBase
 
     public string LastRoutingEvent
     {
-        get => _lastRoutingEvent;
-        private set => SetProperty(ref _lastRoutingEvent, value);
+        get => RuntimeLog.LastRoutingEvent;
+        private set
+        {
+            if (!string.Equals(RuntimeLog.LastRoutingEvent, value, StringComparison.Ordinal))
+            {
+                RuntimeLog.LastRoutingEvent = value;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public string ProfileFilter
     {
-        get => _profileFilter;
+        get => ProfileList.ProfileFilter;
         set
         {
-            if (SetProperty(ref _profileFilter, value))
+            if (!string.Equals(ProfileList.ProfileFilter, value, StringComparison.Ordinal))
             {
-                FilteredProfiles.Refresh();
+                ProfileList.ProfileFilter = value;
+                OnPropertyChanged();
             }
         }
     }
 
     public double LayoutPreviewScale
     {
-        get => _layoutPreviewScale;
-        set => SetProperty(ref _layoutPreviewScale, Math.Clamp(value, 0.08, 0.5));
+        get => LayoutEditor.LayoutPreviewScale;
+        set
+        {
+            var clamped = Math.Clamp(value, 0.08, 0.5);
+            if (!LayoutEditor.LayoutPreviewScale.Equals(clamped))
+            {
+                LayoutEditor.LayoutPreviewScale = clamped;
+                OnPropertyChanged();
+            }
+        }
     }
 
     public double LayoutPreviewCanvasWidth =>
@@ -1503,19 +1622,12 @@ public sealed class MainViewModel : ViewModelBase
 
     private void RefreshSelectedLayoutCollections()
     {
-        if (_selectedZone is not null)
-        {
-            _selectedZone.IsSelected = false;
-        }
-
-        _selectedZone = null;
+        SelectedZone = null;
         _selectedLayoutDraftStartPosition = null;
         SelectedLayoutZones.Clear();
         SelectedLayoutPortals.Clear();
         if (SelectedLayout is null)
         {
-            OnPropertyChanged(nameof(SelectedZone));
-            OnPropertyChanged(nameof(HasSelectedZone));
             RefreshAvailableLayoutDisplays();
             return;
         }
