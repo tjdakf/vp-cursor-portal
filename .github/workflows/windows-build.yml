@@ -110,4 +110,4 @@ jobs:
           files: |
             artifacts/vp-cursor-portal-win-x64.zip
             artifacts/installer/vp-cursor-portal-setup.exe
-          body_path: docs/releases/v0.1.0.md
+          body_path: docs/releases/${{ github.ref_name }}.md
