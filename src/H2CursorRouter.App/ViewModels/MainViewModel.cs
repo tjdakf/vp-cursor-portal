@@ -262,6 +262,8 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
     public ICommand IdentifyDisplaysCommand { get; }
+    public string ConfigPath => _configPath;
+    public string LogDirectory => _fileLogService.LogDirectory;
 
     public DeviceRow? SelectedDevice
     {

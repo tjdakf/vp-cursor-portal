@@ -194,6 +194,8 @@ Important files:
   - canvas move/resize/snap helpers.
 - `Services/MonitorZoneMatcher.cs`
   - maps UI zones to detected monitor coordinates.
+- `Assets/`
+  - Windows app icon, tray icon, and icon source artwork.
 
 `MainViewModel` intentionally remains a facade for existing WPF bindings. New behavior should usually go into a child ViewModel or service first, then be exposed through the facade only when the XAML needs it.
 
@@ -498,16 +500,15 @@ Before a public or customer-facing release, choose one of these policies:
 - Proprietary/internal: add a clear proprietary license, EULA, or private repository notice.
 - Customer handoff: include a short license/EULA in the installer and release notes.
 
-Recommended About dialog contents for a future app screen:
+The app includes an About dialog from the dashboard Startup section. It currently shows:
 
-- product name: `H2 Cursor Router`,
+- product name: `vp-cursor-portal`,
 - app version,
-- build SHA or informational version,
-- publisher/company name,
-- copyright,
+- informational version/build metadata when present,
 - license summary,
-- third-party notices link or bundled text,
 - config/log path,
-- support/contact channel.
+- app icon.
+
+Before a broader release, consider adding publisher/company name, copyright, support/contact details, and a third-party notices link or bundled notice file.
 
 The project currently uses the .NET runtime, WPF/WinForms platform libraries, GitHub Actions, and Inno Setup for installer generation. Review their license requirements before a formal public release.

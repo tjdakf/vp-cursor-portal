@@ -26,6 +26,7 @@ ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
 CloseApplications=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=..\..\src\H2CursorRouter.App\Assets\app.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

@@ -14,6 +14,8 @@ public sealed class FileLogService
         DeleteExpiredLogs();
     }
 
+    public string LogDirectory => _logDirectory;
+
     public void Append(string message)
     {
         try
