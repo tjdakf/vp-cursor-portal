@@ -37,7 +37,6 @@ public sealed class ProfileExecutionService
         }
 
         var profile = request.Profile;
-        callbacks.SetActiveProfileName(profile.Name);
         callbacks.AddLog($"Executing profile '{profile.Name}'.");
         callbacks.StopRouting(profile.CursorLayoutId is not null);
 
@@ -48,7 +47,6 @@ public sealed class ProfileExecutionService
                 string.Equals(device.Id, profile.H2Preset.DeviceId, StringComparison.OrdinalIgnoreCase));
             if (device is null)
             {
-                callbacks.SetLastH2AckStatus($"Missing device: {profile.H2Preset.DeviceId}");
                 callbacks.AddLog($"Profile references missing device '{profile.H2Preset.DeviceId}'.");
                 return;
             }
@@ -58,9 +56,6 @@ public sealed class ProfileExecutionService
             callbacks.SetDeviceOnline(profile.H2Preset.DeviceId, result.IsSuccess);
 
             h2AckOk = result.IsSuccess;
-            callbacks.SetLastH2AckStatus(result.IsSuccess
-                ? $"OK: {profile.H2Preset.DisplayName ?? $"presetId {profile.H2Preset.PresetId}"}"
-                : $"Failed: {result.Message}");
             callbacks.SetH2ConnectionStatus(result.IsSuccess
                 ? $"Online: {device.Host}:{device.Port}"
                 : $"No response: {result.Message}");
@@ -69,10 +64,6 @@ public sealed class ProfileExecutionService
             {
                 callbacks.AddLog($"H2 response: {result.ResponseJson}");
             }
-        }
-        else
-        {
-            callbacks.SetLastH2AckStatus("No H2 preset in this profile.");
         }
 
         if (!ProfileExecutionPlanner.ShouldApplyCursorLayout(profile, h2AckOk))
@@ -122,8 +113,6 @@ public sealed record ProfileExecutionRequest(
 public sealed class ProfileExecutionCallbacks
 {
     public required Action<ValidationResult> ShowValidation { get; init; }
-    public required Action<string> SetActiveProfileName { get; init; }
-    public required Action<string> SetLastH2AckStatus { get; init; }
     public required Action<string> SetH2ConnectionStatus { get; init; }
     public required Action<string, bool> SetDeviceOnline { get; init; }
     public required Action<string> SelectLayout { get; init; }

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using H2CursorRouter.App;
@@ -28,10 +27,8 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IConfirmationDialogService _confirmationDialogService;
     private readonly IProfileDialogService _profileDialogService;
     private readonly IDeviceDialogService _deviceDialogService;
-    private readonly ICursorService _cursorService;
     private readonly IMonitorTopologyService _monitorTopologyService;
     private readonly CursorRoutingRuntime _routingRuntime;
-    private readonly CursorRoutingEngine _routingEngine;
     private readonly AppConfigurationValidator _configurationValidator;
     private readonly ProfileExecutionService _profileExecutionService;
     private readonly H2PresetEnumParser _presetEnumParser = new();
@@ -45,10 +42,6 @@ public sealed class MainViewModel : ViewModelBase
     private PortalRow? _selectedPortal;
     private ProfileRow? _selectedProfile;
     private string _runtimeStatus = "Routing disabled on startup.";
-    private string _currentCursorPosition = "";
-    private string _currentCursorZone = "";
-    private string _activeProfileName = "";
-    private string _lastH2AckStatus = "No H2 command sent yet.";
     private string _h2ConnectionStatus = "Not checked yet.";
     private string _lastRoutingEvent = "Routing disabled on startup.";
     private string _profileFilter = "";
@@ -71,7 +64,6 @@ public sealed class MainViewModel : ViewModelBase
         IConfirmationDialogService confirmationDialogService,
         IProfileDialogService profileDialogService,
         IDeviceDialogService deviceDialogService,
-        ICursorService cursorService,
         IMonitorTopologyService monitorTopologyService,
         CursorRoutingRuntime routingRuntime,
         CursorRoutingEngine routingEngine,
@@ -87,15 +79,13 @@ public sealed class MainViewModel : ViewModelBase
         _confirmationDialogService = confirmationDialogService;
         _profileDialogService = profileDialogService;
         _deviceDialogService = deviceDialogService;
-        _cursorService = cursorService;
         _monitorTopologyService = monitorTopologyService;
         _routingRuntime = routingRuntime;
-        _routingEngine = routingEngine;
         _configurationValidator = configurationValidator;
         _profileExecutionService = new ProfileExecutionService(
             _h2DeviceClient,
             _routingRuntime,
-            _routingEngine,
+            routingEngine,
             _configurationValidator);
 
         Devices = new ObservableCollection<DeviceRow>(configuration.Devices.Select(DeviceRow.FromModel));
@@ -126,8 +116,6 @@ public sealed class MainViewModel : ViewModelBase
         RemoveDeviceCommand = new RelayCommand(RemoveSelectedDevice, () => SelectedDevice is not null);
         GetAllPresetsCommand = new AsyncRelayCommand(GetAllPresetsAsync, () => Devices.Count > 0);
         GetPresetsCommand = new AsyncRelayCommand(GetPresetsAsync, () => SelectedDevice is not null);
-        AddLayoutCommand = new RelayCommand(AddLayout);
-        RemoveLayoutCommand = new RelayCommand(RemoveSelectedLayout, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout));
         DeleteLayoutCommand = new RelayCommand<LayoutRow>(DeleteLayout, IsLayoutPersisted);
         AddZoneCommand = new RelayCommand(AddZone, () => SelectedLayout is not null);
         RemoveZoneCommand = new RelayCommand(RemoveSelectedZone, () => SelectedZone is not null);
@@ -135,16 +123,10 @@ public sealed class MainViewModel : ViewModelBase
         AddPortalCommand = new RelayCommand(AddPortal, () => SelectedLayout is not null);
         RemovePortalCommand = new RelayCommand(RemoveSelectedPortal, () => SelectedPortal is not null);
         CreateLayoutFromMonitorsCommand = new RelayCommand(CreateLayoutFromMonitors, () => Monitors.Count > 0);
-        ApplyDetectedMonitorCoordinatesCommand = new RelayCommand(ApplyDetectedMonitorCoordinates, () => SelectedLayout is not null && Monitors.Count > 0);
-        ApplyCanvasLayoutCommand = new RelayCommand(ApplyCanvasLayout, () => SelectedLayout is not null);
         SaveLayoutAsNewCommand = new RelayCommand(SaveSelectedLayoutAsNew, () => SelectedLayout is not null);
         OverwriteSelectedLayoutCommand = new RelayCommand(OverwriteSelectedLayout, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout));
         AddProfileCommand = new RelayCommand(AddProfile);
         RemoveProfileCommand = new RelayCommand(RemoveSelectedProfile, () => SelectedProfile is not null);
-        DuplicateProfileCommand = new RelayCommand(DuplicateSelectedProfile, () => SelectedProfile is not null);
-        SetCurrentCursorAsStartCommand = new RelayCommand(SetCurrentCursorAsProfileStart, () => SelectedProfile is not null);
-        ApplySelectedPresetToProfileCommand = new RelayCommand(ApplySelectedPresetToProfile, () => SelectedPreset is not null && SelectedProfile is not null);
-        ApplySelectedLayoutToProfileCommand = new RelayCommand(ApplySelectedLayoutToProfile, () => SelectedLayout is not null && IsLayoutPersisted(SelectedLayout) && SelectedProfile is not null);
         GeneratePortalsCommand = new RelayCommand(GeneratePortalsFromVisualAdjacency, () => SelectedLayout is not null);
         ValidateConfigurationCommand = new RelayCommand(ValidateConfiguration);
         SaveConfigurationCommand = new AsyncRelayCommand(SaveConfigurationAsync);
@@ -154,11 +136,9 @@ public sealed class MainViewModel : ViewModelBase
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
         RefreshDiagnosticsCommand = new RelayCommand(() => RefreshDiagnostics(log: true));
         IdentifyDisplaysCommand = new AsyncRelayCommand(IdentifyDisplaysAsync, () => Monitors.Count > 0);
-        ResetToSampleConfigurationCommand = new RelayCommand(ResetToSampleConfiguration);
-
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
         _monitorTopologyService.TopologyChanged += OnMonitorTopologyChanged;
-        RefreshDiagnostics(log: true);
+        RefreshDiagnostics(log: false);
         RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
         ValidateConfiguration();
@@ -186,8 +166,6 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand RemoveDeviceCommand { get; }
     public ICommand GetAllPresetsCommand { get; }
     public ICommand GetPresetsCommand { get; }
-    public ICommand AddLayoutCommand { get; }
-    public ICommand RemoveLayoutCommand { get; }
     public ICommand DeleteLayoutCommand { get; }
     public ICommand AddZoneCommand { get; }
     public ICommand RemoveZoneCommand { get; }
@@ -195,16 +173,10 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand AddPortalCommand { get; }
     public ICommand RemovePortalCommand { get; }
     public ICommand CreateLayoutFromMonitorsCommand { get; }
-    public ICommand ApplyDetectedMonitorCoordinatesCommand { get; }
-    public ICommand ApplyCanvasLayoutCommand { get; }
     public ICommand SaveLayoutAsNewCommand { get; }
     public ICommand OverwriteSelectedLayoutCommand { get; }
     public ICommand AddProfileCommand { get; }
     public ICommand RemoveProfileCommand { get; }
-    public ICommand DuplicateProfileCommand { get; }
-    public ICommand SetCurrentCursorAsStartCommand { get; }
-    public ICommand ApplySelectedPresetToProfileCommand { get; }
-    public ICommand ApplySelectedLayoutToProfileCommand { get; }
     public ICommand GeneratePortalsCommand { get; }
     public ICommand ValidateConfigurationCommand { get; }
     public ICommand SaveConfigurationCommand { get; }
@@ -214,7 +186,6 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
     public ICommand IdentifyDisplaysCommand { get; }
-    public ICommand ResetToSampleConfigurationCommand { get; }
 
     public DeviceRow? SelectedDevice
     {
@@ -248,7 +219,6 @@ public sealed class MainViewModel : ViewModelBase
             if (SetProperty(ref _selectedLayout, value))
             {
                 RefreshSelectedLayoutCollections();
-                RefreshCursorZone();
                 RaiseCommandStates();
             }
         }
@@ -326,18 +296,6 @@ public sealed class MainViewModel : ViewModelBase
         private set => SetProperty(ref _runtimeStatus, value);
     }
 
-    public string CurrentCursorPosition
-    {
-        get => _currentCursorPosition;
-        private set => SetProperty(ref _currentCursorPosition, value);
-    }
-
-    public string CurrentCursorZone
-    {
-        get => _currentCursorZone;
-        private set => SetProperty(ref _currentCursorZone, value);
-    }
-
     public double DisplayPreviewCanvasWidth
     {
         get => _displayPreviewCanvasWidth;
@@ -348,12 +306,6 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _displayPreviewCanvasHeight;
         private set => SetProperty(ref _displayPreviewCanvasHeight, value);
-    }
-
-    public string ActiveProfileName
-    {
-        get => _activeProfileName;
-        private set => SetProperty(ref _activeProfileName, value);
     }
 
     public string ActiveLayoutId => _routingRuntime.ActiveLayoutId ?? "";
@@ -374,15 +326,6 @@ public sealed class MainViewModel : ViewModelBase
 
     public bool IsRoutingEnabled => _routingRuntime.IsRoutingEnabled;
     public string RoutingStateText => IsRoutingEnabled ? "Enabled" : "Disabled";
-    public string ConfigPath => _configPath;
-    public string ArtifactWorkflowHint => "GitHub Actions > Windows Build > vp-cursor-portal-win-x64 artifact";
-
-    public string LastH2AckStatus
-    {
-        get => _lastH2AckStatus;
-        private set => SetProperty(ref _lastH2AckStatus, value);
-    }
-
     public string H2ConnectionStatus
     {
         get => _h2ConnectionStatus;
@@ -515,8 +458,6 @@ public sealed class MainViewModel : ViewModelBase
                 new ProfileExecutionCallbacks
                 {
                     ShowValidation = ShowValidation,
-                    SetActiveProfileName = value => ActiveProfileName = value,
-                    SetLastH2AckStatus = value => LastH2AckStatus = value,
                     SetH2ConnectionStatus = value => H2ConnectionStatus = value,
                     SetDeviceOnline = SetDeviceOnline,
                     SelectLayout = SelectLayout,
@@ -630,7 +571,6 @@ public sealed class MainViewModel : ViewModelBase
     public void EmergencyUnlock()
     {
         _routingRuntime.EmergencyUnlock();
-        ActiveProfileName = "";
         RefreshRuntimeState();
     }
 
@@ -731,25 +671,6 @@ public sealed class MainViewModel : ViewModelBase
         SelectedDevice = Devices.FirstOrDefault();
         AddLog("Removed H2 device.");
         AutoSaveConfiguration("Auto-saved configuration after removing device.");
-    }
-
-    private void AddLayout()
-    {
-        var index = Layouts.Count + 1;
-        var row = new LayoutRow { Id = $"layout-{index}", Name = $"Layout {index}" };
-        row.Displays = "No displays";
-        Layouts.Add(row);
-        SelectedLayout = row;
-    }
-
-    private void RemoveSelectedLayout()
-    {
-        if (SelectedLayout is null)
-        {
-            return;
-        }
-
-        DeleteLayout(SelectedLayout);
     }
 
     private void DeleteLayout(LayoutRow layout)
@@ -955,44 +876,6 @@ public sealed class MainViewModel : ViewModelBase
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
         AddLog("Loaded detected Windows displays into a temporary layout canvas. Use Save As New Layout to add it to the layout list.");
-    }
-
-    private void ApplyDetectedMonitorCoordinates()
-    {
-        if (SelectedLayout is null || Monitors.Count == 0)
-        {
-            return;
-        }
-
-        var orderedMonitors = Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top).ToArray();
-        var changed = 0;
-        foreach (var zone in SelectedLayoutZones)
-        {
-            var monitor = FindMonitorForZone(zone, orderedMonitors);
-            if (monitor is null)
-            {
-                continue;
-            }
-
-            zone.WindowsLeft = monitor.Left;
-            zone.WindowsTop = monitor.Top;
-            zone.WindowsRight = monitor.Right;
-            zone.WindowsBottom = monitor.Bottom;
-            zone.DisplayName = monitor.DeviceName;
-            changed++;
-        }
-
-        CollectionViewSource.GetDefaultView(SelectedLayoutZones)?.Refresh();
-        RefreshCursorZone();
-        AddLog($"Applied detected Windows monitor coordinates to {changed} zone(s) in layout '{SelectedLayout.Name}'.");
-    }
-
-    private void ApplyCanvasLayout()
-    {
-        if (PrepareSelectedLayoutDraft())
-        {
-            AddLog($"Prepared layout '{SelectedLayout?.Name}': attached zones, normalized origin, generated portals, and updated the draft start position.");
-        }
     }
 
     private bool PrepareSelectedLayoutDraft()
@@ -1235,91 +1118,6 @@ public sealed class MainViewModel : ViewModelBase
         AutoSaveConfiguration("Auto-saved configuration after removing profile.");
     }
 
-    private void DuplicateSelectedProfile()
-    {
-        if (SelectedProfile is null)
-        {
-            return;
-        }
-
-        var copy = new ProfileRow
-        {
-            Id = $"{SelectedProfile.Id}-copy-{DateTime.Now:HHmmss}",
-            Name = $"{SelectedProfile.Name} Copy",
-            Hotkey = null,
-            DeviceId = SelectedProfile.DeviceId,
-            ScreenId = SelectedProfile.ScreenId,
-            PresetId = SelectedProfile.PresetId,
-            PresetDisplayName = SelectedProfile.PresetDisplayName,
-            CursorLayoutId = SelectedProfile.CursorLayoutId,
-            StartX = SelectedProfile.StartX,
-            StartY = SelectedProfile.StartY,
-            PostAckDelayMs = SelectedProfile.PostAckDelayMs,
-            RequireH2AckBeforeCursorLayout = SelectedProfile.RequireH2AckBeforeCursorLayout
-        };
-        Profiles.Add(copy);
-        FilteredProfiles.Refresh();
-        RefreshProfileLayoutNames();
-        RefreshDashboardProfiles();
-        SelectedProfile = copy;
-        AddLog($"Duplicated profile '{copy.Name}'. Assign a hotkey before saving if needed.");
-    }
-
-    private void ResetToSampleConfiguration()
-    {
-        StopRouting(clearLayout: true);
-        LoadConfigurationIntoRows(SampleConfiguration.Create());
-        ActiveProfileName = "";
-        LastH2AckStatus = "No H2 command sent since configuration reset.";
-        LastRoutingEvent = "Empty bundled configuration loaded in memory; Save Config has not been run.";
-        RefreshDiagnostics(log: true);
-        RefreshProfileLayoutNames();
-        ValidateConfiguration();
-        HotkeysChanged?.Invoke(this, EventArgs.Empty);
-        AddLog("Loaded empty bundled configuration in memory. Use Save Config to write it to config.json.");
-    }
-
-    private void SetCurrentCursorAsProfileStart()
-    {
-        if (SelectedProfile is null)
-        {
-            return;
-        }
-
-        var position = _cursorService.GetPosition();
-        SelectedProfile.StartX = position.X;
-        SelectedProfile.StartY = position.Y;
-        AddLog($"Set profile '{SelectedProfile.Name}' start position to {position.X}, {position.Y}.");
-    }
-
-    private void ApplySelectedPresetToProfile()
-    {
-        if (SelectedPreset is null || SelectedProfile is null)
-        {
-            return;
-        }
-
-        SelectedProfile.DeviceId = SelectedPreset.DeviceConfigId;
-        SelectedProfile.ScreenId = SelectedPreset.ScreenId;
-        SelectedProfile.PresetId = SelectedPreset.PresetId;
-        SelectedProfile.PresetDisplayName = SelectedPreset.DisplayName;
-        OnPropertyChanged(nameof(SelectedProfile));
-        AddLog($"Mapped preset '{SelectedPreset.DisplayName}' to profile '{SelectedProfile.Name}'.");
-    }
-
-    private void ApplySelectedLayoutToProfile()
-    {
-        if (SelectedLayout is null || SelectedProfile is null)
-        {
-            return;
-        }
-
-        SelectedProfile.CursorLayoutId = SelectedLayout.Id;
-        RefreshProfileLayoutNames();
-        OnPropertyChanged(nameof(SelectedProfile));
-        AddLog($"Mapped layout '{SelectedLayout.Name}' to profile '{SelectedProfile.Name}'.");
-    }
-
     private void GeneratePortalsFromVisualAdjacency()
     {
         if (SelectedLayout is null)
@@ -1470,21 +1268,6 @@ public sealed class MainViewModel : ViewModelBase
         DisplayPreviewCanvasHeight = virtualHeight * scale + padding * 2;
     }
 
-    private void RefreshCursorZone()
-    {
-        if (SelectedLayout is null)
-        {
-            CurrentCursorZone = "";
-            return;
-        }
-
-        var layout = BuildLayout(SelectedLayout);
-        var position = _cursorService.GetPosition();
-        CurrentCursorPosition = $"{position.X}, {position.Y}";
-        var zone = _routingEngine.FindZone(layout, position);
-        CurrentCursorZone = zone is null ? "Outside known zones" : $"{zone.Id} ({(zone.IsVisible ? "visible" : "hidden")})";
-    }
-
     private AppConfiguration BuildConfiguration() => new(
         Devices.Select(device => device.ToModel()).ToArray(),
         Layouts.Select(BuildLayout).ToArray(),
@@ -1552,7 +1335,6 @@ public sealed class MainViewModel : ViewModelBase
 
     private void RefreshRuntimeState()
     {
-        RefreshCursorZone();
         OnPropertyChanged(nameof(ActiveLayoutId));
         OnPropertyChanged(nameof(ActiveLayoutName));
         OnPropertyChanged(nameof(IsRoutingEnabled));
@@ -1686,7 +1468,6 @@ public sealed class MainViewModel : ViewModelBase
             RemoveDeviceCommand,
             GetAllPresetsCommand,
             GetPresetsCommand,
-            RemoveLayoutCommand,
             DeleteLayoutCommand,
             AddZoneCommand,
             RemoveZoneCommand,
@@ -1694,13 +1475,7 @@ public sealed class MainViewModel : ViewModelBase
             AddPortalCommand,
             RemovePortalCommand,
             CreateLayoutFromMonitorsCommand,
-            ApplyDetectedMonitorCoordinatesCommand,
-            ApplyCanvasLayoutCommand,
             RemoveProfileCommand,
-            DuplicateProfileCommand,
-            SetCurrentCursorAsStartCommand,
-            ApplySelectedPresetToProfileCommand,
-            ApplySelectedLayoutToProfileCommand,
             GeneratePortalsCommand,
             SaveLayoutAsNewCommand,
             OverwriteSelectedLayoutCommand,

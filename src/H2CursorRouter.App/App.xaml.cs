@@ -41,7 +41,6 @@ public partial class App : System.Windows.Application
             new ConfirmationDialogService(),
             new ProfileDialogService(),
             new DeviceDialogService(),
-            cursorService,
             _monitorTopology,
             _runtime,
             new CursorRoutingEngine(),
