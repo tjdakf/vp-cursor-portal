@@ -51,7 +51,7 @@ public partial class App : System.Windows.Application
         if (!string.IsNullOrWhiteSpace(loadWarning))
         {
             viewModel.AddLog(loadWarning);
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 loadWarning,
                 "Configuration recovery",
                 MessageBoxButton.OK,
