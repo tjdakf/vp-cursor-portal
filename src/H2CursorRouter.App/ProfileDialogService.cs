@@ -263,7 +263,7 @@ public sealed class ProfileDialogService : IProfileDialogService
         return panel;
     }
 
-    private static UIElement CreateHotkeyInput(WpfTextBox hotkeyInput, WpfButton recordHotkeyButton, WpfButton clearHotkeyButton)
+    private static FrameworkElement CreateHotkeyInput(WpfTextBox hotkeyInput, WpfButton recordHotkeyButton, WpfButton clearHotkeyButton)
     {
         var panel = new StackPanel
         {

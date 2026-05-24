@@ -128,7 +128,7 @@ public sealed class DeviceDialogService : IDeviceDialogService
         return panel;
     }
 
-    private static UIElement CreateIpInput(IEnumerable<WpfTextBox> octets)
+    private static FrameworkElement CreateIpInput(IEnumerable<WpfTextBox> octets)
     {
         var panel = new StackPanel
         {
@@ -168,11 +168,16 @@ public sealed class DeviceDialogService : IDeviceDialogService
     private static void ConfigureNumericInput(WpfTextBox input)
     {
         input.PreviewTextInput += (_, args) => args.Handled = !IsDigitsOnly(args.Text);
-        DataObject.AddPastingHandler(input, (_, args) =>
+        System.Windows.DataObject.AddPastingHandler(input, (_, args) =>
         {
-            if (!args.DataObject.GetDataPresent(DataFormats.Text) ||
-                args.DataObject.GetData(DataFormats.Text) is not string text ||
-                !IsDigitsOnly(text))
+            if (!args.DataObject.GetDataPresent(System.Windows.DataFormats.Text))
+            {
+                args.CancelCommand();
+                return;
+            }
+
+            var data = args.DataObject.GetData(System.Windows.DataFormats.Text);
+            if (data is not string text || !IsDigitsOnly(text))
             {
                 args.CancelCommand();
             }
