@@ -95,9 +95,36 @@ public sealed class ProfileExecutionServiceTests
         Assert.Equal("h2", h2Client.DeviceId);
         Assert.Equal(0, h2Client.ScreenId);
         Assert.Equal(0, h2Client.PresetId);
-        Assert.False(callbacks.StoppedRouting);
+        Assert.True(callbacks.StoppedRouting);
+        Assert.False(callbacks.StopClearedLayout);
         Assert.False(runtime.ActivateLayoutCalled);
         Assert.Null(callbacks.SelectedLayoutId);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_H2OnlyProfileDoesNotStopRoutingWhenPresetFails()
+    {
+        var h2Client = new FakeH2DeviceClient(H2CommandResult.Failure("ack error"));
+        var runtime = new FakeCursorRoutingRuntime();
+        var service = new ProfileExecutionService(h2Client, runtime, new CursorRoutingEngine(), new AppConfigurationValidator());
+        var callbacks = new CallbackRecorder();
+        var configuration = CreateConfiguration(requireAck: true);
+        var profile = new ExecutionProfile(
+            "profile",
+            "Profile",
+            null,
+            new H2PresetRef("h2", 0, 0, "Preset 1 / presetId 0"),
+            null,
+            null,
+            0,
+            true);
+
+        await service.ExecuteAsync(new ProfileExecutionRequest(configuration, profile), callbacks.ToCallbacks());
+
+        Assert.Equal(1, h2Client.LoadPresetCallCount);
+        Assert.False(callbacks.StoppedRouting);
+        Assert.False(runtime.ActivateLayoutCalled);
+        Assert.Contains(callbacks.Logs, log => log.Contains("H2 preset load failed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
