@@ -328,7 +328,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
-                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" MinHeight="220" RowHeight="42">
+                            <DataGrid ItemsSource="{Binding Layouts}" SelectedItem="{Binding SelectedLayout}" AutoGenerateColumns="False" IsReadOnly="False" CanUserDeleteRows="False" MinHeight="220" RowHeight="42">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Layout" Binding="{Binding Name}" Width="2*" />
                                     <DataGridTemplateColumn Header="Description" Width="2.4*">
@@ -418,7 +418,7 @@
                                 </StackPanel>
                                 <TextBlock Text="Device" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
                             </DockPanel>
-                            <DataGrid ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" AutoGenerateColumns="False" IsReadOnly="False">
+                            <DataGrid ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" AutoGenerateColumns="False" IsReadOnly="False" CanUserDeleteRows="False">
                                 <DataGrid.Columns>
                                     <DataGridTemplateColumn Header="" Width="42" IsReadOnly="True">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -554,7 +554,7 @@
                                         <Button Content="Add Zone" Command="{Binding AddZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                                         <Button Content="Remove Zone" Command="{Binding RemoveZoneCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
                                     </StackPanel>
-                                    <DataGrid ItemsSource="{Binding SelectedLayoutZones}" SelectedItem="{Binding SelectedZone}" AutoGenerateColumns="True" IsReadOnly="False" MinHeight="240" />
+                                    <DataGrid ItemsSource="{Binding SelectedLayoutZones}" SelectedItem="{Binding SelectedZone}" AutoGenerateColumns="True" IsReadOnly="False" CanUserDeleteRows="False" MinHeight="240" />
                                 </DockPanel>
                             </Border>
                         </Expander>
@@ -567,7 +567,7 @@
                                         <Button Content="Add Portal" Command="{Binding AddPortalCommand}" Style="{StaticResource SecondaryButtonStyle}" />
                                         <Button Content="Remove Portal" Command="{Binding RemovePortalCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="0" />
                                     </StackPanel>
-                                    <DataGrid ItemsSource="{Binding SelectedLayoutPortals}" SelectedItem="{Binding SelectedPortal}" AutoGenerateColumns="True" IsReadOnly="False" MinHeight="240" />
+                                    <DataGrid ItemsSource="{Binding SelectedLayoutPortals}" SelectedItem="{Binding SelectedPortal}" AutoGenerateColumns="True" IsReadOnly="False" CanUserDeleteRows="False" MinHeight="240" />
                                 </DockPanel>
                             </Border>
                         </Expander>

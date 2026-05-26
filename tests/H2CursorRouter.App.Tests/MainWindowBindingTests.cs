@@ -86,6 +86,21 @@ public sealed class MainWindowBindingTests
         Assert.Empty(missing);
     }
 
+    [Fact]
+    public void EditableDataGridsDisableImplicitDeleteRows()
+    {
+        var xaml = File.ReadAllText(FindRepositoryFile("src", "H2CursorRouter.App", "MainWindow.xaml"));
+        var editableDataGrids = Regex.Matches(xaml, @"<DataGrid\b[^>]*\bIsReadOnly=""False""[^>]*/?>")
+            .Select(match => match.Value)
+            .ToArray();
+        var deleteEnabled = editableDataGrids
+            .Where(tag => !Regex.IsMatch(tag, @"\bCanUserDeleteRows=""False"""))
+            .ToArray();
+
+        Assert.NotEmpty(editableDataGrids);
+        Assert.Empty(deleteEnabled);
+    }
+
     [Theory]
     [InlineData("RuntimeStatus")]
     [InlineData("DashboardProfiles")]

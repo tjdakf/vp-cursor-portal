@@ -38,7 +38,6 @@ public sealed class ProfileExecutionService
 
         var profile = request.Profile;
         callbacks.AddLog($"Executing profile '{profile.Name}'.");
-        callbacks.StopRouting(profile.CursorLayoutId is not null);
 
         bool? h2AckOk = null;
         if (profile.H2Preset is not null)
@@ -93,6 +92,7 @@ public sealed class ProfileExecutionService
             }
 
             var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
+            callbacks.StopRouting(clearLayout: true);
             _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
             callbacks.SelectLayout(layout.Id);
             callbacks.AddLog(_routingRuntime.IsRoutingEnabled

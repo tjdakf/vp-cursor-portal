@@ -27,7 +27,7 @@ public sealed class ProfileExecutionServiceTests
 
         Assert.Equal(1, h2Client.LoadPresetCallCount);
         Assert.False(runtime.ActivateLayoutCalled);
-        Assert.True(callbacks.StoppedRouting);
+        Assert.False(callbacks.StoppedRouting);
         Assert.Contains(callbacks.Logs, log => log.Contains("H2 preset load failed", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(callbacks.Logs, log => log.Contains("was not applied", StringComparison.OrdinalIgnoreCase));
     }
@@ -95,8 +95,7 @@ public sealed class ProfileExecutionServiceTests
         Assert.Equal("h2", h2Client.DeviceId);
         Assert.Equal(0, h2Client.ScreenId);
         Assert.Equal(0, h2Client.PresetId);
-        Assert.True(callbacks.StoppedRouting);
-        Assert.False(callbacks.StopClearedLayout);
+        Assert.False(callbacks.StoppedRouting);
         Assert.False(runtime.ActivateLayoutCalled);
         Assert.Null(callbacks.SelectedLayoutId);
     }
