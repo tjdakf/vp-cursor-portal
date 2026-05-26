@@ -285,19 +285,15 @@ Configuration load order:
 flowchart TD
     A["%AppData% config.json"] --> B{"Valid?"}
     B -- yes --> Z["Use user config"]
-    B -- no / missing --> C["Legacy config beside exe"]
-    C --> D{"Valid?"}
-    D -- yes --> Z
-    D -- no / missing --> E["Optional config.sample.json beside exe"]
+    B -- no / missing --> E["Optional config.sample.json beside exe"]
     E --> F{"Valid?"}
     F -- yes --> Z
     F -- no / missing --> G["Built-in empty SampleConfiguration"]
 ```
 
 1. `%AppData%\vp-cursor-portal\config.json`
-2. legacy `config.json` beside the executable, if present
-3. optional `config.sample.json` beside the executable, if a developer or tester manually placed one there
-4. built-in empty configuration from `SampleConfiguration.Create()`
+2. optional `config.sample.json` beside the executable, if a developer or tester manually placed one there
+3. built-in empty configuration from `SampleConfiguration.Create()`
 
 Invalid config files are moved aside with an `.invalid-{timestamp}` suffix and the app falls back to the next source.
 

@@ -67,6 +67,11 @@ internal sealed class LayoutEditingService
             return;
         }
 
+        if (Math.Sqrt(RectGapScore(zone, target)) > EdgeSnapTolerance)
+        {
+            return;
+        }
+
         var direction = DetermineSnapDirection(zone, target);
         var snappedLeft = zone.VisualLeft;
         var snappedTop = zone.VisualTop;

@@ -75,7 +75,6 @@ public partial class App : System.Windows.Application
         var baseDirectory = AppContext.BaseDirectory;
         var userDataDirectory = GetUserDataDirectory();
         var configPath = Path.Combine(userDataDirectory, "config.json");
-        var legacyConfigPath = Path.Combine(baseDirectory, "config.json");
         var sampleConfigPath = Path.Combine(baseDirectory, "config.sample.json");
 
         if (File.Exists(configPath))
@@ -89,17 +88,16 @@ public partial class App : System.Windows.Application
                 var backupPath = MoveInvalidConfigAside(configPath);
                 var warning =
                     $"Failed to load user config.json. Invalid config backup: {backupPath}. Error: {exception.Message}";
-                var fallback = await LoadFallbackConfigurationAsync(configService, legacyConfigPath, sampleConfigPath, configPath, warning);
+                var fallback = await LoadFallbackConfigurationAsync(configService, sampleConfigPath, configPath, warning);
                 return fallback;
             }
         }
 
-        return await LoadFallbackConfigurationAsync(configService, legacyConfigPath, sampleConfigPath, configPath, null);
+        return await LoadFallbackConfigurationAsync(configService, sampleConfigPath, configPath, null);
     }
 
     private static async Task<(AppConfiguration Configuration, string ConfigPath, string? Warning)> LoadFallbackConfigurationAsync(
         ConfigFileService configService,
-        string legacyConfigPath,
         string sampleConfigPath,
         string configPath,
         string? priorWarning)
@@ -108,24 +106,6 @@ public partial class App : System.Windows.Application
             string.IsNullOrWhiteSpace(priorWarning) ? next : $"{priorWarning} {next}";
         static string? AddFallbackMessage(string? priorWarning, string next) =>
             string.IsNullOrWhiteSpace(priorWarning) ? null : $"{priorWarning} {next}";
-
-        if (File.Exists(legacyConfigPath))
-        {
-            try
-            {
-                return (
-                    await configService.LoadAsync(legacyConfigPath),
-                    configPath,
-                    AddFallbackMessage(priorWarning, "Loaded legacy config.json instead."));
-            }
-            catch (Exception exception)
-            {
-                var backupPath = MoveInvalidConfigAside(legacyConfigPath);
-                priorWarning = JoinWarning(
-                    priorWarning,
-                    $"Failed to load legacy config.json. Invalid config backup: {backupPath}. Error: {exception.Message}");
-            }
-        }
 
         if (File.Exists(sampleConfigPath))
         {

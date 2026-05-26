@@ -882,7 +882,6 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         RefreshSelectedLayoutWindowsCoordinatesFromDetectedDisplays();
-        AttachAllDraftZonesToNearest();
         var visibleZones = SelectedLayoutZones.Where(zone => zone.IsVisible).ToArray();
         if (visibleZones.Length == 0)
         {
@@ -1330,11 +1329,6 @@ public sealed class MainViewModel : ViewModelBase
         _layoutEditingService.AttachZoneToNearest(zone, SelectedLayoutZones);
         NormalizeSelectedLayoutVisualOrigin();
         RefreshLayoutPreviewCanvasSize();
-    }
-
-    private void AttachAllDraftZonesToNearest()
-    {
-        _layoutEditingService.AttachAllDraftZonesToNearest(SelectedLayoutZones);
     }
 
     private void NormalizeSelectedLayoutVisualOrigin()

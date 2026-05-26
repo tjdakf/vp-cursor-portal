@@ -140,6 +140,19 @@ public sealed class LayoutEditingServiceTests
     }
 
     [Fact]
+    public void AttachZoneToNearestIgnoresDistantZones()
+    {
+        var service = new LayoutEditingService();
+        var zone = new TestZone("moving", 240, 0, 340, 100);
+        var target = new TestZone("target", 100, 0, 200, 100);
+
+        service.AttachZoneToNearest(zone, [zone, target]);
+
+        Assert.Equal(240, zone.VisualLeft);
+        Assert.Equal(340, zone.VisualRight);
+    }
+
+    [Fact]
     public void GeneratePortalsDoesNotCreatePortalForCornerTouch()
     {
         var service = new LayoutEditingService();

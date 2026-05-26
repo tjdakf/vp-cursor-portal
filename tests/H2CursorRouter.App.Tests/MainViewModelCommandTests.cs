@@ -174,6 +174,40 @@ public sealed class MainViewModelCommandTests
         Assert.Same(portal, viewModel.SelectedPortal);
     }
 
+    [Fact]
+    public void SaveLayoutAsNewDoesNotAttachSeparatedZonesBeforeGeneratingPortals()
+    {
+        using var fixture = new MainViewModelFixture();
+        var viewModel = fixture.Create();
+        viewModel.SelectedLayout = new LayoutRow { Id = "draft", Name = "Draft" };
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY1", 0, 0, 100, 100));
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY2", 100, 0, 200, 100));
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY3", 240, 0, 340, 100));
+
+        viewModel.SaveLayoutAsNewCommand.Execute(null);
+
+        Assert.DoesNotContain(viewModel.SelectedLayoutPortals, portal =>
+            string.Equals(portal.FromZoneId, "DISPLAY3", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(portal.ToZoneId, "DISPLAY3", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2, viewModel.SelectedLayoutPortals.Count);
+    }
+
+    private static ZoneRow CreateVisibleZone(string layoutId, string id, int left, int top, int right, int bottom) => new()
+    {
+        LayoutId = layoutId,
+        Id = id,
+        DisplayName = id,
+        WindowsLeft = left,
+        WindowsTop = top,
+        WindowsRight = right,
+        WindowsBottom = bottom,
+        VisualLeft = left,
+        VisualTop = top,
+        VisualRight = right,
+        VisualBottom = bottom,
+        IsVisible = true
+    };
+
     private sealed class MainViewModelFixture : IDisposable
     {
         private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), $"h2-app-tests-{Guid.NewGuid():N}");
