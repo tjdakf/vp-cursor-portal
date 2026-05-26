@@ -92,7 +92,7 @@ public sealed class ProfileExecutionService
             }
 
             var startPosition = _routingEngine.ResolveStartPosition(layout, profile.StartPosition);
-            callbacks.StopRouting(clearLayout: true);
+            callbacks.StopRouting(true);
             _routingRuntime.ActivateLayout(layout, startPosition, TimeSpan.FromMilliseconds(15));
             callbacks.SelectLayout(layout.Id);
             callbacks.AddLog(_routingRuntime.IsRoutingEnabled
