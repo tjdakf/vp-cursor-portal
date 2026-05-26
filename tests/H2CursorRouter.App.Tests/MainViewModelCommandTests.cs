@@ -180,9 +180,9 @@ public sealed class MainViewModelCommandTests
         using var fixture = new MainViewModelFixture();
         var viewModel = fixture.Create();
         viewModel.SelectedLayout = new LayoutRow { Id = "draft", Name = "Draft" };
-        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY1", 0, 0, 100, 100));
-        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY2", 100, 0, 200, 100));
-        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY3", 240, 0, 340, 100));
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY1", 0, 0, 120, 120));
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY2", 120, 0, 240, 120));
+        viewModel.SelectedLayoutZones.Add(CreateVisibleZone("draft", "DISPLAY3", 280, 0, 400, 120));
 
         viewModel.SaveLayoutAsNewCommand.Execute(null);
 
