@@ -233,7 +233,23 @@ public sealed class MainViewModelCommandTests
         {
             if (Directory.Exists(_tempDirectory))
             {
-                Directory.Delete(_tempDirectory, recursive: true);
+                DeleteTempDirectoryWithRetry();
+            }
+        }
+
+        private void DeleteTempDirectoryWithRetry()
+        {
+            for (var attempt = 0; attempt < 20; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(_tempDirectory, recursive: true);
+                    return;
+                }
+                catch (IOException) when (attempt < 19)
+                {
+                    Thread.Sleep(50);
+                }
             }
         }
     }
