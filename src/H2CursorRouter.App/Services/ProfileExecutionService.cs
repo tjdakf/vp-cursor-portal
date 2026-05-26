@@ -67,6 +67,11 @@ public sealed class ProfileExecutionService
 
         if (!ProfileExecutionPlanner.ShouldApplyCursorLayout(profile, h2AckOk))
         {
+            if (profile.H2Preset is not null && profile.CursorLayoutId is null && h2AckOk == true)
+            {
+                callbacks.StopRouting(false);
+            }
+
             if (profile.CursorLayoutId is not null)
             {
                 callbacks.AddLog("Cursor layout was not applied because H2 ACK is required and did not succeed.");
