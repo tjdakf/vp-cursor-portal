@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Media;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Core.Geometry;
@@ -20,6 +21,8 @@ public partial class App : System.Windows.Application
 
     private async void OnStartup(object sender, StartupEventArgs e)
     {
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+
         var cursorService = new Win32CursorService();
         _monitorTopology = new Win32MonitorTopologyService();
         _monitorTopology.StartWatching(TimeSpan.FromSeconds(2));

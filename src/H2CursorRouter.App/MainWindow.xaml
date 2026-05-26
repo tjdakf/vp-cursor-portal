@@ -13,6 +13,7 @@
         WindowStyle="None"
         ResizeMode="CanResize"
         Loaded="OnLoaded"
+        ContentRendered="OnContentRendered"
         Closing="OnClosing">
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="40"

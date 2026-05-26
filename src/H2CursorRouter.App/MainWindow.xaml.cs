@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private System.Drawing.Icon? _trayIcon;
     private bool _allowExit;
     private bool _isInitialDashboardSelection = true;
+    private bool _hideToTrayAfterFirstRender;
 
     public MainWindow(MainViewModel viewModel, IHotkeyService hotkeyService, bool startInTray)
     {
@@ -51,8 +52,19 @@ public partial class MainWindow : Window
 
         if (_startInTray)
         {
-            HideToTray();
+            _hideToTrayAfterFirstRender = true;
         }
+    }
+
+    private void OnContentRendered(object? sender, EventArgs e)
+    {
+        if (!_hideToTrayAfterFirstRender)
+        {
+            return;
+        }
+
+        _hideToTrayAfterFirstRender = false;
+        HideToTray();
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

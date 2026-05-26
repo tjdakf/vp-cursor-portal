@@ -42,6 +42,7 @@ public sealed class MainWindowBindingTests
         var eventNames = new[]
         {
             "Loaded",
+            "ContentRendered",
             "Closing",
             "Click",
             "SelectionChanged",
