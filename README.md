@@ -9,12 +9,12 @@ It links two operations that normally happen separately:
 
 ## Download
 
-Latest release: [v0.1.2](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.2)
+Latest release: [v0.1.3](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.3)
 
 | Asset | Use when |
 |---|---|
-| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.2/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
-| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.2/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
+| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.3/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
+| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.3/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
 
 The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning.
 
@@ -32,7 +32,7 @@ The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may sho
 | Packaging | Portable ZIP and Inno Setup installer from GitHub Actions |
 | Config path | `%AppData%\vp-cursor-portal\config.json` |
 | Safety baseline | Routing starts disabled, emergency unlock is always available |
-| Latest release | [`v0.1.2`](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.2) |
+| Latest release | [`v0.1.3`](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.3) |
 
 ## What Problem It Solves
 
@@ -62,7 +62,7 @@ Example topology:
 
 ## Current MVP Status
 
-`v0.1.2` has been released from `main`.
+`v0.1.3` has been released from `main`.
 
 | Status | Capability |
 |---|---|
@@ -102,6 +102,7 @@ docs/releases/
   v0.1.0.md
   v0.1.1.md
   v0.1.2.md
+  v0.1.3.md
 
 installer/inno/
   vp-cursor-portal.iss
@@ -538,11 +539,11 @@ The workflow:
 | `vp-cursor-portal-win-x64` | Portable self-contained app folder |
 | `vp-cursor-portal-setup` | Program Files installer |
 
-GitHub Release assets are uploaded only for tags like `v0.1.2`.
+GitHub Release assets are uploaded only for tags like `v0.1.3`.
 
 ## Release Checklist
 
-`v0.1.2` is already released. Use this checklist for the next release:
+`v0.1.3` is already released. Use this checklist for the next release:
 
 1. Merge the PR branch.
 2. Confirm the latest `Windows Build` workflow passes.
@@ -553,13 +554,13 @@ GitHub Release assets are uploaded only for tags like `v0.1.2`.
 7. Create and push a version tag, for example:
 
 ```bash
-git tag v0.1.3
-git push origin v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
 ```
 
 The tag workflow creates release assets.
 
-For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.2.md`.
+For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.3.md`.
 
 ## Code Signing And SmartScreen
 
