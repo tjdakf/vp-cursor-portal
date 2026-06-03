@@ -39,6 +39,16 @@ public sealed class CursorRoutingEngine
             return RoutingDecision.RevertToLastValid(lastValidPosition, $"Cursor entered hidden zone '{currentZone.Id}'.");
         }
 
+        if (previousZone is not null &&
+            previousZone.IsVisible &&
+            currentZone.IsVisible &&
+            !string.Equals(previousZone.Id, currentZone.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return RoutingDecision.RevertToLastValid(
+                lastValidPosition,
+                $"Cursor moved from visible zone '{previousZone.Id}' to visible zone '{currentZone.Id}' without a matching portal.");
+        }
+
         return RoutingDecision.KeepCurrent();
     }
 

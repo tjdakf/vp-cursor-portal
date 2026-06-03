@@ -46,6 +46,39 @@ public sealed class CursorRoutingEngineTests
     }
 
     [Fact]
+    public void VisibleZoneTransitionWithoutMatchingPortalRevertsToLastValidPosition()
+    {
+        var layout = TwoAdjacentVisibleZonesLayout([]);
+        var lastValid = new CursorPoint(99, 50);
+        var decision = _engine.Evaluate(layout, new CursorPoint(99, 50), new CursorPoint(100, 50), lastValid);
+
+        Assert.Equal(RoutingDecisionKind.RevertToLastValid, decision.Kind);
+        Assert.Equal(lastValid, decision.Target);
+        Assert.Contains("without a matching portal", decision.Reason);
+    }
+
+    [Fact]
+    public void SameVisibleZoneMovementKeepsCurrentPosition()
+    {
+        var layout = TwoAdjacentVisibleZonesLayout([]);
+        var decision = _engine.Evaluate(layout, new CursorPoint(10, 10), new CursorPoint(20, 20), new CursorPoint(10, 10));
+
+        Assert.Equal(RoutingDecisionKind.KeepCurrent, decision.Kind);
+    }
+
+    [Fact]
+    public void VisibleZonePortalStillMapsByRatio()
+    {
+        var layout = TwoAdjacentVisibleZonesLayout(
+            [new CursorPortal("left", Edge.Right, new EdgeRange(0, 1), "right", Edge.Left, new EdgeRange(0, 1))]);
+
+        var decision = _engine.Evaluate(layout, new CursorPoint(99, 25), new CursorPoint(100, 25), new CursorPoint(99, 25));
+
+        Assert.Equal(RoutingDecisionKind.MoveToTarget, decision.Kind);
+        Assert.Equal(new CursorPoint(100, 25), decision.Target);
+    }
+
+    [Fact]
     public void FullEdgePortalMapsByRatio()
     {
         var layout = new CursorLayout(
@@ -294,4 +327,13 @@ public sealed class CursorRoutingEngineTests
         "layout",
         [new CursorZone("visible", "Visible", new IntRect(0, 0, 100, 100), new VisualRect(0, 0, 100, 100), true)],
         []);
+
+    private static CursorLayout TwoAdjacentVisibleZonesLayout(IReadOnlyList<CursorPortal> portals) => new(
+        "layout",
+        "layout",
+        [
+            new CursorZone("left", "Left", new IntRect(0, 0, 100, 100), new VisualRect(0, 0, 100, 100), true),
+            new CursorZone("right", "Right", new IntRect(100, 0, 200, 100), new VisualRect(100, 0, 200, 100), true)
+        ],
+        portals);
 }
