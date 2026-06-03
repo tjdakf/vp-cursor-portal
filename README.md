@@ -6,24 +6,25 @@ Windows cursor routing for NovaStar H Series / H2 video-wall layouts.
 
 ## Download
 
-Latest release: [v0.1.4](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.4)
+Latest release: [v0.1.5](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.5)
 
 | Asset | Use when |
 |---|---|
-| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.4/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
-| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.4/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
+| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.5/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
+| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.5/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
 
 The installer and executable are not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning.
 
-## What's New In v0.1.4
+## What's New In v0.1.5
 
-This release tightens cursor routing for complex custom layouts.
+This release improves display identification for mixed-DPI field layouts.
 
-- Visible-zone-to-visible-zone cursor travel is allowed only through configured portals.
-- Windows' native monitor adjacency can no longer leak through the outer edge of a custom H2 layout.
-- Existing ratio-based portal mapping, hidden-zone rejection, outside-zone rejection, and same-zone movement behavior are preserved.
+- Identify overlays are positioned with physical monitor pixels after the WPF window handle is created.
+- Negative monitor coordinates are supported, so displays left of or above the primary monitor can be identified correctly.
+- Mixed 4K 150% scaling and FHD 100% scaling layouts no longer rely on WPF's logical-pixel placement for Identify windows.
+- Cursor routing behavior from v0.1.4 is unchanged.
 
-Full release notes: [docs/releases/v0.1.4.md](docs/releases/v0.1.4.md)
+Full release notes: [docs/releases/v0.1.5.md](docs/releases/v0.1.5.md)
 
 ## Why This Exists
 
@@ -170,6 +171,7 @@ docs/releases/
   v0.1.2.md
   v0.1.3.md
   v0.1.4.md
+  v0.1.5.md
 ```
 
 Development architecture notes, diagrams, test guidance, publishing details, and release checklist are kept in [docs/development.md](docs/development.md).

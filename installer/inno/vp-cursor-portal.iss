@@ -1,6 +1,6 @@
 #define MyAppName "vp-cursor-portal"
 #ifndef MyAppVersion
-#define MyAppVersion "0.1.3"
+#define MyAppVersion "0.1.5"
 #endif
 #define MyAppPublisher "vp-cursor-portal contributors"
 #define MyAppExeName "vp-cursor-portal.exe"
