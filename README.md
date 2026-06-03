@@ -172,6 +172,8 @@ docs/releases/
   v0.1.4.md
 ```
 
+Development architecture notes, diagrams, test guidance, publishing details, and release checklist are kept in [docs/development.md](docs/development.md).
+
 ## License
 
 `vp-cursor-portal` is released under the MIT License. See [LICENSE](LICENSE).
