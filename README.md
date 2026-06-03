@@ -9,12 +9,12 @@ It links two operations that normally happen separately:
 
 ## Download
 
-Latest release: [v0.1.3](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.3)
+Latest release: [v0.1.4](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.4)
 
 | Asset | Use when |
 |---|---|
-| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.3/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
-| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.3/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
+| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.4/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
+| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.4/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
 
 The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning.
 
@@ -32,7 +32,7 @@ The MVP installer is not code-signed yet. Microsoft Defender SmartScreen may sho
 | Packaging | Portable ZIP and Inno Setup installer from GitHub Actions |
 | Config path | `%AppData%\vp-cursor-portal\config.json` |
 | Safety baseline | Routing starts disabled, emergency unlock is always available |
-| Latest release | [`v0.1.3`](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.3) |
+| Latest release | [`v0.1.4`](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.4) |
 
 ## What Problem It Solves
 
@@ -42,7 +42,7 @@ Windows monitor topology can differ from the H2 visual layout.
 |---|---|
 | `[Monitor 1] [Monitor 2] [Monitor 3]` | `[Monitor 1] [Monitor 3]` |
 
-In that case, the cursor should not disappear into Monitor 2. `vp-cursor-portal` keeps the cursor inside visible zones, reverts from hidden zones, and moves across configured portal edges using ratio-based coordinate mapping.
+In that case, the cursor should not disappear into Monitor 2. `vp-cursor-portal` keeps the cursor inside visible zones, reverts from hidden zones, and moves across configured portal edges using ratio-based coordinate mapping. Visible-zone-to-visible-zone travel is allowed only through configured portals, so Windows' physical monitor adjacency cannot leak through the outer edge of a custom H2 layout.
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ Example topology:
 
 ## Current MVP Status
 
-`v0.1.3` has been released from `main`.
+`v0.1.4` is prepared from `main`.
 
 | Status | Capability |
 |---|---|
@@ -71,7 +71,7 @@ Example topology:
 | Done | H2 `W0605` preset load and `R0600` preset enum commands |
 | Done | UDP timeout handling and one in-flight H2 command at a time |
 | Done | ACK parsing for success, failure, malformed JSON, and unexpected responses |
-| Done | Pure cursor routing engine for visible, hidden, outside, full-edge, segmented, and different-size visual mapping cases |
+| Done | Pure cursor routing engine for visible, hidden, outside, portal-only visible-zone transitions, full-edge, segmented, and different-size visual mapping cases |
 | Done | Polling-based Win32 cursor routing runtime |
 | Done | Emergency unlock hotkey and UI action |
 | Done | Monitor topology detection and topology-change safety shutdown |
@@ -103,6 +103,7 @@ docs/releases/
   v0.1.1.md
   v0.1.2.md
   v0.1.3.md
+  v0.1.4.md
 
 installer/inno/
   vp-cursor-portal.iss
@@ -379,9 +380,12 @@ The routing engine is pure. It receives the active layout, previous cursor posit
 
 Portal mapping uses visual-ratio mapping rather than copying raw pixels. This lets a large visual source map correctly to a smaller or segmented target source.
 
+When the cursor moves from one visible zone into another visible zone, the transition must match a configured portal. If no portal matches, the engine reverts to the last valid position instead of allowing Windows' native monitor adjacency to decide the destination.
+
 High-risk behavior:
 
 - hidden monitor handling,
+- non-portal visible-zone transition rejection,
 - virtual desktop boundary crossings,
 - segmented edge portals,
 - single-visible-zone clipping,
@@ -539,11 +543,11 @@ The workflow:
 | `vp-cursor-portal-win-x64` | Portable self-contained app folder |
 | `vp-cursor-portal-setup` | Program Files installer |
 
-GitHub Release assets are uploaded only for tags like `v0.1.3`.
+GitHub Release assets are uploaded only for tags like `v0.1.4`.
 
 ## Release Checklist
 
-`v0.1.3` is already released. Use this checklist for the next release:
+`v0.1.4` is prepared. Use this checklist to publish and verify the release:
 
 1. Merge the PR branch.
 2. Confirm the latest `Windows Build` workflow passes.
@@ -560,7 +564,7 @@ git push origin v0.1.4
 
 The tag workflow creates release assets.
 
-For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.3.md`.
+For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.4.md`.
 
 ## Code Signing And SmartScreen
 
