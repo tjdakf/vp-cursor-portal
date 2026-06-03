@@ -1,5 +1,8 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Threading;
 using H2CursorRouter.App.ViewModels;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaColor = System.Windows.Media.Color;
@@ -58,8 +61,40 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
             Focusable = false,
             Content = CreateContent(monitor)
         };
+        window.SourceInitialized += (_, _) =>
+        {
+            CenterWindowInMonitorBounds(window, monitor);
+            window.Dispatcher.BeginInvoke(
+                () => CenterWindowInMonitorBounds(window, monitor),
+                DispatcherPriority.Loaded);
+        };
 
         return window;
+    }
+
+    private static void CenterWindowInMonitorBounds(Window window, MonitorRow monitor)
+    {
+        var handle = new WindowInteropHelper(window).Handle;
+        if (handle == IntPtr.Zero || !GetWindowRect(handle, out var rect))
+        {
+            return;
+        }
+
+        var width = Math.Max(1, rect.Right - rect.Left);
+        var height = Math.Max(1, rect.Bottom - rect.Top);
+        var left = monitor.Left + (monitor.Width - width) / 2;
+        var top = monitor.Top + (monitor.Height - height) / 2;
+
+        SetWindowPos(
+            handle,
+            HwndTopmost,
+            left,
+            top,
+            0,
+            0,
+            SetWindowPosFlags.NoSize |
+            SetWindowPosFlags.NoActivate |
+            SetWindowPosFlags.NoOwnerZOrder);
     }
 
     private static UIElement CreateContent(MonitorRow monitor)
@@ -114,5 +149,37 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
             Padding = new Thickness(22),
             Child = stack
         };
+    }
+
+    private static readonly IntPtr HwndTopmost = new(-1);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        SetWindowPosFlags flags);
+
+    [Flags]
+    private enum SetWindowPosFlags : uint
+    {
+        NoSize = 0x0001,
+        NoActivate = 0x0010,
+        NoOwnerZOrder = 0x0200
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
     }
 }
