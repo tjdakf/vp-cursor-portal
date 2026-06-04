@@ -140,6 +140,47 @@ public sealed class LayoutEditingServiceTests
     }
 
     [Fact]
+    public void AttachZoneToNearestClosesRowGapAtDropTime()
+    {
+        var service = new LayoutEditingService();
+        var zones = new[]
+        {
+            new TestZone("display8", 0, 0, 1920, 1080),
+            new TestZone("display1", 1940, 0, 3860, 1080)
+        };
+
+        service.AttachZoneToNearest(zones[1], zones);
+
+        Assert.Equal(1920, zones[1].VisualLeft);
+        Assert.Equal(3840, zones[1].VisualRight);
+    }
+
+    [Fact]
+    public void GeneratePortalsCreatesPortalAfterDropTimeSnap()
+    {
+        var service = new LayoutEditingService();
+        var zones = new[]
+        {
+            new TestZone("display5", 0, 0, 1920, 1080),
+            new TestZone("display8", 1920, 0, 3840, 1080),
+            new TestZone("display1", 3860, 0, 5780, 1080),
+            new TestZone("display2", 5780, 0, 7700, 1080),
+            new TestZone("display7", 7700, 0, 9620, 1080)
+        };
+
+        service.AttachZoneToNearest(zones[2], zones);
+        var portals = service.GeneratePortalsFromVisualAdjacency(zones);
+
+        Assert.Equal(3840, zones[2].VisualLeft);
+        Assert.Equal(5760, zones[2].VisualRight);
+        Assert.Contains(portals, portal =>
+            portal.FromZoneId == "display8" &&
+            portal.FromEdge == Edge.Right &&
+            portal.ToZoneId == "display1" &&
+            portal.ToEdge == Edge.Left);
+    }
+
+    [Fact]
     public void AttachZoneToNearestIgnoresDistantZones()
     {
         var service = new LayoutEditingService();
