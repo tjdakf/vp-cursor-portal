@@ -164,8 +164,8 @@ public sealed class LayoutEditingServiceTests
             new TestZone("display5", 0, 0, 1920, 1080),
             new TestZone("display8", 1920, 0, 3840, 1080),
             new TestZone("display1", 3860, 0, 5780, 1080),
-            new TestZone("display2", 5780, 0, 7700, 1080),
-            new TestZone("display7", 7700, 0, 9620, 1080)
+            new TestZone("display2", 6000, 0, 7920, 1080),
+            new TestZone("display7", 7920, 0, 9840, 1080)
         };
 
         service.AttachZoneToNearest(zones[2], zones);
