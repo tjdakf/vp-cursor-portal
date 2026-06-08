@@ -1,5 +1,6 @@
 using System.IO;
 using H2CursorRouter.App;
+using H2CursorRouter.App.Services;
 using H2CursorRouter.App.ViewModels;
 using H2CursorRouter.Core.Configuration;
 using H2CursorRouter.Core.Domain;
@@ -192,6 +193,121 @@ public sealed class MainViewModelCommandTests
         Assert.Equal(2, viewModel.SelectedLayoutPortals.Count);
     }
 
+    [Fact]
+    public void RefreshDisplaysKeepsSavedDisplayAlias()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub([CreateMonitorInfo(@"\\.\DISPLAY1", 0, 0, 100, 100)]);
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases: [new DisplayAlias("DISPLAY1", "Main wall", DateTimeOffset.Parse("2026-05-24T00:00:00Z"))]);
+        var viewModel = fixture.Create(configuration, topology);
+
+        topology.Monitors = [CreateMonitorInfo(@"\\.\DISPLAY1", 100, 0, 200, 100)];
+        viewModel.RefreshDisplays();
+
+        var alias = Assert.Single(viewModel.DisplayAliases);
+        var monitor = Assert.Single(viewModel.Monitors);
+        Assert.Equal("Main wall", alias.Alias);
+        Assert.True(alias.IsConnected);
+        Assert.Equal("Main wall", monitor.DisplayLabel);
+    }
+
+    [Fact]
+    public void RefreshDisplaysPopulatesMissingLastSeenForSavedAlias()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub();
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases: [new DisplayAlias("DISPLAY1", "Main wall", null)]);
+        var viewModel = fixture.Create(configuration, topology);
+
+        topology.Monitors = [CreateMonitorInfo(@"\\.\DISPLAY1", 0, 0, 100, 100)];
+        viewModel.RefreshDisplays();
+
+        var alias = Assert.Single(viewModel.DisplayAliases);
+        Assert.Equal("Main wall", alias.Alias);
+        Assert.True(alias.IsConnected);
+        Assert.NotNull(alias.LastSeenAtUtc);
+    }
+
+    [Fact]
+    public void RefreshDisplaysUpdatesLastSeenWhenSavedAliasReconnects()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub();
+        var previousLastSeenAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases: [new DisplayAlias("DISPLAY1", "Main wall", previousLastSeenAt)]);
+        var viewModel = fixture.Create(configuration, topology);
+        var disconnectedAlias = Assert.Single(viewModel.DisplayAliases);
+        Assert.False(disconnectedAlias.IsConnected);
+
+        topology.Monitors = [CreateMonitorInfo(@"\\.\DISPLAY1", 0, 0, 100, 100)];
+        viewModel.RefreshDisplays();
+
+        var reconnectedAlias = Assert.Single(viewModel.DisplayAliases);
+        Assert.True(reconnectedAlias.IsConnected);
+        Assert.NotNull(reconnectedAlias.LastSeenAtUtc);
+        Assert.True(reconnectedAlias.LastSeenAtUtc > previousLastSeenAt);
+    }
+
+    [Fact]
+    public void RefreshDisplaysCreatesAliaslessDisplayRowForSaving()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub();
+        var viewModel = fixture.Create(monitorTopologyService: topology);
+
+        topology.Monitors = [CreateMonitorInfo(@"\\.\DISPLAY2", 0, 0, 100, 100)];
+        viewModel.RefreshDisplays();
+
+        var row = Assert.Single(viewModel.DisplayAliases);
+        Assert.Equal("DISPLAY2", row.DeviceName);
+        Assert.Equal("", row.Alias);
+        Assert.True(row.IsConnected);
+        Assert.NotNull(row.LastSeenAtUtc);
+
+        var configuration = new ConfigurationRowMapper(new MonitorZoneMatcher())
+            .BuildConfiguration([], [], [], [], [], [], viewModel.DisplayAliases, viewModel.Monitors, SafetySettings.Default);
+        var savedAlias = Assert.Single(configuration.DisplayAliasEntries);
+        Assert.Equal("DISPLAY2", savedAlias.DeviceName);
+        Assert.Equal("", savedAlias.Alias);
+        Assert.Equal(row.LastSeenAtUtc, savedAlias.LastSeenAtUtc);
+    }
+
+    [Fact]
+    public void CreateLayoutFromMonitorsKeepsZoneIdOriginalAfterAlias()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub([CreateMonitorInfo(@"\\.\DISPLAY1", 0, 0, 100, 100)]);
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases: [new DisplayAlias("DISPLAY1", "Main wall", null)]);
+        var viewModel = fixture.Create(configuration, topology);
+
+        viewModel.CreateLayoutFromMonitorsCommand.Execute(null);
+
+        var zone = Assert.Single(viewModel.SelectedLayoutZones);
+        Assert.Equal("DISPLAY1", zone.Id);
+        Assert.Equal("DISPLAY1", zone.DisplayName);
+        Assert.Equal("Main wall", zone.DisplayLabel);
+    }
+
     private static ZoneRow CreateVisibleZone(string layoutId, string id, int left, int top, int right, int bottom) => new()
     {
         LayoutId = layoutId,
@@ -208,11 +324,14 @@ public sealed class MainViewModelCommandTests
         IsVisible = true
     };
 
+    private static MonitorInfo CreateMonitorInfo(string deviceName, int left, int top, int right, int bottom) =>
+        new(deviceName, new IntRect(left, top, right, bottom), IsPrimary: false);
+
     private sealed class MainViewModelFixture : IDisposable
     {
         private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), $"h2-app-tests-{Guid.NewGuid():N}");
 
-        public MainViewModel Create(AppConfiguration? configuration = null) => new(
+        public MainViewModel Create(AppConfiguration? configuration = null, IMonitorTopologyService? monitorTopologyService = null) => new(
             configuration ?? new AppConfiguration([], [], [], SafetySettings.Default),
             Path.Combine(_tempDirectory, "config.json"),
             "app.exe",
@@ -224,7 +343,7 @@ public sealed class MainViewModelCommandTests
             new ConfirmationDialogStub(),
             new ProfileDialogStub(),
             new DeviceDialogStub(),
-            new MonitorTopologyStub(),
+            monitorTopologyService ?? new MonitorTopologyStub(),
             new CursorRoutingRuntimeStub(),
             new CursorRoutingEngine(),
             new AppConfigurationValidator());
@@ -311,8 +430,18 @@ public sealed class MainViewModelCommandTests
 
     private sealed class MonitorTopologyStub : IMonitorTopologyService
     {
+        public MonitorTopologyStub()
+        {
+        }
+
+        public MonitorTopologyStub(IReadOnlyList<MonitorInfo> monitors)
+        {
+            Monitors = monitors;
+        }
+
         public event EventHandler? TopologyChanged;
-        public IReadOnlyList<MonitorInfo> GetMonitors() => [];
+        public IReadOnlyList<MonitorInfo> Monitors { get; set; } = [];
+        public IReadOnlyList<MonitorInfo> GetMonitors() => Monitors;
         public string GetTopologySignature() => "";
         public void StartWatching(TimeSpan interval) => TopologyChanged?.Invoke(this, EventArgs.Empty);
         public void Dispose()

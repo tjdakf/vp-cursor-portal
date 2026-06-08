@@ -114,6 +114,7 @@ public sealed class ConfigurationRowMapperTests
             [profile],
             [preset],
             [],
+            [],
             SafetySettings.Default);
 
         var builtLayout = Assert.Single(configuration.CursorLayouts);
@@ -134,9 +135,49 @@ public sealed class ConfigurationRowMapperTests
             DisableRoutingOnMonitorTopologyChange: false,
             StartWithRoutingDisabled: false);
 
-        var configuration = mapper.BuildConfiguration([], [], [], [], [], [], [], safety);
+        var configuration = mapper.BuildConfiguration([], [], [], [], [], [], [], [], safety);
 
         Assert.Equal(safety, configuration.Safety);
+    }
+
+    [Fact]
+    public void BuildConfigurationPreservesDisplayAliases()
+    {
+        var mapper = new ConfigurationRowMapper(new MonitorZoneMatcher());
+        var lastSeenAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var alias = new DisplayAliasRow
+        {
+            DeviceName = "DISPLAY1",
+            Alias = "Main wall",
+            LastSeenAtUtc = lastSeenAt
+        };
+
+        var configuration = mapper.BuildConfiguration([], [], [], [], [], [], [alias], [], SafetySettings.Default);
+
+        var savedAlias = Assert.Single(configuration.DisplayAliasEntries);
+        Assert.Equal("DISPLAY1", savedAlias.DeviceName);
+        Assert.Equal("Main wall", savedAlias.Alias);
+        Assert.Equal(lastSeenAt, savedAlias.LastSeenAtUtc);
+    }
+
+    [Fact]
+    public void BuildConfigurationPreservesDisplayRowsWithEmptyAliases()
+    {
+        var mapper = new ConfigurationRowMapper(new MonitorZoneMatcher());
+        var lastSeenAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var alias = new DisplayAliasRow
+        {
+            DeviceName = "DISPLAY2",
+            Alias = "   ",
+            LastSeenAtUtc = lastSeenAt
+        };
+
+        var configuration = mapper.BuildConfiguration([], [], [], [], [], [], [alias], [], SafetySettings.Default);
+
+        var savedAlias = Assert.Single(configuration.DisplayAliasEntries);
+        Assert.Equal("DISPLAY2", savedAlias.DeviceName);
+        Assert.Equal("", savedAlias.Alias);
+        Assert.Equal(lastSeenAt, savedAlias.LastSeenAtUtc);
     }
 
     [Fact]
@@ -168,7 +209,7 @@ public sealed class ConfigurationRowMapperTests
             Bottom = 100
         };
 
-        var configuration = mapper.BuildConfiguration([], [layout], [zone], [], [], [], [monitor], SafetySettings.Default);
+        var configuration = mapper.BuildConfiguration([], [layout], [zone], [], [], [], [], [monitor], SafetySettings.Default);
 
         var builtZone = Assert.Single(Assert.Single(configuration.CursorLayouts).Zones);
         Assert.Equal(new IntRect(100, 0, 200, 100), builtZone.WindowsRect);

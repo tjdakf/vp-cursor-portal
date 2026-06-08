@@ -15,6 +15,7 @@ internal sealed class MonitorZoneMatcher
         LayoutId = layoutId,
         Id = NormalizeZoneId(monitor.DeviceName),
         DisplayName = monitor.DeviceName,
+        DisplayAlias = monitor.DisplayAlias,
         WindowsLeft = monitor.Left,
         WindowsTop = monitor.Top,
         WindowsRight = monitor.Right,

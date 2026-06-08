@@ -9,21 +9,24 @@ public sealed record ConfigDocument(
     IReadOnlyList<CursorLayout>? CursorLayouts,
     IReadOnlyList<ExecutionProfile>? Profiles,
     SafetySettings? Safety,
-    IReadOnlyList<CachedH2Preset>? CachedPresets = null)
+    IReadOnlyList<CachedH2Preset>? CachedPresets = null,
+    IReadOnlyList<DisplayAlias>? DisplayAliases = null)
 {
     public AppConfiguration ToRuntime() => new(
         (Devices ?? Array.Empty<ConfigDevice>()).Select(device => device.ToRuntime()).ToArray(),
         CursorLayouts ?? Array.Empty<CursorLayout>(),
         Profiles ?? Array.Empty<ExecutionProfile>(),
         Safety ?? SafetySettings.Default,
-        CachedPresets ?? Array.Empty<CachedH2Preset>());
+        CachedPresets ?? Array.Empty<CachedH2Preset>(),
+        DisplayAliases ?? Array.Empty<DisplayAlias>());
 
     public static ConfigDocument FromRuntime(AppConfiguration configuration) => new(
         configuration.Devices.Select(ConfigDevice.FromRuntime).ToArray(),
         configuration.CursorLayouts,
         configuration.Profiles,
         configuration.Safety,
-        configuration.PresetCache);
+        configuration.PresetCache,
+        configuration.DisplayAliasEntries);
 }
 
 public sealed record ConfigDevice(

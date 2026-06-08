@@ -126,6 +126,7 @@ public sealed class ZoneRow : ViewModelBase, IVisualLayoutZone
 {
     private string _id = "";
     private string _displayName = "";
+    private string _displayAlias = "";
     private double _visualLeft;
     private double _visualTop;
     private double _visualRight;
@@ -159,8 +160,23 @@ public sealed class ZoneRow : ViewModelBase, IVisualLayoutZone
         }
     }
 
-    public string DisplayLabel => DisplayLabelFormatter.Format(DisplayName, Id);
-    public string DisplayIdHint => DisplayLabelFormatter.ShouldShowId(DisplayName, Id) ? Id : "";
+    public string DisplayAlias
+    {
+        get => _displayAlias;
+        set
+        {
+            if (SetProperty(ref _displayAlias, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+                OnPropertyChanged(nameof(DisplayIdHint));
+            }
+        }
+    }
+
+    public string DisplayLabel => string.IsNullOrWhiteSpace(DisplayAlias)
+        ? DisplayLabelFormatter.Format(DisplayName, Id)
+        : DisplayAlias.Trim();
+    public string DisplayIdHint => string.IsNullOrWhiteSpace(DisplayAlias) && DisplayLabelFormatter.ShouldShowId(DisplayName, Id) ? Id : "";
     public int WindowsLeft { get; set; }
     public int WindowsTop { get; set; }
     public int WindowsRight { get; set; }
@@ -495,12 +511,25 @@ public sealed class ProfileRow : ViewModelBase
 
 public sealed class MonitorRow : ViewModelBase
 {
+    private string _displayAlias = "";
     private double _previewLeft;
     private double _previewTop;
     private double _previewWidth;
     private double _previewHeight;
 
     public string DeviceName { get; init; } = "";
+    public string DisplayAlias
+    {
+        get => _displayAlias;
+        set
+        {
+            if (SetProperty(ref _displayAlias, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+            }
+        }
+    }
+
     public int Left { get; init; }
     public int Top { get; init; }
     public int Right { get; init; }
@@ -532,6 +561,7 @@ public sealed class MonitorRow : ViewModelBase
 
     public string BoundsText => $"{Left},{Top} -> {Right},{Bottom}";
     public string PrimaryText => IsPrimary ? "Primary" : "";
+    public string DisplayLabel => DisplayLabelFormatter.FormatAlias(DisplayAlias, DeviceName);
     public int Width => Right - Left;
     public int Height => Bottom - Top;
 
@@ -546,8 +576,88 @@ public sealed class MonitorRow : ViewModelBase
     };
 }
 
+public sealed class DisplayAliasRow : ViewModelBase
+{
+    private string _deviceName = "";
+    private string _alias = "";
+    private bool _isConnected;
+    private DateTimeOffset? _lastSeenAtUtc;
+
+    public string DeviceName
+    {
+        get => _deviceName;
+        set
+        {
+            if (SetProperty(ref _deviceName, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+            }
+        }
+    }
+
+    public string Alias
+    {
+        get => _alias;
+        set
+        {
+            if (SetProperty(ref _alias, value))
+            {
+                OnPropertyChanged(nameof(DisplayLabel));
+            }
+        }
+    }
+
+    public bool IsConnected
+    {
+        get => _isConnected;
+        set
+        {
+            if (SetProperty(ref _isConnected, value))
+            {
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(DeleteActionText));
+            }
+        }
+    }
+
+    public DateTimeOffset? LastSeenAtUtc
+    {
+        get => _lastSeenAtUtc;
+        set
+        {
+            if (SetProperty(ref _lastSeenAtUtc, value))
+            {
+                OnPropertyChanged(nameof(LastSeenText));
+            }
+        }
+    }
+
+    public string StatusText => IsConnected ? "Connected" : "Not detected";
+    public string DisplayLabel => DisplayLabelFormatter.FormatAlias(Alias, DeviceName);
+    public string LastSeenText => LastSeenAtUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "";
+    public string DeleteActionText => IsConnected ? "Clear alias" : "Remove";
+
+    public static DisplayAliasRow FromModel(DisplayAlias alias) => new()
+    {
+        DeviceName = alias.DeviceName,
+        Alias = alias.Alias,
+        LastSeenAtUtc = alias.LastSeenAtUtc
+    };
+
+    public DisplayAlias ToModel() => new(
+        DeviceName,
+        Alias.Trim(),
+        LastSeenAtUtc);
+}
+
 internal static class DisplayLabelFormatter
 {
+    public static string FormatAlias(string? alias, string fallback)
+    {
+        var name = alias?.Trim();
+        return string.IsNullOrWhiteSpace(name) ? fallback.Trim() : name;
+    }
+
     public static string Format(string? displayName, string id)
     {
         var name = displayName?.Trim();
