@@ -1246,7 +1246,6 @@ public sealed class MainViewModel : ViewModelBase
             foreach (var monitor in Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top))
             {
                 var key = MonitorZoneMatcher.NormalizeZoneId(monitor.DeviceName);
-                var isNew = false;
                 if (!aliasByKey.TryGetValue(key, out var alias))
                 {
                     alias = new DisplayAliasRow
@@ -1256,7 +1255,6 @@ public sealed class MainViewModel : ViewModelBase
                     SubscribeDisplayAlias(alias);
                     DisplayAliases.Add(alias);
                     aliasByKey[key] = alias;
-                    isNew = true;
                     changed = true;
                 }
 
@@ -1272,9 +1270,11 @@ public sealed class MainViewModel : ViewModelBase
                     changed = true;
                     alias.LastSeenAtUtc = now;
                 }
-                else if (isNew && alias.LastSeenAtUtc is null)
+
+                if (alias.LastSeenAtUtc is null)
                 {
                     alias.LastSeenAtUtc = now;
+                    changed = true;
                 }
             }
 
