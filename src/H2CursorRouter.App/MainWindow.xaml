@@ -525,7 +525,7 @@
                     <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0">
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Display aliases" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
-                            <DataGrid ItemsSource="{Binding DisplayAliases}" AutoGenerateColumns="False" IsReadOnly="False" CanUserDeleteRows="False" RowHeight="40">
+                            <DataGrid ItemsSource="{Binding DisplayAliases}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False" RowHeight="40">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Display" Binding="{Binding DisplayLabel}" Width="180" IsReadOnly="True" />
                                     <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="130" IsReadOnly="True" />
