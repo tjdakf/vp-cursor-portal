@@ -87,6 +87,7 @@ public sealed class ValidationAndProfileTests
         Assert.Empty(configuration.Profiles);
         Assert.Equal(SafetySettings.Default, configuration.Safety);
         Assert.Empty(configuration.PresetCache);
+        Assert.Empty(configuration.DisplayAliasEntries);
     }
 
     [Fact]
@@ -111,6 +112,34 @@ public sealed class ValidationAndProfileTests
         Assert.Equal(0, preset.PresetId);
         Assert.Equal("Preset 1", preset.DisplayName);
         Assert.Equal(fetchedAt, preset.LastFetchedAtUtc);
+    }
+
+    [Fact]
+    public void ConfigDocumentRoundTripsDisplayAliases()
+    {
+        var lastSeenAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases:
+            [
+                new DisplayAlias("DISPLAY1", "Center", lastSeenAt),
+                new DisplayAlias("DISPLAY2", "", lastSeenAt)
+            ]);
+
+        var restored = ConfigDocument.FromRuntime(configuration).ToRuntime();
+
+        Assert.Equal(2, restored.DisplayAliasEntries.Count);
+        var alias = restored.DisplayAliasEntries[0];
+        Assert.Equal("DISPLAY1", alias.DeviceName);
+        Assert.Equal("Center", alias.Alias);
+        Assert.Equal(lastSeenAt, alias.LastSeenAtUtc);
+        var emptyAlias = restored.DisplayAliasEntries[1];
+        Assert.Equal("DISPLAY2", emptyAlias.DeviceName);
+        Assert.Equal("", emptyAlias.Alias);
+        Assert.Equal(lastSeenAt, emptyAlias.LastSeenAtUtc);
     }
 
     [Fact]

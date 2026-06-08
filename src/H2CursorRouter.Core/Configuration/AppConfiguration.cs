@@ -9,9 +9,11 @@ public sealed record AppConfiguration(
     IReadOnlyList<CursorLayout> CursorLayouts,
     IReadOnlyList<ExecutionProfile> Profiles,
     SafetySettings Safety,
-    IReadOnlyList<CachedH2Preset>? CachedPresets = null)
+    IReadOnlyList<CachedH2Preset>? CachedPresets = null,
+    IReadOnlyList<DisplayAlias>? DisplayAliases = null)
 {
     public IReadOnlyList<CachedH2Preset> PresetCache => CachedPresets ?? Array.Empty<CachedH2Preset>();
+    public IReadOnlyList<DisplayAlias> DisplayAliasEntries => DisplayAliases ?? Array.Empty<DisplayAlias>();
 }
 
 public sealed record CachedH2Preset(
@@ -23,3 +25,8 @@ public sealed record CachedH2Preset(
     int PresetId,
     string DisplayName,
     DateTimeOffset? LastFetchedAtUtc);
+
+public sealed record DisplayAlias(
+    string DeviceName,
+    string Alias,
+    DateTimeOffset? LastSeenAtUtc);

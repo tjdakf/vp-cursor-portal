@@ -37,6 +37,7 @@ public sealed class MainViewModel : ViewModelBase
     private bool _startWithWindows;
     private CursorPoint? _selectedLayoutDraftStartPosition;
     private string _lastLoggedMonitorSignature = "";
+    private bool _suppressDisplayAliasUpdates;
 
     public MainViewModel(
         AppConfiguration configuration,
@@ -75,6 +76,12 @@ public sealed class MainViewModel : ViewModelBase
             configurationValidator);
 
         var rows = _configurationCoordinator.ToRows(configuration);
+        DisplayAliases = new ObservableCollection<DisplayAliasRow>(rows.DisplayAliases);
+        foreach (var alias in DisplayAliases)
+        {
+            SubscribeDisplayAlias(alias);
+        }
+
         DevicePresets = new DevicePresetViewModel(
             rows.Devices,
             rows.Presets,
@@ -91,6 +98,7 @@ public sealed class MainViewModel : ViewModelBase
             () => HotkeysChanged?.Invoke(this, EventArgs.Empty));
         RuntimeLog = new RuntimeLogViewModel();
         ProfileList.SetFilter(FilterProfile);
+        ApplyDisplayAliasesToZones(Zones);
         _startWithWindows = _startupRegistrationService.IsRegistered();
 
         SelectedDevice = Devices.FirstOrDefault();
@@ -122,6 +130,7 @@ public sealed class MainViewModel : ViewModelBase
         StopRoutingCommand = new RelayCommand(() => StopRouting(clearLayout: true));
         RefreshDiagnosticsCommand = new RelayCommand(() => RefreshDiagnostics(log: true));
         IdentifyDisplaysCommand = new AsyncRelayCommand(IdentifyDisplaysAsync, () => Monitors.Count > 0);
+        DeleteDisplayAliasCommand = new RelayCommand<DisplayAliasRow>(DeleteDisplayAlias, alias => alias is not null);
         SubscribeChildViewModels();
         _routingRuntime.Log += (_, message) => Dispatch(() => AddLog(message));
         _monitorTopologyService.TopologyChanged += OnMonitorTopologyChanged;
@@ -226,6 +235,7 @@ public sealed class MainViewModel : ViewModelBase
     public ProfileListViewModel ProfileList { get; }
     public RuntimeLogViewModel RuntimeLog { get; }
 
+    public ObservableCollection<DisplayAliasRow> DisplayAliases { get; }
     public ObservableCollection<DeviceRow> Devices => DevicePresets.Devices;
     public ObservableCollection<PresetRow> Presets => DevicePresets.Presets;
     public ObservableCollection<LayoutRow> Layouts => LayoutEditor.Layouts;
@@ -265,6 +275,7 @@ public sealed class MainViewModel : ViewModelBase
     public ICommand StopRoutingCommand { get; }
     public ICommand RefreshDiagnosticsCommand { get; }
     public ICommand IdentifyDisplaysCommand { get; }
+    public ICommand DeleteDisplayAliasCommand { get; }
     public string AppVersion { get; } = CreateDisplayVersion();
     public string AppDescription { get; } = "Windows cursor routing and video processor preset control for multi-display workstations.";
     public string AppLicenseSummary { get; } = "Released as open-source software under the MIT License.";
@@ -797,7 +808,7 @@ public sealed class MainViewModel : ViewModelBase
         NormalizeSelectedLayoutVisualOrigin();
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
-        AddLog($"Added display '{zone.DisplayName}' to layout canvas.");
+        AddLog($"Added display '{zone.DisplayLabel}' to layout canvas.");
     }
 
     private void EnsureTemporaryLayoutCanvas()
@@ -933,7 +944,7 @@ public sealed class MainViewModel : ViewModelBase
             Description = SelectedLayout.Description,
             DefaultStartX = _selectedLayoutDraftStartPosition?.X,
             DefaultStartY = _selectedLayoutDraftStartPosition?.Y,
-            Displays = ConfigurationRowMapper.FormatLayoutDisplays(SelectedLayoutZones)
+            Displays = FormatLayoutDisplaysWithAliases(SelectedLayoutZones)
         };
         Layouts.Add(newLayout);
 
@@ -1001,7 +1012,7 @@ public sealed class MainViewModel : ViewModelBase
 
         SelectedLayout.DefaultStartX = _selectedLayoutDraftStartPosition?.X;
         SelectedLayout.DefaultStartY = _selectedLayoutDraftStartPosition?.Y;
-        SelectedLayout.Displays = ConfigurationRowMapper.FormatLayoutDisplays(SelectedLayoutZones);
+        SelectedLayout.Displays = FormatLayoutDisplaysWithAliases(SelectedLayoutZones);
         OnPropertyChanged(nameof(SelectedLayout));
         RefreshProfileLayoutNames();
         AddLog($"Overwrote layout '{SelectedLayout.Name}' with generated portals.");
@@ -1016,6 +1027,46 @@ public sealed class MainViewModel : ViewModelBase
 
     private void RemoveSelectedProfile()
         => ProfileList.RemoveSelectedProfile();
+
+    private void DeleteDisplayAlias(DisplayAliasRow? alias)
+    {
+        if (alias is null)
+        {
+            return;
+        }
+
+        if (alias.IsConnected)
+        {
+            alias.Alias = "";
+            return;
+        }
+
+        DisplayAliases.Remove(alias);
+        ApplyDisplayAliasesToMonitors();
+        ApplyDisplayAliasesToZones(Zones);
+        ApplyDisplayAliasesToZones(SelectedLayoutZones);
+        AutoSaveConfiguration("Auto-saved configuration after removing display alias.");
+    }
+
+    private void SubscribeDisplayAlias(DisplayAliasRow alias)
+    {
+        alias.PropertyChanged += DisplayAliasOnPropertyChanged;
+    }
+
+    private void DisplayAliasOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_suppressDisplayAliasUpdates ||
+            sender is not DisplayAliasRow ||
+            e.PropertyName is not nameof(DisplayAliasRow.Alias))
+        {
+            return;
+        }
+
+        ApplyDisplayAliasesToMonitors();
+        ApplyDisplayAliasesToZones(Zones);
+        ApplyDisplayAliasesToZones(SelectedLayoutZones);
+        AutoSaveConfiguration("Auto-saved configuration after updating display alias.");
+    }
 
     private void GeneratePortalsFromVisualAdjacency()
     {
@@ -1135,6 +1186,10 @@ public sealed class MainViewModel : ViewModelBase
             Monitors.Add(MonitorRow.FromModel(monitor));
         }
 
+        var displayAliasMetadataChanged = MergeDisplayAliasesWithDetectedMonitors();
+        ApplyDisplayAliasesToMonitors();
+        ApplyDisplayAliasesToZones(Zones);
+        ApplyDisplayAliasesToZones(SelectedLayoutZones);
         RefreshDisplayPreview();
         if (log)
         {
@@ -1151,6 +1206,10 @@ public sealed class MainViewModel : ViewModelBase
         }
         RefreshAvailableLayoutDisplays();
         RaiseCommandStates();
+        if (displayAliasMetadataChanged)
+        {
+            AutoSaveConfiguration("Auto-saved configuration after refreshing display aliases.");
+        }
     }
 
     private async Task IdentifyDisplaysAsync()
@@ -1158,6 +1217,128 @@ public sealed class MainViewModel : ViewModelBase
         RefreshDiagnostics(log: true);
         await _displayIdentificationService.IdentifyAsync(Monitors.ToArray(), TimeSpan.FromSeconds(3));
         AddLog("Displayed monitor identification overlays.");
+    }
+
+    private bool MergeDisplayAliasesWithDetectedMonitors()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var changed = false;
+        var connectedKeys = Monitors
+            .Select(monitor => MonitorZoneMatcher.NormalizeZoneId(monitor.DeviceName))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var aliasByKey = DisplayAliases
+            .GroupBy(alias => MonitorZoneMatcher.NormalizeZoneId(alias.DeviceName), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last(), StringComparer.OrdinalIgnoreCase);
+
+        _suppressDisplayAliasUpdates = true;
+        try
+        {
+            foreach (var alias in DisplayAliases)
+            {
+                var isConnected = connectedKeys.Contains(MonitorZoneMatcher.NormalizeZoneId(alias.DeviceName));
+                if (alias.IsConnected != isConnected)
+                {
+                    alias.IsConnected = isConnected;
+                    changed = true;
+                }
+            }
+
+            foreach (var monitor in Monitors.OrderBy(monitor => monitor.Left).ThenBy(monitor => monitor.Top))
+            {
+                var key = MonitorZoneMatcher.NormalizeZoneId(monitor.DeviceName);
+                var isNew = false;
+                if (!aliasByKey.TryGetValue(key, out var alias))
+                {
+                    alias = new DisplayAliasRow
+                    {
+                        DeviceName = monitor.DeviceName
+                    };
+                    SubscribeDisplayAlias(alias);
+                    DisplayAliases.Add(alias);
+                    aliasByKey[key] = alias;
+                    isNew = true;
+                    changed = true;
+                }
+
+                if (!string.Equals(alias.DeviceName, monitor.DeviceName, StringComparison.Ordinal))
+                {
+                    alias.DeviceName = monitor.DeviceName;
+                    changed = true;
+                }
+
+                if (!alias.IsConnected)
+                {
+                    alias.IsConnected = true;
+                    changed = true;
+                    alias.LastSeenAtUtc = now;
+                }
+                else if (isNew && alias.LastSeenAtUtc is null)
+                {
+                    alias.LastSeenAtUtc = now;
+                }
+            }
+
+            var ordered = DisplayAliases
+                .OrderByDescending(alias => alias.IsConnected)
+                .ThenBy(alias => alias.DeviceName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            for (var index = 0; index < ordered.Length; index++)
+            {
+                var currentIndex = DisplayAliases.IndexOf(ordered[index]);
+                if (currentIndex != index)
+                {
+                    DisplayAliases.Move(currentIndex, index);
+                }
+            }
+        }
+        finally
+        {
+            _suppressDisplayAliasUpdates = false;
+        }
+
+        return changed;
+    }
+
+    private void ApplyDisplayAliasesToMonitors()
+    {
+        foreach (var monitor in Monitors)
+        {
+            monitor.DisplayAlias = FindDisplayAlias(monitor.DeviceName);
+        }
+    }
+
+    private void ApplyDisplayAliasesToZones(IEnumerable<ZoneRow> zones)
+    {
+        foreach (var zone in zones)
+        {
+            zone.DisplayAlias = FindDisplayAlias(zone.Id);
+        }
+
+        foreach (var layout in Layouts)
+        {
+            var layoutZones = Zones.Where(zone => string.Equals(zone.LayoutId, layout.Id, StringComparison.OrdinalIgnoreCase));
+            layout.Displays = FormatLayoutDisplaysWithAliases(layoutZones);
+        }
+    }
+
+    private string FindDisplayAlias(string deviceName)
+    {
+        var key = MonitorZoneMatcher.NormalizeZoneId(deviceName);
+        return DisplayAliases.LastOrDefault(alias =>
+            string.Equals(MonitorZoneMatcher.NormalizeZoneId(alias.DeviceName), key, StringComparison.OrdinalIgnoreCase))?.Alias.Trim() ?? "";
+    }
+
+    private string FormatLayoutDisplaysWithAliases(IEnumerable<ZoneRow> zones)
+    {
+        var labels = zones
+            .Where(zone => zone.IsVisible)
+            .Select(zone => string.IsNullOrWhiteSpace(zone.DisplayAlias)
+                ? DisplayLabelFormatter.Format(zone.DisplayName, zone.Id)
+                : zone.DisplayAlias.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return labels.Length == 0 ? "No displays" : string.Join(", ", labels);
     }
 
     private void RefreshDisplayPreview()
@@ -1200,6 +1381,7 @@ public sealed class MainViewModel : ViewModelBase
             Portals,
             Profiles,
             Presets,
+            DisplayAliases,
             Monitors,
             _safetySettings);
 
@@ -1283,6 +1465,16 @@ public sealed class MainViewModel : ViewModelBase
             Presets.Add(preset);
         }
 
+        DisplayAliases.Clear();
+        foreach (var alias in rows.DisplayAliases)
+        {
+            SubscribeDisplayAlias(alias);
+            DisplayAliases.Add(alias);
+        }
+
+        MergeDisplayAliasesWithDetectedMonitors();
+        ApplyDisplayAliasesToMonitors();
+        ApplyDisplayAliasesToZones(Zones);
         FilteredProfiles.Refresh();
         RefreshProfileLayoutNames();
         RefreshDashboardProfiles();
@@ -1419,6 +1611,7 @@ public sealed class MainViewModel : ViewModelBase
             SelectedLayoutPortals.Add(copy);
         }
 
+        ApplyDisplayAliasesToZones(SelectedLayoutZones);
         SelectedZone = SelectedLayoutZones.FirstOrDefault();
         RefreshAvailableLayoutDisplays();
         RefreshLayoutPreviewCanvasSize();
