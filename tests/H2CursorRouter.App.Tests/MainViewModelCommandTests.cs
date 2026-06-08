@@ -239,6 +239,31 @@ public sealed class MainViewModelCommandTests
     }
 
     [Fact]
+    public void RefreshDisplaysUpdatesLastSeenWhenSavedAliasReconnects()
+    {
+        using var fixture = new MainViewModelFixture();
+        var topology = new MonitorTopologyStub();
+        var previousLastSeenAt = DateTimeOffset.Parse("2026-05-24T00:00:00Z");
+        var configuration = new AppConfiguration(
+            [],
+            [],
+            [],
+            SafetySettings.Default,
+            DisplayAliases: [new DisplayAlias("DISPLAY1", "Main wall", previousLastSeenAt)]);
+        var viewModel = fixture.Create(configuration, topology);
+        var disconnectedAlias = Assert.Single(viewModel.DisplayAliases);
+        Assert.False(disconnectedAlias.IsConnected);
+
+        topology.Monitors = [CreateMonitorInfo(@"\\.\DISPLAY1", 0, 0, 100, 100)];
+        viewModel.RefreshDisplays();
+
+        var reconnectedAlias = Assert.Single(viewModel.DisplayAliases);
+        Assert.True(reconnectedAlias.IsConnected);
+        Assert.NotNull(reconnectedAlias.LastSeenAtUtc);
+        Assert.True(reconnectedAlias.LastSeenAtUtc > previousLastSeenAt);
+    }
+
+    [Fact]
     public void RefreshDisplaysCreatesAliaslessDisplayRowForSaving()
     {
         using var fixture = new MainViewModelFixture();

@@ -1240,6 +1240,10 @@ public sealed class MainViewModel : ViewModelBase
                 {
                     alias.IsConnected = isConnected;
                     changed = true;
+                    if (isConnected)
+                    {
+                        alias.LastSeenAtUtc = now;
+                    }
                 }
             }
 
