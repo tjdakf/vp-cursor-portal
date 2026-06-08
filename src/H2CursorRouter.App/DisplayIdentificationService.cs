@@ -104,7 +104,7 @@ public sealed class DisplayIdentificationService : IDisplayIdentificationService
 
         var title = new TextBlock
         {
-            Text = monitor.DeviceName,
+            Text = monitor.DisplayLabel,
             Foreground = MediaBrushes.White,
             FontSize = 42,
             FontWeight = FontWeights.SemiBold,

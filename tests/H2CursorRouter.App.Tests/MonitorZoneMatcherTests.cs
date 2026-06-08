@@ -83,15 +83,47 @@ public sealed class MonitorZoneMatcherTests
     {
         var matcher = new MonitorZoneMatcher();
         var monitor = CreateMonitor(@"\\.\DISPLAY2", 100, 0, 200, 100);
+        monitor.DisplayAlias = "Projector";
 
         var zone = matcher.CreateZoneFromMonitor("layout", monitor);
 
         Assert.Equal("layout", zone.LayoutId);
         Assert.Equal("DISPLAY2", zone.Id);
         Assert.Equal(@"\\.\DISPLAY2", zone.DisplayName);
+        Assert.Equal("Projector", zone.DisplayLabel);
         Assert.Equal(100, zone.WindowsLeft);
         Assert.Equal(200, zone.WindowsRight);
         Assert.True(zone.IsVisible);
+    }
+
+    [Fact]
+    public void DisplayLabelFallsBackToDisplayIdWhenAliasIsEmpty()
+    {
+        var monitor = CreateMonitor("DISPLAY1", 0, 0, 100, 100);
+
+        Assert.Equal("DISPLAY1", monitor.DisplayLabel);
+
+        monitor.DisplayAlias = "Main wall";
+
+        Assert.Equal("Main wall", monitor.DisplayLabel);
+    }
+
+    [Fact]
+    public void DisplayAliasRowDisplayLabelUsesAliasWithFallback()
+    {
+        var row = new DisplayAliasRow
+        {
+            DeviceName = "DISPLAY1"
+        };
+        var changed = new List<string?>();
+        row.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        Assert.Equal("DISPLAY1", row.DisplayLabel);
+
+        row.Alias = "Main wall";
+
+        Assert.Equal("Main wall", row.DisplayLabel);
+        Assert.Contains(nameof(DisplayAliasRow.DisplayLabel), changed);
     }
 
     private static MonitorRow CreateMonitor(string deviceName, int left, int top, int right, int bottom) => new()

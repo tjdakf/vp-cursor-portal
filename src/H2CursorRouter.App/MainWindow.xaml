@@ -305,7 +305,7 @@
                                             <TextBlock Text="Canvas Displays" FontWeight="SemiBold" />
                                             <ComboBox ItemsSource="{Binding AvailableLayoutDisplays}"
                                                       SelectedItem="{Binding SelectedAvailableMonitor}"
-                                                      DisplayMemberPath="DeviceName"
+                                                      DisplayMemberPath="DisplayLabel"
                                                       Height="34"
                                                       MaxDropDownHeight="180"
                                                       Padding="8,3"
@@ -461,6 +461,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="240" />
                     </Grid.RowDefinitions>
                     <Border Style="{StaticResource CardStyle}" Margin="0,0,16,12">
                         <DockPanel>
@@ -471,7 +472,7 @@
                             <TextBlock Text="Displays" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
                         </DockPanel>
                     </Border>
-                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0">
+                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Monitors}">
                                 <ItemsControl.ItemsPanel>
@@ -504,7 +505,7 @@
                                                 </Grid.RowDefinitions>
                                                 <DockPanel>
                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding PrimaryText}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" />
-                                                    <TextBlock Text="{Binding DeviceName}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                                    <TextBlock Text="{Binding DisplayLabel}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
                                                 </DockPanel>
                                                 <TextBlock Grid.Row="1"
                                                            Text="{Binding BoundsText}"
@@ -520,6 +521,32 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
+                    </Border>
+                    <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Display aliases" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
+                            <DataGrid ItemsSource="{Binding DisplayAliases}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False" RowHeight="40">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Display" Binding="{Binding DisplayLabel}" Width="180" IsReadOnly="True" />
+                                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="130" IsReadOnly="True" />
+                                    <DataGridTextColumn Header="Alias" Binding="{Binding Alias, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="*" MinWidth="220" />
+                                    <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeenText}" Width="170" IsReadOnly="True" />
+                                    <DataGridTemplateColumn Header="Saved alias" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding DeleteActionText}"
+                                                        Command="{Binding DataContext.DeleteDisplayAliasCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        MinHeight="28"
+                                                        Padding="8,2"
+                                                        Margin="0" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
                     </Border>
                 </Grid>
             </TabItem>

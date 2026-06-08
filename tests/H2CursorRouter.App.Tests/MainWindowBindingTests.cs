@@ -130,6 +130,7 @@ public sealed class MainWindowBindingTests
     [InlineData("Presets")]
     [InlineData("SelectedPreset")]
     [InlineData("Monitors")]
+    [InlineData("DisplayAliases")]
     [InlineData("DisplayPreviewCanvasWidth")]
     [InlineData("DisplayPreviewCanvasHeight")]
     [InlineData("ValidationErrors")]

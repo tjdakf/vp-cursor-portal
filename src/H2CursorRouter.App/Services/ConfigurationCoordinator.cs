@@ -26,9 +26,10 @@ internal sealed class ConfigurationCoordinator
         IEnumerable<PortalRow> portals,
         IEnumerable<ProfileRow> profiles,
         IEnumerable<PresetRow> presets,
+        IEnumerable<DisplayAliasRow> displayAliases,
         IReadOnlyList<MonitorRow> monitors,
         SafetySettings safetySettings) =>
-        _rowMapper.BuildConfiguration(devices, layouts, zones, portals, profiles, presets, monitors, safetySettings);
+        _rowMapper.BuildConfiguration(devices, layouts, zones, portals, profiles, presets, displayAliases, monitors, safetySettings);
 
     public ValidationResult Validate(AppConfiguration configuration) =>
         _validator.Validate(configuration);

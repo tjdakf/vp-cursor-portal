@@ -23,7 +23,8 @@ internal sealed class ConfigurationRowMapper
             .SelectMany(layout => layout.Portals.Select(portal => PortalRow.FromModel(layout.Id, portal)))
             .ToArray(),
         configuration.Profiles.Select(ProfileRow.FromModel).ToArray(),
-        configuration.PresetCache.Select(PresetRow.FromCachedPreset).ToArray());
+        configuration.PresetCache.Select(PresetRow.FromCachedPreset).ToArray(),
+        configuration.DisplayAliasEntries.Select(DisplayAliasRow.FromModel).ToArray());
 
     public AppConfiguration BuildConfiguration(
         IEnumerable<DeviceRow> devices,
@@ -32,6 +33,7 @@ internal sealed class ConfigurationRowMapper
         IEnumerable<PortalRow> portals,
         IEnumerable<ProfileRow> profiles,
         IEnumerable<PresetRow> presets,
+        IEnumerable<DisplayAliasRow> displayAliases,
         IReadOnlyList<MonitorRow> monitors,
         SafetySettings safetySettings) =>
         new(
@@ -39,7 +41,12 @@ internal sealed class ConfigurationRowMapper
             layouts.Select(layout => BuildLayout(layout, zones, portals, monitors)).ToArray(),
             profiles.Select(profile => profile.ToModel()).ToArray(),
             safetySettings,
-            presets.Select(preset => preset.ToCachedPreset()).ToArray());
+            presets.Select(preset => preset.ToCachedPreset()).ToArray(),
+            displayAliases
+                .Where(alias => !string.IsNullOrWhiteSpace(alias.DeviceName))
+                .GroupBy(alias => MonitorZoneMatcher.NormalizeZoneId(alias.DeviceName), StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last().ToModel())
+                .ToArray());
 
     public CursorLayout BuildLayout(
         LayoutRow layout,
@@ -87,4 +94,5 @@ internal sealed record ConfigurationRows(
     IReadOnlyList<ZoneRow> Zones,
     IReadOnlyList<PortalRow> Portals,
     IReadOnlyList<ProfileRow> Profiles,
-    IReadOnlyList<PresetRow> Presets);
+    IReadOnlyList<PresetRow> Presets,
+    IReadOnlyList<DisplayAliasRow> DisplayAliases);
