@@ -19,7 +19,7 @@ This document keeps the development-oriented material that used to live in the R
 
 ## Current MVP Status
 
-`v0.1.5` is prepared from `main`.
+`v0.1.6` is prepared from `main`.
 
 | Status | Capability |
 |---|---|
@@ -35,6 +35,7 @@ This document keeps the development-oriented material that used to live in the R
 | Done | Dashboard-first WPF workflow for profiles, H2 status, routing status, emergency unlock, layout editing, diagnostics, and logs |
 | Done | Layout editor with detected coordinates, scaled canvas, drag/resize, snapping, and auto portal generation |
 | Done | Display Identify overlays positioned with Win32 physical pixels for negative-coordinate and mixed-DPI monitor layouts |
+| Done | Display aliases with connected/not-detected history while preserving Windows display IDs for routing |
 | Done | Profile execution for H2-only, cursor-layout-only, or combined actions |
 | Done | Portable ZIP and installer artifact generation through GitHub Actions |
 | Deferred | X100 Pro support |
@@ -66,6 +67,7 @@ docs/releases/
   v0.1.3.md
   v0.1.4.md
   v0.1.5.md
+  v0.1.6.md
 
 installer/inno/
   vp-cursor-portal.iss
@@ -493,11 +495,11 @@ The workflow:
 | `vp-cursor-portal-win-x64` | Portable self-contained app folder |
 | `vp-cursor-portal-setup` | Program Files installer |
 
-GitHub Release assets are uploaded only for tags like `v0.1.5`.
+GitHub Release assets are uploaded only for tags like `v0.1.6`.
 
 ## Release Checklist
 
-`v0.1.5` is prepared. Use this checklist to publish and verify the release:
+`v0.1.6` is prepared. Use this checklist to publish and verify the release:
 
 1. Merge the PR branch.
 2. Confirm the latest `Windows Build` workflow passes.
@@ -508,13 +510,13 @@ GitHub Release assets are uploaded only for tags like `v0.1.5`.
 7. Create and push a version tag, for example:
 
 ```bash
-git tag v0.1.5
-git push origin v0.1.5
+git tag v0.1.6
+git push origin v0.1.6
 ```
 
 The tag workflow creates release assets.
 
-For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.5.md`.
+For version tags, the release body is read from `docs/releases/<tag>.md`, for example `docs/releases/v0.1.6.md`.
 
 ## Code Signing And SmartScreen
 

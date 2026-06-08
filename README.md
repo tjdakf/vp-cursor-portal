@@ -6,25 +6,26 @@ Windows cursor routing for NovaStar H Series / H2 video-wall layouts.
 
 ## Download
 
-Latest release: [v0.1.5](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.5)
+Latest release: [v0.1.6](https://github.com/tjdakf/vp-cursor-portal/releases/tag/v0.1.6)
 
 | Asset | Use when |
 |---|---|
-| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.5/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
-| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.5/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
+| [`vp-cursor-portal-setup.exe`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.6/vp-cursor-portal-setup.exe) | You want the normal Windows installer under `Program Files` |
+| [`vp-cursor-portal-win-x64.zip`](https://github.com/tjdakf/vp-cursor-portal/releases/download/v0.1.6/vp-cursor-portal-win-x64.zip) | You want a portable self-contained folder |
 
 The installer and executable are not code-signed yet. Microsoft Defender SmartScreen may show an unknown publisher warning.
 
-## What's New In v0.1.5
+## What's New In v0.1.6
 
-This release improves display identification for mixed-DPI field layouts.
+This release improves display naming for field layouts with multiple Windows displays.
 
-- Identify overlays are positioned with physical monitor pixels after the WPF window handle is created.
-- Negative monitor coordinates are supported, so displays left of or above the primary monitor can be identified correctly.
-- Mixed 4K 150% scaling and FHD 100% scaling layouts no longer rely on WPF's logical-pixel placement for Identify windows.
-- Cursor routing behavior from v0.1.4 is unchanged.
+- Display aliases can be edited from the Displays tab.
+- Aliases are shown in the display preview, layout canvas, Add Display list, layout summaries, and Identify overlays.
+- Original Windows display IDs are preserved internally for routing and monitor rebinding.
+- Saved display history distinguishes connected displays from displays that are not currently detected.
+- Refreshing detected displays preserves aliases and aliasless display history.
 
-Full release notes: [docs/releases/v0.1.5.md](docs/releases/v0.1.5.md)
+Full release notes: [docs/releases/v0.1.6.md](docs/releases/v0.1.6.md)
 
 ## Why This Exists
 
@@ -52,6 +53,7 @@ In that situation, the cursor should move through the visual layout, not through
 | Portals | Auto-generate ratio-mapped portal edges from the layout canvas |
 | Safety | Emergency unlock hotkey and button disable routing immediately |
 | Diagnostics | Display detection, runtime status, logs, and validation messages |
+| Display aliases | Name detected displays without changing the Windows IDs used internally |
 | Packaging | Windows x64 installer and portable ZIP from GitHub Actions |
 
 ## Cursor Routing Model
@@ -82,10 +84,11 @@ This keeps custom layouts independent from Windows' physical or linear monitor a
 2. Add the H2 device host, port, device ID, and timeout settings.
 3. Fetch or enter H2 presets.
 4. Refresh detected Windows displays.
-5. Load displays to the layout canvas.
-6. Arrange the canvas to match the H2 visual output.
-7. Save the layout and create profiles that bind presets, layouts, and hotkeys.
-8. Test routing and emergency unlock before field operation.
+5. Add optional display aliases for easier field identification.
+6. Load displays to the layout canvas.
+7. Arrange the canvas to match the H2 visual output.
+8. Save the layout and create profiles that bind presets, layouts, and hotkeys.
+9. Test routing and emergency unlock before field operation.
 
 ## Safety
 
@@ -172,6 +175,7 @@ docs/releases/
   v0.1.3.md
   v0.1.4.md
   v0.1.5.md
+  v0.1.6.md
 ```
 
 Development architecture notes, diagrams, test guidance, publishing details, and release checklist are kept in [docs/development.md](docs/development.md).
